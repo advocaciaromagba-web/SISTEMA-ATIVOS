@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFormState } from "react-dom";
 import type { Operacao } from "@prisma/client";
 import { salvarOperacao } from "./acoes";
 import type { ResultadoAcao } from "../pessoas/acoes";
 import { Area, BotaoSalvar, Campo, Marcador, Secao, Selecao } from "@/components/campos";
 import { FASES, TIPOS_ATIVO } from "@/lib/documentos/catalogo";
+import { LeitorDocumentos } from "@/components/leitor-documentos";
 
 const inicial: ResultadoAcao = {};
 
@@ -20,11 +21,39 @@ const TRIBUTARIO = ["CREDITO_ICMS", "CREDITO_PIS_COFINS", "CREDITO_TRIBUTARIO", 
 export function FormularioOperacao({ operacao }: { operacao?: Operacao }) {
   const [estado, acao] = useFormState(salvarOperacao, inicial);
   const [tipo, setTipo] = useState(operacao?.tipoAtivo ?? "PRECATORIO");
+  const formulario = useRef<HTMLFormElement>(null);
 
   const numero = (v: unknown) => (v == null ? "" : String(v));
 
+  /** Escreve nos campos o que a leitura do oficio requisitorio trouxe. */
+  function aplicarLeitura(campos: Record<string, string>) {
+    const form = formulario.current;
+    if (!form) return;
+
+    for (const [chave, valor] of Object.entries(campos)) {
+      const campo = form.elements.namedItem(chave);
+      if (campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement || campo instanceof HTMLSelectElement) {
+        campo.value = valor;
+      }
+    }
+
+    // Sem titulo o cadastro nao salva; monta um a partir do que foi lido.
+    const titulo = form.elements.namedItem("titulo");
+    if (titulo instanceof HTMLInputElement && !titulo.value) {
+      const partes = [campos.tribunal, campos.enteDevedor].filter(Boolean);
+      if (partes.length > 0) titulo.value = `Precatório ${partes.join(" — ")}`;
+    }
+
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
-    <form action={acao} className="space-y-5">
+    <div className="space-y-5">
+      {tipo === "PRECATORIO" && (
+        <LeitorDocumentos perfil="OPERACAO_PRECATORIO" aoAplicar={aplicarLeitura} />
+      )}
+
+    <form ref={formulario} action={acao} className="space-y-5">
       {operacao && <input type="hidden" name="id" value={operacao.id} />}
 
       {estado.erro && <div className="aviso-erro">{estado.erro}</div>}
@@ -177,5 +206,6 @@ export function FormularioOperacao({ operacao }: { operacao?: Operacao }) {
         </a>
       </div>
     </form>
+    </div>
   );
 }

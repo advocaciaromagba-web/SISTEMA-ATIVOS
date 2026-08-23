@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFormState } from "react-dom";
 import type { Pessoa } from "@prisma/client";
 import { salvarPessoa, type ResultadoAcao } from "./acoes";
 import { Area, BotaoSalvar, Campo, Marcador, Secao, Selecao } from "@/components/campos";
+import { LeitorDocumentos } from "@/components/leitor-documentos";
 
 const ESTADOS_CIVIS = [
   { valor: "solteiro(a)", rotulo: "Solteiro(a)" },
@@ -19,9 +20,36 @@ const inicial: ResultadoAcao = {};
 export function FormularioPessoa({ pessoa }: { pessoa?: Pessoa }) {
   const [estado, acao] = useFormState(salvarPessoa, inicial);
   const [tipo, setTipo] = useState<"PF" | "PJ">((pessoa?.tipo as "PF" | "PJ") ?? "PF");
+  const formulario = useRef<HTMLFormElement>(null);
+
+  /**
+   * Escreve nos campos o que a leitura aprovou.
+   *
+   * Os campos sao nao controlados (usam defaultValue), entao o preenchimento e
+   * feito direto no elemento. E de proposito: assim o operador continua livre
+   * para editar qualquer valor antes de salvar, e o que a IA sugeriu nao fica
+   * travado.
+   */
+  function aplicarLeitura(campos: Record<string, string>) {
+    const form = formulario.current;
+    if (!form) return;
+
+    for (const [chave, valor] of Object.entries(campos)) {
+      const campo = form.elements.namedItem(chave);
+      if (campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement || campo instanceof HTMLSelectElement) {
+        campo.value = valor;
+      }
+    }
+
+    // Rola ate o primeiro campo preenchido, para a conferencia comecar do topo.
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   return (
-    <form action={acao} className="space-y-5">
+    <div className="space-y-5">
+      <LeitorDocumentos perfil={tipo === "PJ" ? "PESSOA_PJ" : "PESSOA_PF"} aoAplicar={aplicarLeitura} />
+
+    <form ref={formulario} action={acao} className="space-y-5">
       {pessoa && <input type="hidden" name="id" value={pessoa.id} />}
 
       {estado.erro && <div className="aviso-erro">{estado.erro}</div>}
@@ -156,5 +184,6 @@ export function FormularioPessoa({ pessoa }: { pessoa?: Pessoa }) {
         </a>
       </div>
     </form>
+    </div>
   );
 }

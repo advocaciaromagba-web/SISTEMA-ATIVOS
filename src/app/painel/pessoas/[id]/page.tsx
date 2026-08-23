@@ -8,8 +8,10 @@ import { Dossie } from "@/components/dossie";
 import { Certidoes, type ItemCertidao } from "@/components/certidoes";
 import { auditoriaVencida } from "@/lib/auditoria/executar";
 import { conferirCertidoes } from "@/lib/auditoria/criminal";
+import { acessoDaCertidao } from "@/lib/auditoria/links-certidoes";
 import type { Apontamento, Capacidade, Idoneidade } from "@/lib/auditoria/tipos";
 import { dataCurta, dataHora, moeda } from "@/lib/formato";
+import { formatarDocumento } from "@/lib/validacao";
 import { podeEditar } from "@/lib/sessao";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +72,7 @@ export default async function EditarPessoa({ params }: { params: { id: string } 
     obrigatoria: s.exigencia.obrigatoria,
     motivo: s.exigencia.motivo,
     estado: s.estado,
+    acesso: acessoDaCertidao(s.exigencia.tipo.chave, pessoa.enderecoUf, formatarDocumento(pessoa.documento) || null),
     certidao: s.certidao
       ? {
           id: s.certidao.id,
@@ -144,6 +147,7 @@ export default async function EditarPessoa({ params }: { params: { id: string } 
 
       <Certidoes
         pessoaId={pessoa.id}
+        documento={formatarDocumento(pessoa.documento) || null}
         itens={itensCertidao}
         operacoes={partes.map((p) => ({
           id: p.operacao.id,

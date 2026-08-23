@@ -6,6 +6,7 @@ import { excluirCertidao, registrarCertidao } from "@/app/painel/auditoria/certi
 import type { ResultadoAcao } from "@/app/painel/pessoas/acoes";
 import { BotaoSalvar } from "@/components/campos";
 import { ROTULO_NATUREZA } from "@/lib/auditoria/certidoes";
+import { LeitorDocumentos } from "@/components/leitor-documentos";
 
 const inicial: ResultadoAcao = {};
 
@@ -44,6 +45,8 @@ export type ItemCertidao = {
   obrigatoria: boolean;
   motivo: string;
   estado: string;
+  /** Caminho mais curto para tirar esta certidao. */
+  acesso: { url: string; direto: boolean; instrucao: string; captcha: boolean } | null;
   certidao: {
     id: string;
     numero: string | null;
@@ -59,11 +62,14 @@ export type ItemCertidao = {
 
 export function Certidoes({
   pessoaId,
+  documento,
   itens,
   operacoes,
   podeEditar,
 }: {
   pessoaId: string;
+  /** CPF ou CNPJ da parte, para colar no site do orgao. */
+  documento: string | null;
   itens: ItemCertidao[];
   operacoes: Array<{ id: string; codigo: string; titulo: string }>;
   podeEditar: boolean;
@@ -73,6 +79,45 @@ export function Certidoes({
   const [removendo, iniciar] = useTransition();
   const [erro, setErro] = useState("");
   const [resultadoEscolhido, setResultadoEscolhido] = useState("NADA_CONSTA");
+  const [copiado, setCopiado] = useState("");
+
+  /** Copia o documento da parte para colar no site do orgao. */
+  async function copiarDocumento() {
+    if (!documento) return;
+    try {
+      await navigator.clipboard.writeText(documento);
+      setCopiado(documento);
+      setTimeout(() => setCopiado(""), 2500);
+    } catch {
+      setErro("Nao foi possivel copiar. Selecione o numero e copie manualmente.");
+    }
+  }
+
+  /**
+   * Preenche o formulario da certidao aberta com o que a IA leu do PDF.
+   *
+   * O leitor fica fora do formulario de proposito: formulario dentro de
+   * formulario e HTML invalido, e o navegador ignora o de dentro sem avisar.
+   */
+  function aplicarLeitura(campos: Record<string, string>) {
+    if (!aberto) return;
+    const form = document.getElementById(`form-certidao-${aberto}`);
+    if (!(form instanceof HTMLFormElement)) return;
+
+    // O resultado governa quais campos aparecem, entao move o estado do React
+    // antes de escrever nos demais.
+    if (campos.resultado) setResultadoEscolhido(campos.resultado);
+
+    // Espera o React redesenhar para que os campos condicionais existam.
+    setTimeout(() => {
+      for (const [chave, valor] of Object.entries(campos)) {
+        const campo = form.elements.namedItem(chave);
+        if (campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement || campo instanceof HTMLSelectElement) {
+          campo.value = valor;
+        }
+      }
+    }, 0);
+  }
 
   const obrigatoriasPendentes = itens.filter(
     (i) => i.obrigatoria && (i.estado === "FALTA" || i.estado === "VENCIDA" || i.estado === "PENDENTE")
@@ -101,6 +146,23 @@ export function Certidoes({
           qualquer consulta: têm código de autenticidade conferível no órgão.
         </p>
       </div>
+
+      {documento && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 p-3 text-sm">
+          <span className="text-slate-600">Documento da parte:</span>
+          <code className="font-mono text-slate-900">{documento}</code>
+          <button type="button" onClick={copiarDocumento} className="botao-secundario py-1 text-xs">
+            {copiado ? "Copiado" : "Copiar"}
+          </button>
+          <span className="text-xs text-slate-500">Cole no site do órgão — é o único campo que muda.</span>
+        </div>
+      )}
+
+      {aberto && podeEditar && (
+        <div className="mb-4">
+          <LeitorDocumentos perfil="CERTIDAO" aoAplicar={aplicarLeitura} />
+        </div>
+      )}
 
       {erro && <div className="aviso-erro mb-4">{erro}</div>}
       {estado.erro && <div className="aviso-erro mb-4">{estado.erro}</div>}
@@ -199,27 +261,47 @@ export function Certidoes({
 
                   {/* ---- por que e onde tirar ---- */}
                   {!item.certidao && (
-                    <div className="mt-2 text-xs text-slate-600">
+                    <div className="mt-2 space-y-2 text-xs text-slate-600">
                       <p>{item.porQue}</p>
-                      <p className="mt-1">
-                        {item.comoObter}{" "}
-                        {item.url && (
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-medium text-slate-800 underline"
-                          >
-                            abrir site do órgão
-                          </a>
-                        )}
-                      </p>
+
+                      {item.acesso ? (
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                          <p className="text-slate-700">{item.acesso.instrucao}</p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {item.acesso.url && (
+                              <a
+                                href={item.acesso.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="botao-principal py-1 text-xs"
+                              >
+                                {item.acesso.direto ? "Abrir a página da certidão" : "Procurar no site do tribunal"}
+                              </a>
+                            )}
+                            {item.acesso.captcha && (
+                              <span className="etiqueta bg-amber-100 text-amber-800">exige captcha</span>
+                            )}
+                            {!item.acesso.direto && item.acesso.url && (
+                              <span className="text-slate-500">este tribunal usa sistema próprio</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <p>
+                          {item.comoObter}{" "}
+                          {item.url && (
+                            <a href={item.url} target="_blank" rel="noreferrer" className="font-medium underline">
+                              abrir site do órgão
+                            </a>
+                          )}
+                        </p>
+                      )}
                     </div>
                   )}
 
                   {/* ---- formulário ---- */}
                   {aberto === item.chave && podeEditar && (
-                    <form action={acao} className="mt-3 rounded-lg bg-slate-50 p-3">
+                    <form id={`form-certidao-${item.chave}`} action={acao} className="mt-3 rounded-lg bg-slate-50 p-3">
                       <input type="hidden" name="pessoaId" value={pessoaId} />
                       <input type="hidden" name="tipo" value={item.chave} />
 
