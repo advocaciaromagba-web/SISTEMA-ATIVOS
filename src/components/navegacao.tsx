@@ -10,6 +10,7 @@ const ITENS = [
   { href: "/painel/pessoas", rotulo: "Partes" },
   { href: "/painel/documentos", rotulo: "Documentos" },
   { href: "/painel/auditoria", rotulo: "Auditoria" },
+  { href: "/painel/registros", rotulo: "Registros" },
   { href: "/painel/configuracoes", rotulo: "Configurações" },
 ];
 

@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { exigirEdicao } from "@/lib/sessao";
-import { registrar } from "@/lib/auditoria";
+import { registrar } from "@/lib/registro";
 import { somenteAlfanumerico, somenteNumeros, validarDocumento, validarEmail } from "@/lib/validacao";
+import { executarAuditoria } from "@/lib/auditoria/executar";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -114,6 +115,19 @@ export async function salvarPessoa(_anterior: ResultadoAcao, dados: FormData): P
       entidadeId: pessoaId,
       detalhe: { nome },
     });
+  }
+
+  // Todo cadastro passa por auditoria. E aqui, e nao num botao separado, que a
+  // regra se cumpre: quem cadastra nao escolhe se quer auditar.
+  // A falha de uma fonte externa nao pode impedir o cadastro de ser salvo, entao
+  // o erro e engolido e a parte fica marcada como nao auditada.
+  const pessoaSalva = await prisma.pessoa.findUnique({ where: { id: pessoaId } });
+  if (pessoaSalva?.documento) {
+    try {
+      await executarAuditoria({ pessoa: pessoaSalva, usuario, organizacaoId: organizacao.id });
+    } catch (erro) {
+      console.error("Auditoria automatica falhou:", erro);
+    }
   }
 
   revalidatePath("/painel/pessoas");

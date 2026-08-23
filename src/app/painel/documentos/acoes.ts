@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { exigirEdicao } from "@/lib/sessao";
-import { registrar } from "@/lib/auditoria";
+import { registrar } from "@/lib/registro";
 import { gerarDocumento, tipoExiste, CATALOGO_POR_CHAVE } from "@/lib/documentos";
+import { situacaoDaParte } from "@/lib/auditoria/executar";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
@@ -40,6 +41,24 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
     : null;
 
   if (operacaoId && !operacao) return { erro: "Operação não encontrada." };
+
+  // Trava de auditoria na saída: nenhum documento é gerado com parte bloqueada
+  // ou sem auditoria. É o último ponto antes de o papel existir no mundo — e o
+  // documento é justamente o que dá aparência de legitimidade à operação.
+  if (operacao) {
+    const impedidas = operacao.partes
+      .map((p) => ({ nome: p.pessoa.nome, situacao: situacaoDaParte(p.pessoa) }))
+      .filter((p) => !p.situacao.liberada);
+
+    if (impedidas.length > 0) {
+      const lista = impedidas.map((p) => `${p.nome} (${p.situacao.motivo})`).join("; ");
+      return {
+        erro:
+          `A auditoria impede a geração deste documento. ${lista} ` +
+          "Abra o cadastro de cada parte para auditar ou tratar o apontamento.",
+      };
+    }
+  }
 
   const contexto: ContextoDocumento = {
     organizacao,

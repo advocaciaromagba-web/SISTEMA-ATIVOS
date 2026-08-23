@@ -126,7 +126,7 @@ export default async function Configuracoes() {
         <h2 className="mb-3 text-base font-semibold">Registros</h2>
         <p className="text-sm text-slate-600">
           Todo acesso, alteração e documento gerado fica registrado.{" "}
-          <Link href="/painel/auditoria" className="underline">
+          <Link href="/painel/registros" className="underline">
             Ver auditoria
           </Link>
           .

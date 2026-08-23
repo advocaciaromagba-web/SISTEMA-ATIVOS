@@ -62,6 +62,7 @@ model Organizacao {
   operacoes  Operacao[]
   documentos Documento[]
   consultas  Consulta[]
+  auditorias Auditoria[]
   logs       LogAuditoria[]
 
   @@index([statusAssinatura])
@@ -172,16 +173,33 @@ model Pessoa {
   /// Pessoa Exposta Politicamente (Circular Bacen e Lei 9.613/98).
   pep            Boolean  @default(false)
   pepDetalhe     String?
-  /// Resultado consolidado da ultima auditoria: SEM_APONTAMENTO | ATENCAO | RESTRICAO
-  situacaoCompliance String?
-  complianceEm   DateTime?
   observacoes    String?
+
+  // ----- resultado da ultima auditoria -----
+  // Copiado da auditoria mais recente para que a lista e as travas nao
+  // precisem consultar o dossie inteiro a cada tela.
+  /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  situacaoCompliance String?
+  complianceEm       DateTime?
+  /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
+  capacidadePagamento String?
+  /// 0 a 100. Quanto maior, melhor. Serve para ordenar, nao para decidir sozinho.
+  pontuacao          Int?
+
+  /// Enquanto true, a parte nao entra em documento nem em operacao nova.
+  /// E ligada automaticamente quando a auditoria encontra restricao.
+  bloqueada             Boolean   @default(false)
+  /// Liberacao manual de uma parte bloqueada, sempre com justificativa e autor.
+  liberadaPorId         String?
+  liberadaEm            DateTime?
+  justificativaLiberacao String?
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   partes    ParteOperacao[]
   consultas Consulta[]
+  auditorias Auditoria[]
 
   @@index([organizacaoId])
   @@index([organizacaoId, documento])
@@ -247,6 +265,7 @@ model Operacao {
   partes     ParteOperacao[]
   documentos Documento[]
   consultas  Consulta[]
+  auditorias Auditoria[]
 
   @@unique([organizacaoId, codigo])
   @@index([organizacaoId, fase])
@@ -321,6 +340,56 @@ model Documento {
 // AUDITORIA / DUE DILIGENCE
 // ---------------------------------------------------------------------
 
+/// Dossie de auditoria de uma parte: o conjunto de consultas feitas de uma vez,
+/// mais a leitura do que elas significam.
+///
+/// Existe como registro proprio, e nao como campo na Pessoa, porque a auditoria
+/// se repete no tempo: a empresa idonea de hoje pode estar inapta em seis meses,
+/// e a comparacao entre dossies e o que mostra isso.
+model Auditoria {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  pessoaId String
+  pessoa   Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+
+  /// Operacao que motivou a auditoria, quando houver. E dela que sai o valor
+  /// contra o qual a capacidade de pagamento e medida.
+  operacaoId String?
+  operacao   Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+
+  situacao String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+
+  /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  idoneidade String?
+  /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
+  capacidade String?
+  pontuacao  Int?
+
+  /// Leitura do resultado em linguagem simples, para quem nao e do ramo.
+  parecer String?
+  /// Lista estruturada: [{ gravidade, titulo, detalhe, fonte }]
+  apontamentos Json?
+
+  /// Valor considerado na analise de capacidade de pagamento.
+  valorReferencia Decimal? @db.Decimal(18, 2)
+  /// Retrato do cadastro da Receita no momento da auditoria.
+  dadosCadastrais Json?
+
+  /// Fontes que nao puderam ser consultadas (sem chave, fora do ar, sem suporte).
+  fontesIndisponiveis Json?
+
+  solicitadoPorId String?
+  criadoEm    DateTime  @default(now())
+  concluidaEm DateTime?
+
+  consultas Consulta[]
+
+  @@index([organizacaoId, criadoEm])
+  @@index([pessoaId, criadoEm])
+}
+
 /// Uma consulta feita a uma fonte externa (processos, certidoes, bureau).
 /// A resposta bruta fica guardada para servir de prova do que foi consultado
 /// e em que data.
@@ -333,8 +402,10 @@ model Consulta {
   pessoa     Pessoa? @relation(fields: [pessoaId], references: [id], onDelete: SetNull)
   operacaoId String?
   operacao   Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+  auditoriaId String?
+  auditoria   Auditoria? @relation(fields: [auditoriaId], references: [id], onDelete: Cascade)
 
-  fonte     String // DATAJUD | RECEITA_CND | TRABALHISTA_TST | PROTESTO_CENPROT | BUREAU | TRIBUNAL_PRECATORIO | IA_DOCUMENTO
+  fonte     String // RECEITA_CNPJ | CEIS | CNEP | CEPIM | SANCOES_OFAC | DATAJUD | BUREAU | PROTESTO | IA_DOCUMENTO
   parametro String // o que foi consultado: CPF, CNPJ, numero do processo...
 
   status    String @default("PENDENTE") // PENDENTE | CONCLUIDA | ERRO

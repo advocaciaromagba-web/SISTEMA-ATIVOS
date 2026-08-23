@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sessaoAtual } from "@/lib/sessao";
-import { registrar } from "@/lib/auditoria";
+import { registrar } from "@/lib/registro";
 
 /**
  * Entrega o arquivo .docx guardado.

@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { exigirEdicao } from "@/lib/sessao";
-import { registrar } from "@/lib/auditoria";
+import { registrar } from "@/lib/registro";
 import { somenteNumeros, validarNumeroProcessoCnj } from "@/lib/validacao";
+import { situacaoDaParte } from "@/lib/auditoria/executar";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
 const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() ?? "").trim() || null;
@@ -140,6 +141,18 @@ export async function vincularParte(_anterior: ResultadoAcao, dados: FormData): 
     prisma.pessoa.findFirst({ where: { id: pessoaId, organizacaoId: organizacao.id } }),
   ]);
   if (!operacao || !pessoa) return { erro: "Operação ou parte não encontrada." };
+
+  // Trava de auditoria: parte com restricao nao entra em operacao.
+  const situacao = situacaoDaParte(pessoa);
+  if (!situacao.liberada) {
+    return {
+      erro:
+        `${pessoa.nome} não pode ser vinculada: ${situacao.motivo} ` +
+        (situacao.precisaAuditar
+          ? "Abra o cadastro da parte e execute a auditoria."
+          : "Abra o cadastro da parte para ver o dossiê e decidir."),
+    };
+  }
 
   const comissao = decimal(dados, "comissaoPercentual");
   const ordem = texto(dados, "ordemCadeia") ? Number(texto(dados, "ordemCadeia")) : null;

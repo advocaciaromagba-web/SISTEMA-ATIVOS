@@ -54,7 +54,28 @@ Cada documento sai com:
 - espaço para duas testemunhas quando isso torna o documento título executivo;
 - uma impressão digital SHA-256 que prova depois que o arquivo não foi alterado.
 
-**Auditoria** — quem entrou, o que alterou, que documento gerou e baixou, de que
+**Auditoria obrigatória de toda parte** — nenhum cadastro entra em operação sem
+passar por auditoria. Ela roda sozinha ao salvar a parte e responde a duas
+perguntas separadas:
+
+- **A parte é idônea?** Situação cadastral na Receita (ativa, inapta, baixada,
+  suspensa), motivo e data; se o nome cadastrado é mesmo o daquele CNPJ; se quem
+  vai assinar consta no quadro de sócios; tempo de existência da empresa;
+  presença nos cadastros oficiais de empresas punidas (CEIS, CNEP, CEPIM) e nas
+  listas internacionais de sanções.
+- **A parte tem capacidade de pagamento?** Capital social e porte declarados
+  medidos contra o valor da operação, com os tetos legais de MEI, microempresa e
+  empresa de pequeno porte.
+
+Parte com restrição fica **bloqueada**: não entra em operação nem em documento.
+Só o responsável pela empresa pode liberar, e a liberação exige justificativa
+escrita que fica registrada com o nome de quem decidiu — o apontamento continua
+no dossiê. A auditoria vence em 90 dias, porque situação cadastral muda.
+
+Cada dossiê guarda a resposta bruta de cada fonte, com data. É a prova de que a
+diligência foi feita, e do que ela mostrava naquele dia.
+
+**Registros** — quem entrou, o que alterou, que documento gerou e baixou, de que
 endereço. O registro não é editado nem apagado pelo sistema.
 
 **Segurança** — login com limite de tentativas, verificação em duas etapas por
@@ -130,8 +151,9 @@ Estas são as próximas etapas, na ordem em que fazem diferença:
    assinatura direto da tela, com validade jurídica.
 2. **Assinatura paga (Asaas)** — planos, cobrança recorrente por Pix, boleto e
    cartão, e bloqueio automático de inadimplente.
-3. **Auditoria automatizada** — consulta de processos no DataJud (CNJ), certidões
-   públicas e bureau de crédito, com dossiê de risco por parte.
+3. **Bureau de crédito** — é o que falta para a auditoria medir capacidade de
+   pagamento de verdade (protesto, negativação, recuperação judicial) e para
+   cobrir pessoa física. Exige contrato comercial.
 4. **Leitura de documentos por inteligência artificial** — enviar RG, contrato
    social ou ofício do precatório e ter o cadastro preenchido para conferência.
 5. **Cadastro de assinantes** — tela da empresa gestora para criar, suspender e
@@ -168,7 +190,12 @@ src/lib/
   formato.ts                  moeda, percentual e valor por extenso
   marca.ts                    identidade visual, vinda do .env
   auth.ts / sessao.ts         login, duas etapas e separação por assinante
-  auditoria.ts                registro de tudo
+  registro.ts                 registro de tudo o que foi feito
+  auditoria/
+    tipos.ts                  vocabulario: idoneidade, capacidade, apontamento
+    analise.ts                as regras que classificam a parte
+    executar.ts               roda as fontes e grava o dossie
+    fontes/                   Receita, empresas punidas, sancoes, DataJud, bureau
   documentos/
     catalogo.ts               os 16 tipos: para que servem, o que exigem, base legal
     qualificacao.ts           a qualificação das partes nos contratos

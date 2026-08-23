@@ -11,7 +11,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { verify as verificarCodigoOtp } from "otplib";
 import { prisma } from "@/lib/prisma";
-import { registrar } from "@/lib/auditoria";
+import { registrar } from "@/lib/registro";
 
 const MAX_TENTATIVAS = 5;
 const JANELA_MINUTOS = 15;
