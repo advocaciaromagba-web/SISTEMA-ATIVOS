@@ -1,0 +1,388 @@
+// =====================================================================
+// Banco de dados do sistema de intermediacao de ativos.
+// PostgreSQL. Cada assinante e uma "Organizacao" e so enxerga os proprios
+// dados — a separacao e feita em toda consulta pelo organizacaoId.
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------
+// ASSINANTE
+// ---------------------------------------------------------------------
+
+/// Empresa ou profissional que assina a plataforma. E a caixa que isola os
+/// dados: nenhuma consulta do sistema roda sem filtrar por organizacaoId.
+model Organizacao {
+  id           String  @id @default(cuid())
+  nome         String
+  razaoSocial  String?
+  cnpj         String? @unique
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  /// Logo do proprio assinante, usado no cabecalho dos documentos que ele
+  /// gera. Guardado no banco para nao depender de servico de arquivos.
+  logo     Bytes?
+  logoTipo String?
+
+  /// Foro eleito padrao nos contratos gerados por este assinante.
+  foroCidade String?
+  foroUf     String?
+
+  // ----- assinatura paga -----
+  plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
+  statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
+  testeExpiraEm    DateTime?
+  assinaturaAte    DateTime?
+
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  ativa    Boolean  @default(true)
+  criadoEm DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuarios   Usuario[]
+  pessoas    Pessoa[]
+  operacoes  Operacao[]
+  documentos Documento[]
+  consultas  Consulta[]
+  logs       LogAuditoria[]
+
+  @@index([statusAssinatura])
+}
+
+// ---------------------------------------------------------------------
+// USUARIO
+// ---------------------------------------------------------------------
+
+/// Pessoa que entra no sistema. Pertence a uma Organizacao.
+/// Os dados civis (CPF, endereco...) existem porque o usuario costuma
+/// figurar como INTERMEDIARIO nos documentos que ele mesmo gera.
+model Usuario {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  nome         String
+  email        String @unique
+  passwordHash String
+  papel        String @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  /// Administrador da plataforma (equipe da empresa gestora), enxerga o painel
+  /// de assinantes. Nada a ver com "DONO", que e o dono de uma organizacao.
+  admin        Boolean @default(false)
+  ativo        Boolean @default(true)
+
+  telefone     String?
+  cpf          String?
+  rg           String?
+  nacionalidade String? @default("brasileiro(a)")
+  estadoCivil  String?
+  profissao    String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  /// Verificacao em duas etapas (Google Authenticator e semelhantes).
+  totpSegredo   String?
+  totpAtivado   Boolean   @default(false)
+  totpAtivadoEm DateTime?
+  /// Codigos de recuperacao embaralhados, um uso cada.
+  totpRecuperacao String?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  documentosCriados Documento[]    @relation("DocumentoAutor")
+  consultas         Consulta[]
+  logs              LogAuditoria[]
+
+  @@index([organizacaoId])
+}
+
+// ---------------------------------------------------------------------
+// CADASTRO DE PARTES
+// ---------------------------------------------------------------------
+
+/// Qualquer pessoa fisica ou juridica que aparece numa operacao: cedente,
+/// cessionario, intermediario, testemunha, anuente.
+/// A qualificacao completa existe porque e ela que entra nos contratos.
+model Pessoa {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  tipo      String // PF | PJ
+  nome      String // nome civil ou razao social
+  nomeFantasia String?
+  documento String? // CPF ou CNPJ, guardado so com numeros
+  rg        String?
+  orgaoEmissor String?
+  inscricaoEstadual String?
+
+  nacionalidade String? @default("brasileiro(a)")
+  estadoCivil   String?
+  profissao     String?
+  dataNascimento DateTime?
+
+  email    String?
+  telefone String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+  enderecoPais        String? @default("Brasil")
+
+  // ----- representante legal (quando PJ, ou PF representada) -----
+  repNome     String?
+  repCpf      String?
+  repRg       String?
+  repCargo    String?
+  repNacionalidade String?
+  repEstadoCivil   String?
+  repProfissao     String?
+  repEmail    String?
+
+  // ----- compliance / PLD-FT -----
+  /// Pessoa Exposta Politicamente (Circular Bacen e Lei 9.613/98).
+  pep            Boolean  @default(false)
+  pepDetalhe     String?
+  /// Resultado consolidado da ultima auditoria: SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  situacaoCompliance String?
+  complianceEm   DateTime?
+  observacoes    String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  partes    ParteOperacao[]
+  consultas Consulta[]
+
+  @@index([organizacaoId])
+  @@index([organizacaoId, documento])
+}
+
+// ---------------------------------------------------------------------
+// OPERACAO (o negocio sendo intermediado)
+// ---------------------------------------------------------------------
+
+model Operacao {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  /// Codigo curto e sequencial dentro da organizacao: OP-0001.
+  codigo    String
+  titulo    String
+  tipoAtivo String // PRECATORIO | CREDITO_ICMS | CREDITO_PIS_COFINS | CREDITO_TRIBUTARIO | CREDITO_RURAL | CREDAQ | COMMODITY | DIREITO_CREDITORIO | IMOVEL | OUTRO
+  descricao String?
+
+  // ----- numeros do negocio -----
+  moeda             String   @default("BRL")
+  valorFace         Decimal? @db.Decimal(18, 2)
+  desagioPercentual Decimal? @db.Decimal(7, 4)
+  valorNegociado    Decimal? @db.Decimal(18, 2)
+  comissaoPercentual Decimal? @db.Decimal(7, 4)
+  comissaoValor      Decimal? @db.Decimal(18, 2)
+
+  // ----- especifico de precatorio / credito judicial -----
+  tribunal         String?
+  numeroPrecatorio String?
+  numeroProcesso   String?
+  enteDevedor      String?
+  esferaDevedor    String? // FEDERAL | ESTADUAL | MUNICIPAL | AUTARQUIA
+  naturezaCredito  String? // ALIMENTAR | COMUM
+  anoOrcamentario  Int?
+
+  // ----- especifico de credito tributario -----
+  tributo          String?
+  ufCredito        String?
+  processoAdmin    String?
+  homologado       Boolean?
+
+  // ----- especifico de commodity -----
+  produto     String?
+  quantidade  Decimal? @db.Decimal(18, 4)
+  unidade     String?
+  incoterm    String?
+  origem      String?
+  destino     String?
+  embarque    String?
+
+  fase String @default("PROSPECCAO") // PROSPECCAO | NDA | DUE_DILIGENCE | PROPOSTA | CONTRATO | LIQUIDACAO | CONCLUIDA | CANCELADA
+  /// Operacao sob sigilo: so quem esta na lista de acesso enxerga o detalhe.
+  confidencial Boolean @default(true)
+
+  dataPrevista DateTime?
+  encerradaEm  DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  partes     ParteOperacao[]
+  documentos Documento[]
+  consultas  Consulta[]
+
+  @@unique([organizacaoId, codigo])
+  @@index([organizacaoId, fase])
+}
+
+/// Liga uma Pessoa a uma Operacao com um papel. A mesma pessoa pode ter mais
+/// de um papel na mesma operacao (ex: intermediario e representante).
+model ParteOperacao {
+  id         String @id @default(cuid())
+  operacaoId String
+  operacao   Operacao @relation(fields: [operacaoId], references: [id], onDelete: Cascade)
+  pessoaId   String
+  pessoa     Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+
+  papel String // CEDENTE | CESSIONARIO | INTERMEDIARIO | REPRESENTANTE | TESTEMUNHA | ANUENTE | GARANTIDOR | INVESTIDOR
+
+  /// Percentual de comissao desta parte, quando intermediario.
+  comissaoPercentual Decimal? @db.Decimal(7, 4)
+  /// Posicao na cadeia de intermediacao — e o que o NCNDA protege.
+  ordemCadeia Int?
+  observacao  String?
+
+  criadoEm DateTime @default(now())
+
+  @@unique([operacaoId, pessoaId, papel])
+  @@index([pessoaId])
+}
+
+// ---------------------------------------------------------------------
+// DOCUMENTOS
+// ---------------------------------------------------------------------
+
+model Documento {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  operacaoId    String?
+  operacao      Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+
+  tipo   String // NDA | NCNDA | IMFPA | PROCURACAO | MANDATO | CESSAO_CREDITO | CESSAO_DIREITOS | CESSAO_PRECATORIO | LOI | TERMO_COMISSAO | DECLARACAO_ORIGEM | TERMO_QUITACAO | ADITIVO | DISTRATO
+  titulo String
+  versao Int    @default(1)
+
+  /// Retrato dos dados usados na geracao. Guardado para que o documento possa
+  /// ser reproduzido identico mesmo depois de o cadastro mudar.
+  dados Json
+
+  arquivoNome String
+  arquivo     Bytes?
+  /// Impressao digital do arquivo (SHA-256). Permite provar depois que o
+  /// documento nao foi alterado — e parte da credibilidade da plataforma.
+  hashSha256  String?
+
+  status String @default("GERADO") // RASCUNHO | GERADO | ENVIADO_ASSINATURA | ASSINADO | CANCELADO
+
+  assinaturaProvedor   String? // AUTENTIQUE
+  assinaturaProvedorId String?
+  assinaturaLink       String?
+  assinadoEm           DateTime?
+
+  criadoPorId String?
+  criadoPor   Usuario? @relation("DocumentoAutor", fields: [criadoPorId], references: [id], onDelete: SetNull)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([organizacaoId, tipo])
+  @@index([operacaoId])
+}
+
+// ---------------------------------------------------------------------
+// AUDITORIA / DUE DILIGENCE
+// ---------------------------------------------------------------------
+
+/// Uma consulta feita a uma fonte externa (processos, certidoes, bureau).
+/// A resposta bruta fica guardada para servir de prova do que foi consultado
+/// e em que data.
+model Consulta {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  pessoaId   String?
+  pessoa     Pessoa? @relation(fields: [pessoaId], references: [id], onDelete: SetNull)
+  operacaoId String?
+  operacao   Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+
+  fonte     String // DATAJUD | RECEITA_CND | TRABALHISTA_TST | PROTESTO_CENPROT | BUREAU | TRIBUNAL_PRECATORIO | IA_DOCUMENTO
+  parametro String // o que foi consultado: CPF, CNPJ, numero do processo...
+
+  status    String @default("PENDENTE") // PENDENTE | CONCLUIDA | ERRO
+  resultado Json?
+  /// Leitura em linguagem simples do que a consulta encontrou.
+  resumo    String?
+  /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  classificacao String?
+  erro      String?
+
+  solicitadoPorId String?
+  solicitadoPor   Usuario? @relation(fields: [solicitadoPorId], references: [id], onDelete: SetNull)
+
+  criadoEm    DateTime  @default(now())
+  concluidaEm DateTime?
+
+  @@index([organizacaoId, fonte])
+  @@index([pessoaId])
+}
+
+/// Registro de quem fez o que. Nunca e apagado nem editado pelo sistema.
+model LogAuditoria {
+  id            String @id @default(cuid())
+  organizacaoId String?
+  organizacao   Organizacao? @relation(fields: [organizacaoId], references: [id], onDelete: SetNull)
+  usuarioId     String?
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  acao      String // LOGIN | LOGIN_FALHA | CRIAR | EDITAR | EXCLUIR | GERAR_DOCUMENTO | ENVIAR_ASSINATURA | CONSULTAR | EXPORTAR
+  entidade  String?
+  entidadeId String?
+  detalhe   Json?
+
+  ip     String?
+  agente String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([organizacaoId, criadoEm])
+  @@index([entidade, entidadeId])
+}
+
+/// Tentativas de login por e-mail, para travar quem fica testando senha.
+model TentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}

@@ -1,0 +1,9 @@
+Coloque aqui os modelos de documentos que voce ja usa (Word, PDF, imagem).
+
+Pode ser tudo junto, sem organizar. Eu leio, identifico o tipo de cada um
+(NDA, NCNDA, procuracao, cessao...) e adapto o gerador do sistema para
+seguir a SUA redacao, com os campos preenchidos automaticamente a partir
+do cadastro.
+
+Se o modelo tiver dados reais de um cliente, tudo bem: eles servem so para
+eu entender onde cada informacao entra, e nao vao para o sistema.

@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --fonte-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* As cores da marca chegam por <style> no layout, alimentadas pelo .env. */
+  --marca: #0f172a;
+  --marca-escura: #020617;
+  --marca-clara: #e2e8f0;
+  --marca-contraste: #ffffff;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  font-family: var(--fonte-sans);
+}
+
+/* ---------- componentes repetidos ---------- */
+
+.cartao {
+  @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm;
+}
+
+.rotulo {
+  @apply mb-1 block text-sm font-medium text-slate-700;
+}
+
+.campo {
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition
+         focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:bg-slate-100;
+}
+
+.ajuda {
+  @apply mt-1 text-xs text-slate-500;
+}
+
+.botao {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+         transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.botao-principal {
+  @apply botao text-[color:var(--marca-contraste)];
+  background-color: var(--marca);
+}
+.botao-principal:hover:not(:disabled) {
+  background-color: var(--marca-escura);
+}
+
+.botao-secundario {
+  @apply botao border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+}
+
+.botao-perigo {
+  @apply botao border border-red-200 bg-white text-red-700 hover:bg-red-50;
+}
+
+.etiqueta {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+}
+
+.tabela {
+  @apply w-full border-collapse text-sm;
+}
+.tabela thead th {
+  @apply border-b border-slate-200 bg-slate-50 px-3 py-2 text-left font-medium text-slate-600;
+}
+.tabela tbody td {
+  @apply border-b border-slate-100 px-3 py-2.5 align-top;
+}
+.tabela tbody tr:hover {
+  @apply bg-slate-50;
+}
+
+.aviso {
+  @apply rounded-lg border-l-4 p-4 text-sm;
+}
+.aviso-atencao {
+  @apply aviso border-amber-400 bg-amber-50 text-amber-900;
+}
+.aviso-erro {
+  @apply aviso border-red-400 bg-red-50 text-red-900;
+}
+.aviso-info {
+  @apply aviso border-sky-400 bg-sky-50 text-sky-900;
+}
+.aviso-ok {
+  @apply aviso border-emerald-400 bg-emerald-50 text-emerald-900;
+}
