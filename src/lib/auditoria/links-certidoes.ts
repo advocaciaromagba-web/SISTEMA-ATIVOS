@@ -113,11 +113,42 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
         captcha: true,
       };
 
+    case "CADIN_FEDERAL":
+      return {
+        url: "https://cav.receita.fazenda.gov.br/autenticacao/login",
+        direto: true,
+        instrucao:
+          "Só a própria parte consegue tirar: a lei restringe a consulta ao CADIN aos órgãos públicos federais. " +
+          "Peça a ela para entrar no e-CAC com certificado digital ou conta gov.br prata/ouro, e enviar o PDF.",
+        captcha: false,
+      };
+
+    case "DIVIDA_ATIVA_ESTADUAL": {
+      if (!estado) {
+        return {
+          url: "",
+          direto: false,
+          instrucao: "Cadastre a UF da parte para que o sistema aponte a Secretaria da Fazenda certa.",
+          captcha: true,
+        };
+      }
+      return {
+        url: `https://www.google.com/search?q=${encodeURIComponent(`certidão negativa débitos estaduais sefaz ${estado}`)}`,
+        direto: false,
+        instrucao:
+          `Secretaria da Fazenda de ${estado}. Num precatório estadual, tire também a do estado que deve o ` +
+          "precatório: é ali que a compensação acontece.",
+        captcha: true,
+      };
+    }
+
     case "CNDT":
       return {
         url: "https://cndt-certidao.tst.jus.br/inicio.faces",
         direto: true,
-        instrucao: "Informe o CPF/CNPJ, resolva o captcha e clique em 'Emitir certidão'. Sai em PDF na hora.",
+        instrucao:
+          "Informe o CPF/CNPJ, resolva o captcha e clique em 'Emitir certidão'. Sai em PDF na hora. É esta " +
+          "certidão que consulta o Banco Nacional de Devedores Trabalhistas — o BNDT não tem base aberta.",
         captcha: true,
       };
 

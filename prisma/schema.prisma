@@ -481,6 +481,77 @@ model Certidao {
   @@index([pessoaId, tipo])
 }
 
+// ---------------------------------------------------------------------
+// DIVIDA ATIVA DA UNIAO
+// ---------------------------------------------------------------------
+
+/// Inscricao em divida ativa da Uniao, vinda dos dados abertos da PGFN.
+///
+/// POR QUE OS DADOS FICAM AQUI DENTRO, E NAO SAO CONSULTADOS AO VIVO:
+/// o portal Divida Aberta da PGFN usa hCaptcha invisivel e recusa robo. Mas a
+/// propria PGFN publica a base inteira em dados abertos, por trimestre, em
+/// https://dadosabertos.pgfn.gov.br — feita para uso em massa. Baixamos,
+/// carregamos aqui e consultamos localmente: legitimo, instantaneo e sem
+/// depender de site no ar.
+///
+/// ATENCAO AO CPF: nos arquivos publicos o CNPJ vem completo, mas o CPF vem
+/// MASCARADO (XXX878.325XX). Para pessoa fisica so da para casar os seis
+/// digitos do meio mais o nome — e isso levanta suspeita, nao identifica.
+model DividaAtivaUniao {
+  id String @id @default(cuid())
+
+  /// Documento como veio no arquivo, so com numeros e letras.
+  documento String
+  /// Os seis digitos visiveis do CPF mascarado. Nulo quando e CNPJ.
+  cpfMiolo  String?
+  tipoPessoa String // PF | PJ
+
+  nome           String
+  nomeNormalizado String // sem acento, maiusculas — para casar pessoa fisica
+  uf             String?
+
+  /// FGTS | PREVIDENCIARIO | NAO_PREVIDENCIARIO
+  tipoDivida String
+
+  numeroInscricao String
+  /// Em cobranca | Beneficio Fiscal | Garantia
+  tipoSituacao    String?
+  /// INSCRITA | AJUIZADA | PROTESTADA | EMBARGADA | PARCELAMENTO...
+  situacao        String?
+  receitaPrincipal String?
+  dataInscricao   DateTime?
+  ajuizado        Boolean  @default(false)
+  valorConsolidado Decimal  @db.Decimal(18, 2)
+
+  /// Trimestre de origem do arquivo: 2026_trimestre_02.
+  origem String
+
+  @@index([documento])
+  @@index([cpfMiolo])
+  @@index([nomeNormalizado])
+}
+
+/// Controle das cargas de dados abertos, para o sistema saber o que ja tem e
+/// o que ficou de fora — e poder dizer isso no parecer.
+model CargaDados {
+  id String @id @default(cuid())
+
+  fonte      String // PGFN_DIVIDA_ATIVA
+  /// FGTS | PREVIDENCIARIO | NAO_PREVIDENCIARIO
+  conjunto   String
+  /// Trimestre carregado: 2026_trimestre_02.
+  referencia String
+
+  situacao   String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+  registros  Int    @default(0)
+  erro       String?
+
+  iniciadaEm  DateTime  @default(now())
+  concluidaEm DateTime?
+
+  @@unique([fonte, conjunto])
+}
+
 /// Registro de quem fez o que. Nunca e apagado nem editado pelo sistema.
 model LogAuditoria {
   id            String @id @default(cuid())

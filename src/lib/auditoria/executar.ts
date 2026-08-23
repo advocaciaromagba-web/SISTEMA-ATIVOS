@@ -13,6 +13,7 @@ import { consultarPunicoes } from "./fontes/transparencia";
 import { consultarSancoes } from "./fontes/sancoes";
 import { consultarBureau } from "./fontes/bureau";
 import { consultarProcesso } from "./fontes/datajud";
+import { consultarDividaAtiva } from "./fontes/divida-ativa";
 import { consolidar } from "./analise";
 import { conferirCertidoes, apontamentosDasCertidoes } from "./criminal";
 import type { ResultadoAuditoria, ResultadoFonte } from "./tipos";
@@ -73,7 +74,7 @@ export async function executarAuditoria(params: {
   });
 
   // ----- consultas, todas ao mesmo tempo -----
-  const [receita, punicoes, sancoes, bureau, processo] = await Promise.all([
+  const [receita, punicoes, sancoes, bureau, processo, dividaAtiva] = await Promise.all([
     ehPJ && documento
       ? consultarReceita(documento)
       : Promise.resolve(null),
@@ -81,6 +82,14 @@ export async function executarAuditoria(params: {
     consultarSancoes(pessoa.nome),
     documento ? consultarBureau(documento, ehPJ ? "PJ" : "PF", valorReferencia) : Promise.resolve(null),
     operacao?.numeroProcesso ? consultarProcesso(operacao.numeroProcesso) : Promise.resolve(null),
+    documento
+      ? consultarDividaAtiva({
+          documento,
+          tipoPessoa: ehPJ ? "PJ" : "PF",
+          nome: pessoa.nome,
+          valorOperacao: valorReferencia,
+        })
+      : Promise.resolve(null),
   ]);
 
   const fontes: ResultadoFonte[] = [];
@@ -88,6 +97,7 @@ export async function executarAuditoria(params: {
   fontes.push(...punicoes);
   fontes.push(sancoes);
   if (bureau) fontes.push(bureau);
+  if (dividaAtiva) fontes.push(dividaAtiva);
   if (processo) fontes.push(processo);
 
   if (!documento) {

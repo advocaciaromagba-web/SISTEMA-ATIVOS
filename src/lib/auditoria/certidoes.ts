@@ -179,13 +179,46 @@ export const CATALOGO_CERTIDOES: TipoCertidao[] = [
   },
   {
     chave: "CNDT",
-    nome: "Certidão Negativa de Débitos Trabalhistas",
+    nome: "Certidão Negativa de Débitos Trabalhistas (BNDT)",
     orgao: "Tribunal Superior do Trabalho",
     eixo: "TRABALHISTA",
-    porQue: "Débito trabalhista tem preferência sobre quase todos os outros e pode bloquear o crédito.",
-    comoObter: "Emissão gratuita e imediata no site do TST.",
+    porQue:
+      "É a consulta ao Banco Nacional de Devedores Trabalhistas — quem tem execução trabalhista definitiva não " +
+      "paga aparece nele. Crédito trabalhista tem preferência sobre quase todos os outros e pode bloquear o " +
+      "crédito negociado antes que a cessão produza efeito.",
+    comoObter:
+      "Emissão gratuita e imediata no site do TST. O BNDT não é publicado em base aberta: a certidão é o único " +
+      "jeito de consultá-lo.",
     url: "https://cndt-certidao.tst.jus.br/",
     validadeDias: 180,
+    aplicaA: "AMBAS",
+  },
+  {
+    chave: "CADIN_FEDERAL",
+    nome: "Extrato do CADIN Federal",
+    orgao: "Receita Federal (e-CAC)",
+    eixo: "FISCAL",
+    porQue:
+      "O CADIN reúne as pendências da parte com órgãos federais. Inscrição nele impede repasses e contratações " +
+      "com a União, e sinaliza débito que pode ser compensado contra o precatório.",
+    comoObter:
+      "O CADIN não é consultável por terceiros: a Lei 10.522/1997 restringe o acesso aos órgãos da administração " +
+      "federal. Só a própria parte tira o extrato, entrando no e-CAC com certificado digital ou conta gov.br " +
+      "nível prata ou ouro. Peça a ela o PDF.",
+    url: "https://cav.receita.fazenda.gov.br/autenticacao/login",
+    validadeDias: 90,
+    aplicaA: "AMBAS",
+  },
+  {
+    chave: "DIVIDA_ATIVA_ESTADUAL",
+    nome: "Certidão Negativa de Débitos Estaduais",
+    orgao: "Secretaria da Fazenda e Procuradoria do estado",
+    eixo: "FISCAL",
+    porQue:
+      "Num precatório estadual, débito da parte com o mesmo estado que deve o precatório pode ser compensado " +
+      "direto contra o crédito — o comprador paga e o valor não chega.",
+    comoObter: "No site da Secretaria da Fazenda do estado de domicílio e, quando houver, também do estado devedor.",
+    validadeDias: 90,
     aplicaA: "AMBAS",
   },
 
@@ -286,7 +319,9 @@ export function exigenciasDe(params: {
     incluir("FALENCIA_RECUPERACAO", true, "Recuperação judicial limita a disponibilidade do patrimônio.");
     incluir("PROTESTO", false, "Indica dificuldade financeira do cedente.");
     incluir("CND_FEDERAL", ehPrecatorio, "Débito federal pode ser compensado contra o precatório.");
-    incluir("CNDT", ehPrecatorio, "Débito trabalhista tem preferência e pode bloquear o crédito.");
+    incluir("CNDT", ehPrecatorio, "Consulta ao Banco Nacional de Devedores Trabalhistas.");
+    incluir("CADIN_FEDERAL", false, "Pendências com órgãos federais; só a própria parte consegue tirar.");
+    incluir("DIVIDA_ATIVA_ESTADUAL", ehPrecatorio, "Débito estadual pode ser compensado contra precatório do mesmo estado.");
     incluir("OBJETO_E_PE", ehJudicial, "Prova de que o crédito existe e de quem é.");
     incluir("CERTIDAO_PRECATORIO", ehPrecatorio, "Mostra cessões já averbadas e penhoras no rosto dos autos.");
   }
@@ -297,7 +332,7 @@ export function exigenciasDe(params: {
     incluir("ANTECEDENTES_PF", false, "Conhecimento da contraparte (PLD/FT).");
     incluir("IMPROBIDADE_CNJ", false, "Conhecimento da contraparte.");
     incluir("CND_FEDERAL", ehPrecatorio, "O tribunal costuma exigir do cessionário na habilitação.");
-    incluir("CNDT", false, "Complementa a análise de regularidade.");
+    incluir("CNDT", false, "Consulta ao Banco Nacional de Devedores Trabalhistas.");
   }
 
   if (papel === "INTERMEDIARIO") {
