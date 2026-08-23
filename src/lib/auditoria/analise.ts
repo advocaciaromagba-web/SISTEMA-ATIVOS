@@ -464,6 +464,8 @@ export function consolidar(params: {
   pep: boolean;
   valorReferencia: number | null;
   fontes: ResultadoFonte[];
+  /** Apontamentos vindos das certidões apresentadas pela parte. */
+  apontamentosExtras?: Apontamento[];
 }): ResultadoAuditoria {
   const { nome, tipo, dadosCadastrais: d, representante, pep, valorReferencia, fontes } = params;
 
@@ -471,6 +473,9 @@ export function consolidar(params: {
 
   // Tudo o que as fontes já apontaram por conta própria.
   for (const f of fontes) apontamentos.push(...f.apontamentos);
+
+  // O que as certidões apresentadas revelaram (ou o que falta apresentar).
+  apontamentos.push(...(params.apontamentosExtras ?? []));
 
   // Regras que dependem do cadastro da Receita.
   if (d) {

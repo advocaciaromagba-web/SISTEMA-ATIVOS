@@ -63,6 +63,7 @@ model Organizacao {
   documentos Documento[]
   consultas  Consulta[]
   auditorias Auditoria[]
+  certidoes  Certidao[]
   logs       LogAuditoria[]
 
   @@index([statusAssinatura])
@@ -200,6 +201,7 @@ model Pessoa {
   partes    ParteOperacao[]
   consultas Consulta[]
   auditorias Auditoria[]
+  certidoes Certidao[]
 
   @@index([organizacaoId])
   @@index([organizacaoId, documento])
@@ -266,6 +268,7 @@ model Operacao {
   documentos Documento[]
   consultas  Consulta[]
   auditorias Auditoria[]
+  certidoes  Certidao[]
 
   @@unique([organizacaoId, codigo])
   @@index([organizacaoId, fase])
@@ -424,6 +427,58 @@ model Consulta {
 
   @@index([organizacaoId, fonte])
   @@index([pessoaId])
+}
+
+/// Certidao exigida de uma parte e o que ela revelou.
+///
+/// Existe porque nenhuma base criminal publica e consultavel por robo: o BNMP
+/// exige autenticacao, a Policia Federal esta atras de protecao anti-robo e a
+/// consulta de improbidade do CNJ tem captcha. O caminho que funciona e exigir
+/// a certidao da propria parte, guardar o arquivo e travar a operacao enquanto
+/// faltar.
+model Certidao {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  pessoaId String
+  pessoa   Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+
+  /// Operacao que exigiu esta certidao, quando for exigencia especifica dela.
+  operacaoId String?
+  operacao   Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+
+  /// Chave do catalogo em src/lib/auditoria/certidoes.ts
+  tipo         String
+  orgaoEmissor String?
+  numero       String?
+
+  emitidaEm DateTime?
+  validaAte DateTime?
+
+  /// PENDENTE | NADA_CONSTA | CONSTA
+  resultado String @default("PENDENTE")
+
+  /// O que exatamente consta, quando consta.
+  apontamento String?
+
+  /// A distincao que muda tudo na leitura de uma certidao criminal:
+  /// NENHUMA | PROCESSO_EM_CURSO | CONDENACAO_TRANSITADA | MANDADO_ABERTO |
+  /// MEDIDA_CONSTRITIVA | OUTRO
+  /// Processo em curso nao e condenacao (presuncao de inocencia; Sum. 444 STJ).
+  natureza String @default("NENHUMA")
+
+  arquivo     Bytes?
+  arquivoNome String?
+  arquivoTipo String?
+  hashSha256  String?
+
+  registradaPorId String?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([organizacaoId, pessoaId])
+  @@index([pessoaId, tipo])
 }
 
 /// Registro de quem fez o que. Nunca e apagado nem editado pelo sistema.

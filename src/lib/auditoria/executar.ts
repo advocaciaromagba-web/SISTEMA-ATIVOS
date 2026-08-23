@@ -14,6 +14,7 @@ import { consultarSancoes } from "./fontes/sancoes";
 import { consultarBureau } from "./fontes/bureau";
 import { consultarProcesso } from "./fontes/datajud";
 import { consolidar } from "./analise";
+import { conferirCertidoes, apontamentosDasCertidoes } from "./criminal";
 import type { ResultadoAuditoria, ResultadoFonte } from "./tipos";
 
 /** Valor contra o qual a capacidade de pagamento é medida. */
@@ -50,6 +51,27 @@ export async function executarAuditoria(params: {
   const documento = pessoa.documento ?? "";
   const ehPJ = pessoa.tipo === "PJ";
 
+  // Papel da parte: o da operação auditada; sem operação, o mais exigente que
+  // ela ocupa em qualquer operação. Cedente puxa a lista pesada de certidões.
+  const vinculos = await prisma.parteOperacao.findMany({
+    where: { pessoaId: pessoa.id, ...(operacao ? { operacaoId: operacao.id } : {}) },
+    select: { papel: true },
+  });
+  const papeis = vinculos.map((v) => v.papel);
+  const papel = papeis.includes("CEDENTE") ? "CEDENTE" : (papeis[0] ?? "CEDENTE");
+
+  const certidoes = await prisma.certidao.findMany({
+    where: { pessoaId: pessoa.id, organizacaoId },
+    orderBy: { criadoEm: "desc" },
+  });
+
+  const situacoesCertidoes = conferirCertidoes({
+    tipoPessoa: ehPJ ? "PJ" : "PF",
+    papel,
+    tipoAtivo: operacao?.tipoAtivo ?? null,
+    certidoes,
+  });
+
   // ----- consultas, todas ao mesmo tempo -----
   const [receita, punicoes, sancoes, bureau, processo] = await Promise.all([
     ehPJ && documento
@@ -57,7 +79,7 @@ export async function executarAuditoria(params: {
       : Promise.resolve(null),
     documento ? consultarPunicoes(documento) : Promise.resolve([]),
     consultarSancoes(pessoa.nome),
-    documento ? consultarBureau(documento) : Promise.resolve(null),
+    documento ? consultarBureau(documento, ehPJ ? "PJ" : "PF", valorReferencia) : Promise.resolve(null),
     operacao?.numeroProcesso ? consultarProcesso(operacao.numeroProcesso) : Promise.resolve(null),
   ]);
 
@@ -95,6 +117,7 @@ export async function executarAuditoria(params: {
     pep: pessoa.pep,
     valorReferencia,
     fontes,
+    apontamentosExtras: apontamentosDasCertidoes(situacoesCertidoes),
   });
 
   // ----- grava as consultas como prova do que foi visto -----

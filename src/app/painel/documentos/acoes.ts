@@ -7,6 +7,7 @@ import { exigirEdicao } from "@/lib/sessao";
 import { registrar } from "@/lib/registro";
 import { gerarDocumento, tipoExiste, CATALOGO_POR_CHAVE } from "@/lib/documentos";
 import { situacaoDaParte } from "@/lib/auditoria/executar";
+import { conferirCertidoes, pendenciasObrigatorias } from "@/lib/auditoria/criminal";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
@@ -56,6 +57,42 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
         erro:
           `A auditoria impede a geração deste documento. ${lista} ` +
           "Abra o cadastro de cada parte para auditar ou tratar o apontamento.",
+      };
+    }
+
+    // Segunda trava: certidões obrigatórias do papel de cada parte. Num
+    // precatório, a lista criminal do cedente é obrigatória — é o ativo mais
+    // usado para tirar patrimônio do alcance da Justiça.
+    const certidoesPorPessoa = await prisma.certidao.findMany({
+      where: {
+        organizacaoId: organizacao.id,
+        pessoaId: { in: operacao.partes.map((p) => p.pessoaId) },
+      },
+    });
+
+    const semCertidao: string[] = [];
+
+    for (const parte of operacao.partes) {
+      const pendentes = pendenciasObrigatorias(
+        conferirCertidoes({
+          tipoPessoa: parte.pessoa.tipo === "PJ" ? "PJ" : "PF",
+          papel: parte.papel,
+          tipoAtivo: operacao.tipoAtivo,
+          certidoes: certidoesPorPessoa.filter((c) => c.pessoaId === parte.pessoaId),
+        })
+      );
+
+      if (pendentes.length > 0) {
+        semCertidao.push(`${parte.pessoa.nome}: ${pendentes.join(", ")}`);
+      }
+    }
+
+    if (semCertidao.length > 0) {
+      return {
+        erro:
+          "Faltam certidões obrigatórias antes de gerar este documento. " +
+          `${semCertidao.join(" | ")}. ` +
+          "A lista com o endereço de cada órgão está na tela da parte, em Certidões.",
       };
     }
   }
