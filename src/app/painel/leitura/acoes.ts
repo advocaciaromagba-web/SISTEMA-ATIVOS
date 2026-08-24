@@ -5,6 +5,7 @@ import { registrar } from "@/lib/registro";
 import { iaConfigurada } from "@/lib/ia/claude";
 import { lerDocumentos, type Perfil, type ResultadoLeitura } from "@/lib/ia/leitura";
 import { consultarReceita } from "@/lib/auditoria/fontes/receita";
+import { registrarConsumo } from "../avulsos/acoes";
 
 export type ResultadoLeituraAcao = {
   erro?: string;
@@ -96,6 +97,10 @@ export async function lerArquivos(
       );
     }
   }
+
+  // Leitura de documento consome cota do plano — e o que passar disso vira
+  // compra avulsa. Contabilizar aqui e o que permite avisar antes de cobrar.
+  await registrarConsumo(organizacao.id, "LEITURA_IA");
 
   await registrar({
     acao: "CONSULTAR",

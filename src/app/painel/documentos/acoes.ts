@@ -13,6 +13,7 @@ import type { Apontamento } from "@/lib/auditoria/tipos";
 import type { DadosDiligencia } from "@/lib/documentos/geradores/diligencia";
 import { identificacao, nomeCurto, qualificar } from "@/lib/documentos/qualificacao";
 import { PAPEIS } from "@/lib/documentos/catalogo";
+import { registrarConsumo } from "../avulsos/acoes";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
@@ -244,6 +245,8 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
       criadoPorId: usuario.id,
     },
   });
+
+  await registrarConsumo(organizacao.id, "DOCUMENTO");
 
   await registrar({
     acao: "GERAR_DOCUMENTO",

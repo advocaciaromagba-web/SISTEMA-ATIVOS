@@ -64,6 +64,8 @@ model Organizacao {
   consultas  Consulta[]
   auditorias Auditoria[]
   certidoes  Certidao[]
+  pedidos    Pedido[]
+  consumos   Consumo[]
   logs       LogAuditoria[]
 
   @@index([statusAssinatura])
@@ -202,6 +204,7 @@ model Pessoa {
   consultas Consulta[]
   auditorias Auditoria[]
   certidoes Certidao[]
+  pedidos   Pedido[]
 
   @@index([organizacaoId])
   @@index([organizacaoId, documento])
@@ -269,6 +272,7 @@ model Operacao {
   consultas  Consulta[]
   auditorias Auditoria[]
   certidoes  Certidao[]
+  pedidos    Pedido[]
 
   @@unique([organizacaoId, codigo])
   @@index([organizacaoId, fase])
@@ -550,6 +554,90 @@ model CargaDados {
   concluidaEm DateTime?
 
   @@unique([fonte, conjunto])
+}
+
+// ---------------------------------------------------------------------
+// COMPRAS AVULSAS E CONSUMO
+// ---------------------------------------------------------------------
+
+/// Compra avulsa: uma consulta, uma assinatura eletronica ou uma due
+/// diligence, pagas por unidade e nao pela mensalidade.
+///
+/// Existe porque nem todo trabalho cabe em plano: quem faz duas operacoes por
+/// ano nao assina mensalidade, mas paga por uma due diligence quando precisa —
+/// e o assinante que estoura o incluido no plano tambem compra avulso em vez
+/// de ser obrigado a subir de faixa.
+model Pedido {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  /// Numero curto e sequencial: PD-0001.
+  numero String
+
+  /// Chave do catalogo em src/lib/avulsos.ts
+  item      String
+  descricao String
+  quantidade Int     @default(1)
+  valorUnitario Decimal @db.Decimal(18, 2)
+  valorTotal    Decimal @db.Decimal(18, 2)
+
+  /// A que a compra se refere, quando aplicavel.
+  pessoaId   String?
+  pessoa     Pessoa?   @relation(fields: [pessoaId], references: [id], onDelete: SetNull)
+  operacaoId String?
+  operacao   Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+
+  /// AGUARDANDO_PAGAMENTO | PAGO | EM_EXECUCAO | ENTREGUE | CANCELADO | ESTORNADO
+  situacao String @default("AGUARDANDO_PAGAMENTO")
+
+  // ----- pagamento -----
+  asaasCobrancaId String?
+  linkPagamento   String?
+  formaPagamento  String? // PIX | BOLETO | CARTAO
+  pagoEm          DateTime?
+
+  // ----- entrega -----
+  /// Prazo prometido, em dias uteis, conforme o catalogo.
+  prazoUteis   Int?
+  prometidoAte DateTime?
+  entregueEm   DateTime?
+  /// Documento gerado como resultado, quando houver.
+  documentoId  String?
+  /// Resultado de consulta avulsa, quando nao gera documento.
+  resultado    Json?
+
+  observacao String?
+
+  solicitadoPorId String?
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([organizacaoId, numero])
+  @@index([organizacaoId, situacao])
+}
+
+/// Quanto de cada coisa o assinante usou no mes.
+///
+/// E o que permite dizer "voce ja usou 100 das 100 leituras incluidas" antes de
+/// cobrar avulso — e nao depois. Cobranca surpresa em software de assinatura e
+/// o caminho mais rapido para o cancelamento.
+model Consumo {
+  id            String @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  /// LEITURA_IA | ASSINATURA | BUREAU | DOCUMENTO
+  tipo String
+  /// Mes de referencia no formato AAAA-MM.
+  competencia String
+
+  quantidade Int @default(0)
+
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([organizacaoId, tipo, competencia])
+  @@index([organizacaoId, competencia])
 }
 
 /// Registro de quem fez o que. Nunca e apagado nem editado pelo sistema.
