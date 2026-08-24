@@ -74,7 +74,7 @@ export default async function EditarPessoa({ params }: { params: { id: string } 
     motivo: s.exigencia.motivo,
     estado: s.estado,
     acesso: acessoDaCertidao(s.exigencia.tipo.chave, pessoa.enderecoUf, formatarDocumento(pessoa.documento) || null),
-    emissaoAutomatica: temEmissaoAutomatica(s.exigencia.tipo.chave),
+    emissaoAutomatica: temEmissaoAutomatica(s.exigencia.tipo.chave, pessoa.enderecoUf),
     certidao: s.certidao
       ? {
           id: s.certidao.id,

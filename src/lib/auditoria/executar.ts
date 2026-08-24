@@ -14,6 +14,7 @@ import { consultarSancoes } from "./fontes/sancoes";
 import { consultarBureau } from "./fontes/bureau";
 import { consultarProcesso } from "./fontes/datajud";
 import { consultarDividaAtiva } from "./fontes/divida-ativa";
+import { consultarImprobidade, consultarMandadosPrisao, infosimplesConfigurado } from "./fontes/infosimples";
 import { consolidar } from "./analise";
 import { conferirCertidoes, apontamentosDasCertidoes } from "./criminal";
 import type { ResultadoAuditoria, ResultadoFonte } from "./tipos";
@@ -74,7 +75,15 @@ export async function executarAuditoria(params: {
   });
 
   // ----- consultas, todas ao mesmo tempo -----
-  const [receita, punicoes, sancoes, bureau, processo, dividaAtiva] = await Promise.all([
+  // Dados que as consultas de tribunal exigem, montados uma vez so.
+  const dadosDaParte = {
+    documento,
+    nome: pessoa.nome,
+    dataNascimento: pessoa.dataNascimento,
+    uf: pessoa.enderecoUf,
+  };
+
+  const [receita, punicoes, sancoes, bureau, processo, dividaAtiva, mandados, improbidade] = await Promise.all([
     ehPJ && documento
       ? consultarReceita(documento)
       : Promise.resolve(null),
@@ -90,6 +99,11 @@ export async function executarAuditoria(params: {
           valorOperacao: valorReferencia,
         })
       : Promise.resolve(null),
+    // O BNMP so existe para pessoa fisica; a improbidade vale para as duas.
+    documento && !ehPJ && infosimplesConfigurado()
+      ? consultarMandadosPrisao(dadosDaParte)
+      : Promise.resolve(null),
+    documento && infosimplesConfigurado() ? consultarImprobidade(dadosDaParte) : Promise.resolve(null),
   ]);
 
   const fontes: ResultadoFonte[] = [];
@@ -98,6 +112,8 @@ export async function executarAuditoria(params: {
   fontes.push(sancoes);
   if (bureau) fontes.push(bureau);
   if (dividaAtiva) fontes.push(dividaAtiva);
+  if (mandados) fontes.push(mandados);
+  if (improbidade) fontes.push(improbidade);
   if (processo) fontes.push(processo);
 
   if (!documento) {

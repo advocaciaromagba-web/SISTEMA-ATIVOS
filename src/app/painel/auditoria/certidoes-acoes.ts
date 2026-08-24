@@ -188,7 +188,12 @@ export async function emitirCertidaoAutomatica(
   const definicao = CERTIDAO_POR_CHAVE[chaveCertidao];
   if (!definicao) return { erro: "Tipo de certidao desconhecido." };
 
-  if (!temEmissaoAutomatica(chaveCertidao)) {
+  const pessoaParaUf = await prisma.pessoa.findFirst({
+    where: { id: pessoaId, organizacaoId: organizacao.id },
+    select: { enderecoUf: true },
+  });
+
+  if (!temEmissaoAutomatica(chaveCertidao, pessoaParaUf?.enderecoUf ?? null)) {
     return {
       erro:
         "Esta certidao ainda nao tem emissao automatica. Configure INFOSIMPLES_TOKEN no .env, " +
@@ -202,9 +207,12 @@ export async function emitirCertidaoAutomatica(
 
   const emissao = await emitirCertidao({
     chaveCertidao,
-    documento: pessoa.documento,
-    nome: pessoa.nome,
-    uf: pessoa.enderecoUf,
+    parte: {
+      documento: pessoa.documento,
+      nome: pessoa.nome,
+      dataNascimento: pessoa.dataNascimento,
+      uf: pessoa.enderecoUf,
+    },
   });
 
   if (!emissao.ok) return { erro: `Nao foi possivel emitir: ${emissao.erro}` };
@@ -227,7 +235,7 @@ export async function emitirCertidaoAutomatica(
       natureza: certidao.natureza,
       // O comprovante fica no endereco devolvido pela consulta; guardamos a
       // resposta inteira como prova do que foi visto e quando.
-      arquivoNome: certidao.comprovante ? "comprovante-consulta-automatica" : null,
+      arquivoNome: certidao.comprovantes.length > 0 ? "comprovante-consulta-automatica" : null,
       registradaPorId: usuario.id,
     },
   });
@@ -243,7 +251,7 @@ export async function emitirCertidaoAutomatica(
       certidao: definicao.nome,
       emissaoAutomatica: true,
       resultado: certidao.resultado,
-      comprovante: certidao.comprovante,
+      comprovantes: certidao.comprovantes,
       custo: certidao.custo,
     },
   });
