@@ -347,6 +347,32 @@ export const CATALOGO: TipoDocumento[] = [
     ordem: 140,
   },
   {
+    chave: "RELATORIO_DILIGENCIA",
+    nome: "Relatório de Due Diligence",
+    paraQueServe:
+      "Consolida num documento assinado tudo o que a auditoria encontrou sobre as partes e sobre o ativo — e, " +
+      "com o mesmo destaque, o que não foi possível verificar. É o que se entrega ao comprador, ao investidor " +
+      "ou ao comitê que precisa decidir.",
+    papeisObrigatorios: [],
+    papeisOpcionais: ["CEDENTE", "CESSIONARIO", "INTERMEDIARIO", "GARANTIDOR", "INVESTIDOR"],
+    baseLegal: [
+      "Lei 9.613/1998, art. 10 (conheça seu cliente)",
+      "Código Civil, art. 422 (boa-fé objetiva nas tratativas)",
+      "Lei 13.709/2018, arts. 7º e 9º (tratamento de dados)",
+    ],
+    campos: [
+      { chave: "solicitante", rotulo: "Solicitante do relatório", tipo: "texto", ajuda: "Quem pediu a análise. Em branco, usa o nome da sua empresa." },
+      { chave: "responsavelNome", rotulo: "Quem assina o relatório", tipo: "texto", obrigatorio: true },
+      { chave: "responsavelCargo", rotulo: "Cargo de quem assina", tipo: "texto", padrao: "Responsável pela análise de contraparte" },
+      { chave: "responsavelRegistro", rotulo: "Registro profissional", tipo: "texto", ajuda: "OAB, CRC ou outro, quando houver." },
+      { chave: "validadeDias", rotulo: "Validade do relatório (dias)", tipo: "numero", padrao: 30 },
+    ],
+    alerta:
+      "Relatório assinado é documento pelo qual alguém responde. Confira cada achado antes de assinar, e não " +
+      "remova a seção que diz o que não foi verificado — é ela que delimita a sua responsabilidade.",
+    ordem: 145,
+  },
+  {
     chave: "ADITIVO",
     nome: "Termo Aditivo",
     paraQueServe: "Altera um contrato já assinado sem refazê-lo do zero.",

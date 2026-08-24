@@ -12,6 +12,7 @@ import path from "path";
 import type { Operacao, Organizacao, ParteOperacao, Pessoa, Usuario } from "@prisma/client";
 import { gerarDocumento, documentosOrdenados } from "@/lib/documentos";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
+import { qualificar, identificacao } from "@/lib/documentos/qualificacao";
 
 /**
  * Gera um jogo completo de documentos com dados de exemplo, para conferência.
@@ -235,6 +236,13 @@ const CAMPOS: Record<string, Record<string, string>> = {
     pep: "nao",
   },
   FICHA_KYC: { finalidade: "Análise de contraparte em operação de cessão de precatório" },
+  RELATORIO_DILIGENCIA: {
+    solicitante: "Horizonte Capital FIDC",
+    responsavelNome: "Ricardo Alvares",
+    responsavelCargo: "Responsável pela análise de contraparte",
+    responsavelRegistro: "",
+    validadeDias: "30",
+  },
   ADITIVO: {
     contratoOriginal: "o Instrumento Particular de Cessão de Precatório",
     dataOriginal: "10/07/2026",
@@ -248,6 +256,83 @@ const CAMPOS: Record<string, Record<string, string>> = {
 };
 
 
+
+// Dossie de exemplo para o relatorio de due diligence.
+const DILIGENCIA = {
+  solicitante: "Horizonte Capital FIDC",
+  responsavel: { nome: "Ricardo Alvares", cargo: "Responsavel pela analise de contraparte", registro: null },
+  validadeDias: 30,
+  partes: [
+    {
+      nome: cedente.nome,
+      papel: "Cedente",
+      documento: cedente.documento,
+      qualificacao: qualificar(cedente),
+      identificacao: identificacao(cedente),
+      idoneidade: "ATENCAO",
+      capacidade: "NAO_AVALIADA",
+      pontuacao: 76,
+      parecer:
+        "Nao foi encontrada restricao de idoneidade em " + cedente.nome + " nas fontes consultadas. A capacidade " +
+        "de pagamento nao pode ser medida: pessoa fisica nao tem base publica gratuita de situacao financeira. " +
+        "Nao foram consultadas: bureau de credito. O resultado vale apenas para as fontes que responderam.",
+      auditadaEm: new Date(),
+      apontamentos: [
+        {
+          gravidade: "MEDIA",
+          eixo: "IDONEIDADE",
+          titulo: "Processo em curso, sem transito em julgado",
+          detalhe:
+            "Apurado em Certidao de Distribuicao Criminal. Consta: acao penal 0001234-56.2023.8.26.0100, 2a Vara " +
+            "Criminal, art. 171 do CP, em instrucao. Processo em andamento NAO e condenacao — a parte e presumida " +
+            "inocente. Serve para conhecer o cenario e decidir se pede garantia adicional.",
+          fonte: "Tribunal de Justica do estado de domicilio",
+        },
+        {
+          gravidade: "MEDIA",
+          eixo: "CAPACIDADE",
+          titulo: "Restricoes financeiras nao verificadas",
+          detalhe:
+            "Sem contrato com bureau, o sistema nao enxerga protestos, pendencias financeiras nem recuperacao " +
+            "judicial. Exija as certidoes de protesto e de distribuicao civel.",
+          fonte: "Bureau de credito",
+        },
+      ],
+      fontes: [
+        { fonte: "DIVIDA_ATIVA_UNIAO", status: "CONCLUIDA", resumo: "Nada consta na divida ativa da Uniao.", consultadaEm: new Date() },
+        { fonte: "SANCOES_OFAC", status: "CONCLUIDA", resumo: "Nenhuma coincidencia nas listas de sancoes.", consultadaEm: new Date() },
+        { fonte: "BUREAU", status: "INDISPONIVEL", resumo: "Bureau nao contratado.", consultadaEm: null },
+      ],
+      certidoes: [
+        { nome: "Certidao de Antecedentes Criminais", orgao: "Policia Federal", resultado: "NADA_CONSTA", natureza: "NENHUMA", apontamento: null, emitidaEm: new Date(), validaAte: new Date(Date.now()+90*86400000), obrigatoria: true, estado: "OK" },
+        { nome: "Consulta ao Banco Nacional de Mandados de Prisao", orgao: "Conselho Nacional de Justica", resultado: "NADA_CONSTA", natureza: "NENHUMA", apontamento: null, emitidaEm: new Date(), validaAte: new Date(Date.now()+30*86400000), obrigatoria: true, estado: "OK" },
+        { nome: "Certidao de Distribuicao Criminal — Justica Estadual", orgao: "Tribunal de Justica", resultado: "CONSTA", natureza: "PROCESSO_EM_CURSO", apontamento: "Acao penal 0001234-56.2023.8.26.0100, art. 171 do CP, em instrucao", emitidaEm: new Date(), validaAte: new Date(Date.now()+90*86400000), obrigatoria: true, estado: "APONTAMENTO" },
+        { nome: "Certidao de Situacao do Precatorio", orgao: "Tribunal onde o precatorio esta inscrito", resultado: "PENDENTE", natureza: "NENHUMA", apontamento: null, emitidaEm: null, validaAte: null, obrigatoria: true, estado: "FALTA" },
+      ],
+    },
+    {
+      nome: cessionario.nome,
+      papel: "Cessionario",
+      documento: cessionario.documento,
+      qualificacao: qualificar(cessionario),
+      identificacao: identificacao(cessionario),
+      idoneidade: "SEM_APONTAMENTO",
+      capacidade: "SUFICIENTE",
+      pontuacao: 88,
+      parecer: "Nao foi encontrada restricao. Capacidade compativel com o valor da operacao.",
+      auditadaEm: new Date(),
+      apontamentos: [],
+      fontes: [
+        { fonte: "RECEITA_CNPJ", status: "CONCLUIDA", resumo: "Situacao ATIVA.", consultadaEm: new Date() },
+        { fonte: "DIVIDA_ATIVA_UNIAO", status: "CONCLUIDA", resumo: "Nada consta.", consultadaEm: new Date() },
+      ],
+      certidoes: [
+        { nome: "Certidao Negativa de Debitos Federais", orgao: "Receita Federal e PGFN", resultado: "NADA_CONSTA", natureza: "NENHUMA", apontamento: null, emitidaEm: new Date(), validaAte: new Date(Date.now()+180*86400000), obrigatoria: true, estado: "OK" },
+      ],
+    },
+  ],
+};
+
 async function principal() {
   const destino = path.join(process.cwd(), "exemplos");
   await fs.mkdir(destino, { recursive: true });
@@ -260,6 +345,7 @@ async function principal() {
       usuario,
       campos: CAMPOS[definicao.chave] ?? {},
       agora: new Date(),
+      diligencia: definicao.chave === "RELATORIO_DILIGENCIA" ? (DILIGENCIA as never) : undefined,
     };
 
     try {

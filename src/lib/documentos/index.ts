@@ -24,6 +24,7 @@ import {
 } from "./geradores/cessao";
 import { gerarTermoComissao, gerarTermoQuitacao, gerarAditivo, gerarDistrato } from "./geradores/encerramento";
 import { gerarDeclaracaoOrigem, gerarFichaKyc } from "./geradores/compliance";
+import { gerarRelatorioDiligencia } from "./geradores/diligencia";
 
 type Gerador = (ctx: ContextoDocumento) => MontagemDocumento;
 
@@ -44,6 +45,7 @@ const GERADORES: Record<string, Gerador> = {
   DISTRATO: gerarDistrato,
   DECLARACAO_ORIGEM: gerarDeclaracaoOrigem,
   FICHA_KYC: gerarFichaKyc,
+  RELATORIO_DILIGENCIA: gerarRelatorioDiligencia,
 };
 
 export function tipoExiste(tipo: string): boolean {

@@ -22,6 +22,12 @@ export type ContextoDocumento = {
   /** Campos preenchidos na tela de geração, conforme o catálogo. */
   campos: Record<string, string>;
   agora: Date;
+  /**
+   * Dossiê consolidado, carregado só quando o documento é o relatório de due
+   * diligence. Fica fora do resto porque exige varrer auditorias, consultas e
+   * certidões de todas as partes — trabalho que nenhum outro documento faz.
+   */
+  diligencia?: import("./geradores/diligencia").DadosDiligencia;
 };
 
 // ---------------------------------------------------------------------

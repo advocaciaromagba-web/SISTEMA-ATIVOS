@@ -8,8 +8,97 @@ import { registrar } from "@/lib/registro";
 import { gerarDocumento, tipoExiste, CATALOGO_POR_CHAVE } from "@/lib/documentos";
 import { situacaoDaParte } from "@/lib/auditoria/executar";
 import { conferirCertidoes, pendenciasObrigatorias } from "@/lib/auditoria/criminal";
+import type { Pessoa } from "@prisma/client";
+import type { Apontamento } from "@/lib/auditoria/tipos";
+import type { DadosDiligencia } from "@/lib/documentos/geradores/diligencia";
+import { identificacao, nomeCurto, qualificar } from "@/lib/documentos/qualificacao";
+import { PAPEIS } from "@/lib/documentos/catalogo";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import type { ResultadoAcao } from "../pessoas/acoes";
+
+/**
+ * Junta, para o relatório de due diligence, tudo o que já foi apurado sobre
+ * cada parte: a última auditoria, as consultas que a embasaram e as certidões
+ * apresentadas.
+ *
+ * É montado na hora de gerar, e não guardado pronto, porque o relatório precisa
+ * refletir o estado atual — inclusive as certidões que venceram desde a última
+ * auditoria.
+ */
+async function montarDiligencia(
+  operacao: { id: string; tipoAtivo: string; partes: Array<{ papel: string; pessoa: Pessoa }> },
+  organizacaoId: string,
+  campos: Record<string, string>,
+  nomePadraoResponsavel: string
+): Promise<DadosDiligencia> {
+  const partes: DadosDiligencia["partes"] = [];
+
+  for (const vinculo of operacao.partes) {
+    const pessoa = vinculo.pessoa;
+
+    const [auditoria, certidoes] = await Promise.all([
+      prisma.auditoria.findFirst({
+        where: { pessoaId: pessoa.id, organizacaoId, situacao: "CONCLUIDA" },
+        orderBy: { criadoEm: "desc" },
+        include: { consultas: true },
+      }),
+      prisma.certidao.findMany({
+        where: { pessoaId: pessoa.id, organizacaoId },
+        orderBy: { criadoEm: "desc" },
+      }),
+    ]);
+
+    const situacoes = conferirCertidoes({
+      tipoPessoa: pessoa.tipo === "PJ" ? "PJ" : "PF",
+      papel: vinculo.papel,
+      tipoAtivo: operacao.tipoAtivo,
+      certidoes,
+    });
+
+    partes.push({
+      nome: nomeCurto(pessoa),
+      papel: PAPEIS[vinculo.papel as keyof typeof PAPEIS]?.replace(/ \(.*\)$/, "") ?? vinculo.papel,
+      documento: pessoa.documento,
+      qualificacao: qualificar(pessoa),
+      identificacao: identificacao(pessoa),
+      idoneidade: auditoria?.idoneidade ?? null,
+      capacidade: auditoria?.capacidade ?? null,
+      pontuacao: auditoria?.pontuacao ?? null,
+      parecer: auditoria?.parecer ?? null,
+      auditadaEm: auditoria?.criadoEm ?? null,
+      apontamentos: ((auditoria?.apontamentos ?? []) as unknown as Apontamento[]) ?? [],
+      fontes:
+        auditoria?.consultas.map((c) => ({
+          fonte: c.fonte,
+          status: c.status,
+          resumo: c.resumo,
+          consultadaEm: c.concluidaEm ?? c.criadoEm,
+        })) ?? [],
+      certidoes: situacoes.map((s) => ({
+        nome: s.exigencia.tipo.nome,
+        orgao: s.exigencia.tipo.orgao,
+        resultado: s.certidao?.resultado ?? "PENDENTE",
+        natureza: s.certidao?.natureza ?? "NENHUMA",
+        apontamento: s.certidao?.apontamento ?? null,
+        emitidaEm: s.certidao?.emitidaEm ?? null,
+        validaAte: s.certidao?.validaAte ?? null,
+        obrigatoria: s.exigencia.obrigatoria,
+        estado: s.estado,
+      })),
+    });
+  }
+
+  return {
+    partes,
+    responsavel: {
+      nome: campos.responsavelNome?.trim() || nomePadraoResponsavel,
+      cargo: campos.responsavelCargo?.trim() || "Responsável pela análise de contraparte",
+      registro: campos.responsavelRegistro?.trim() || null,
+    },
+    solicitante: campos.solicitante?.trim() || null,
+    validadeDias: Number(campos.validadeDias) > 0 ? Number(campos.validadeDias) : 30,
+  };
+}
 
 /**
  * Gera o documento e guarda o arquivo no banco.
@@ -43,10 +132,16 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
 
   if (operacaoId && !operacao) return { erro: "Operação não encontrada." };
 
+  // O relatório de due diligence é o único documento que atravessa as travas.
+  // Ele não cria obrigação para ninguém: ele DESCREVE a situação, inclusive a
+  // ruim. Bloqueá-lo por falta de certidão seria impedir de escrever no laudo
+  // justamente que a certidão falta.
+  const ehRelatorio = tipo === "RELATORIO_DILIGENCIA";
+
   // Trava de auditoria na saída: nenhum documento é gerado com parte bloqueada
   // ou sem auditoria. É o último ponto antes de o papel existir no mundo — e o
   // documento é justamente o que dá aparência de legitimidade à operação.
-  if (operacao) {
+  if (operacao && !ehRelatorio) {
     const impedidas = operacao.partes
       .map((p) => ({ nome: p.pessoa.nome, situacao: situacaoDaParte(p.pessoa) }))
       .filter((p) => !p.situacao.liberada);
@@ -103,6 +198,12 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
     usuario,
     campos,
     agora: new Date(),
+    // O relatório de due diligence é o único documento que precisa varrer o
+    // histórico inteiro de auditoria e certidões de cada parte.
+    diligencia:
+      tipo === "RELATORIO_DILIGENCIA" && operacao
+        ? await montarDiligencia(operacao, organizacao.id, campos, usuario.nome)
+        : undefined,
   };
 
   let gerado;
