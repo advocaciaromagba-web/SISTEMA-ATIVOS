@@ -26,7 +26,17 @@ async function tentar(candidatos, context, next) {
   throw ultimoErro;
 }
 
+/** Modulos do Next que nao existem fora do servidor dele. */
+const SUBSTITUTOS = {
+  "next/headers": "./stub-next-headers.mjs",
+};
+
 export async function resolve(specifier, context, next) {
+  const substituto = SUBSTITUTOS[specifier];
+  if (substituto) {
+    return next(new URL(substituto, import.meta.url).href, context);
+  }
+
   // "@/lib/marca" -> file:///.../src/lib/marca.ts
   if (specifier.startsWith("@/")) {
     const base = RAIZ_SRC + specifier.slice(2);
