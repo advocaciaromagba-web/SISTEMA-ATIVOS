@@ -15,6 +15,7 @@ const config: Config = {
           escura: "var(--marca-escura)",
           clara: "var(--marca-clara)",
           contraste: "var(--marca-contraste)",
+          destaque: "var(--marca-destaque)",
         },
       },
       fontFamily: {

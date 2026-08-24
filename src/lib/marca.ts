@@ -38,10 +38,21 @@ export const marca = {
     escura: env("MARCA_COR_ESCURA", "#020617"),
     clara: env("MARCA_COR_CLARA", "#e2e8f0"),
     contraste: env("MARCA_COR_CONTRASTE", "#ffffff"),
+    /// Cor de destaque, usada com parcimônia: um dourado que aparece em tudo
+    /// deixa de ser destaque e vira ruído.
+    destaque: env("MARCA_COR_DESTAQUE", "#c9a84c"),
   },
 };
 
 /** Bloco de estilo que injeta as cores da marca como variaveis CSS. */
 export function variaveisDeCor(): string {
-  return `:root{--marca:${marca.cores.principal};--marca-escura:${marca.cores.escura};--marca-clara:${marca.cores.clara};--marca-contraste:${marca.cores.contraste};}`;
+  return (
+    ":root{" +
+    `--marca:${marca.cores.principal};` +
+    `--marca-escura:${marca.cores.escura};` +
+    `--marca-clara:${marca.cores.clara};` +
+    `--marca-contraste:${marca.cores.contraste};` +
+    `--marca-destaque:${marca.cores.destaque};` +
+    "}"
+  );
 }

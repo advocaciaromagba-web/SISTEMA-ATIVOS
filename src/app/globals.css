@@ -9,6 +9,7 @@
   --marca-escura: #020617;
   --marca-clara: #e2e8f0;
   --marca-contraste: #ffffff;
+  --marca-destaque: #c9a84c;
 }
 
 body {
@@ -46,6 +47,15 @@ body {
 }
 .botao-principal:hover:not(:disabled) {
   background-color: var(--marca-escura);
+}
+
+/* Usado em selo, filete e realce — nunca em area grande. */
+.destaque {
+  color: var(--marca-destaque);
+}
+
+.filete-destaque {
+  border-left: 3px solid var(--marca-destaque);
 }
 
 .botao-secundario {
