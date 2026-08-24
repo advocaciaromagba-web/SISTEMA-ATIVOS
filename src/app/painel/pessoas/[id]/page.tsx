@@ -9,6 +9,7 @@ import { Certidoes, type ItemCertidao } from "@/components/certidoes";
 import { auditoriaVencida } from "@/lib/auditoria/executar";
 import { conferirCertidoes } from "@/lib/auditoria/criminal";
 import { acessoDaCertidao } from "@/lib/auditoria/links-certidoes";
+import { temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
 import type { Apontamento, Capacidade, Idoneidade } from "@/lib/auditoria/tipos";
 import { dataCurta, dataHora, moeda } from "@/lib/formato";
 import { formatarDocumento } from "@/lib/validacao";
@@ -73,6 +74,7 @@ export default async function EditarPessoa({ params }: { params: { id: string } 
     motivo: s.exigencia.motivo,
     estado: s.estado,
     acesso: acessoDaCertidao(s.exigencia.tipo.chave, pessoa.enderecoUf, formatarDocumento(pessoa.documento) || null),
+    emissaoAutomatica: temEmissaoAutomatica(s.exigencia.tipo.chave),
     certidao: s.certidao
       ? {
           id: s.certidao.id,

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useFormState } from "react-dom";
-import { excluirCertidao, registrarCertidao } from "@/app/painel/auditoria/certidoes-acoes";
+import { emitirCertidaoAutomatica, excluirCertidao, registrarCertidao } from "@/app/painel/auditoria/certidoes-acoes";
 import type { ResultadoAcao } from "@/app/painel/pessoas/acoes";
 import { BotaoSalvar } from "@/components/campos";
 import { ROTULO_NATUREZA } from "@/lib/auditoria/certidoes";
@@ -45,6 +45,8 @@ export type ItemCertidao = {
   obrigatoria: boolean;
   motivo: string;
   estado: string;
+  /** A plataforma consegue emitir esta certidao sozinha? */
+  emissaoAutomatica: boolean;
   /** Caminho mais curto para tirar esta certidao. */
   acesso: { url: string; direto: boolean; instrucao: string; captcha: boolean } | null;
   certidao: {
@@ -136,6 +138,14 @@ export function Certidoes({
     });
   }
 
+  function emitir(chave: string) {
+    setErro("");
+    iniciar(async () => {
+      const r = await emitirCertidaoAutomatica(pessoaId, chave);
+      if (r.erro) setErro(r.erro);
+    });
+  }
+
   return (
     <section className="cartao">
       <div className="mb-4">
@@ -202,15 +212,26 @@ export function Certidoes({
                     </div>
 
                     {podeEditar && (
-                      <button
-                        onClick={() => {
-                          setAberto(aberto === item.chave ? null : item.chave);
-                          setResultadoEscolhido("NADA_CONSTA");
-                        }}
-                        className="botao-secundario py-1 text-xs"
-                      >
-                        {item.certidao ? "Substituir" : "Registrar"}
-                      </button>
+                      <div className="flex gap-2">
+                        {item.emissaoAutomatica && (
+                          <button
+                            onClick={() => emitir(item.chave)}
+                            disabled={removendo}
+                            className="botao-principal py-1 text-xs disabled:opacity-50"
+                          >
+                            {removendo ? "Emitindo..." : "Emitir agora"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setAberto(aberto === item.chave ? null : item.chave);
+                            setResultadoEscolhido("NADA_CONSTA");
+                          }}
+                          className="botao-secundario py-1 text-xs"
+                        >
+                          {item.certidao ? "Substituir" : "Registrar"}
+                        </button>
+                      </div>
                     )}
                   </div>
 

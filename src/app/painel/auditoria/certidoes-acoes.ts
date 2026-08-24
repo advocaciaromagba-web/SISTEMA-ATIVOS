@@ -7,6 +7,7 @@ import { exigirEdicao } from "@/lib/sessao";
 import { registrar } from "@/lib/registro";
 import { executarAuditoria } from "@/lib/auditoria/executar";
 import { CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
+import { emitirCertidao, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
 const LIMITE_ARQUIVO = 10 * 1024 * 1024; // 10 MB
@@ -167,5 +168,93 @@ export async function excluirCertidao(id: string): Promise<ResultadoAcao> {
   }
 
   revalidatePath(`/painel/pessoas/${certidao.pessoaId}`);
+  return { ok: true };
+}
+
+/**
+ * Emite a certidao automaticamente pela Infosimples e ja registra o resultado.
+ *
+ * O comprovante devolvido pela consulta e guardado como prova. A leitura do
+ * resultado e conservadora: qualquer registro devolvido vira CONSTA, para
+ * conferencia humana. Errar para o lado do alerta e barato; errar para o lado
+ * do "nada consta" e o erro que quebra a operacao.
+ */
+export async function emitirCertidaoAutomatica(
+  pessoaId: string,
+  chaveCertidao: string
+): Promise<ResultadoAcao> {
+  const { usuario, organizacao } = await exigirEdicao();
+
+  const definicao = CERTIDAO_POR_CHAVE[chaveCertidao];
+  if (!definicao) return { erro: "Tipo de certidao desconhecido." };
+
+  if (!temEmissaoAutomatica(chaveCertidao)) {
+    return {
+      erro:
+        "Esta certidao ainda nao tem emissao automatica. Configure INFOSIMPLES_TOKEN no .env, " +
+        "ou emita pelo link do orgao e registre o arquivo.",
+    };
+  }
+
+  const pessoa = await prisma.pessoa.findFirst({ where: { id: pessoaId, organizacaoId: organizacao.id } });
+  if (!pessoa) return { erro: "Parte nao encontrada." };
+  if (!pessoa.documento) return { erro: "Cadastre o CPF ou CNPJ da parte antes de emitir a certidao." };
+
+  const emissao = await emitirCertidao({
+    chaveCertidao,
+    documento: pessoa.documento,
+    nome: pessoa.nome,
+    uf: pessoa.enderecoUf,
+  });
+
+  if (!emissao.ok) return { erro: `Nao foi possivel emitir: ${emissao.erro}` };
+
+  const { certidao } = emissao;
+
+  const validaAte = new Date(Date.now() + definicao.validadeDias * 86400000);
+
+  const criada = await prisma.certidao.create({
+    data: {
+      organizacaoId: organizacao.id,
+      pessoaId,
+      tipo: chaveCertidao,
+      orgaoEmissor: definicao.orgao,
+      numero: certidao.numero,
+      emitidaEm: new Date(),
+      validaAte,
+      resultado: certidao.resultado,
+      apontamento: certidao.apontamento,
+      natureza: certidao.natureza,
+      // O comprovante fica no endereco devolvido pela consulta; guardamos a
+      // resposta inteira como prova do que foi visto e quando.
+      arquivoNome: certidao.comprovante ? "comprovante-consulta-automatica" : null,
+      registradaPorId: usuario.id,
+    },
+  });
+
+  await registrar({
+    acao: "CONSULTAR",
+    organizacaoId: organizacao.id,
+    usuarioId: usuario.id,
+    entidade: "Certidao",
+    entidadeId: criada.id,
+    detalhe: {
+      parte: pessoa.nome,
+      certidao: definicao.nome,
+      emissaoAutomatica: true,
+      resultado: certidao.resultado,
+      comprovante: certidao.comprovante,
+      custo: certidao.custo,
+    },
+  });
+
+  try {
+    await executarAuditoria({ pessoa, operacao: null, usuario, organizacaoId: organizacao.id });
+  } catch (erro) {
+    console.error("Reauditoria apos emissao automatica falhou:", erro);
+  }
+
+  revalidatePath(`/painel/pessoas/${pessoaId}`);
+  revalidatePath("/painel/auditoria");
   return { ok: true };
 }
