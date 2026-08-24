@@ -19,6 +19,8 @@ export default withAuth({
  */
 export const config = {
   matcher: [
-    "/((?!login|api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)",
+    // O `.+` no fim (em vez de `.*`) deixa a raiz "/" de fora: ela é a página
+    // pública de apresentação. As demais páginas públicas estão nomeadas.
+    "/((?!login|api|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
   ],
 };
