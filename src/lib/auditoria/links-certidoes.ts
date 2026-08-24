@@ -1,10 +1,14 @@
 /**
- * Onde tirar cada certidão, com o caminho mais curto possível.
+ * Onde tirar cada certidão à mão, quando não há emissão automática.
  *
  * Testadas em agosto de 2026: CNDT, CENPROT, e-SAJ dos tribunais e a consulta
  * de improbidade do CNJ exigem captcha; a Polícia Federal está atrás de
- * proteção anti-robô. Ou seja, emitir automaticamente está fora de alcance
- * legítimo. O que dá para fazer — e é o que este arquivo resolve — é encurtar
+ * proteção anti-robô. Acesso direto, portanto, não existe.
+ *
+ * COM A INFOSIMPLES CONTRATADA, boa parte destas certidões passa a ser emitida
+ * pelo próprio sistema (ver fontes/infosimples-servicos.ts) e este arquivo vira
+ * a saída para o que sobrou: tribunais sem cobertura, CADIN e casos em que a
+ * consulta automática falha. O que dá para fazer — e é o que este arquivo resolve — é encurtar
  * o caminho: link para a página certa (não para a home do tribunal), o número
  * do documento pronto para colar, e a instrução do que clicar lá dentro.
  *

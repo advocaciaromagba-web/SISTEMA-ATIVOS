@@ -86,6 +86,8 @@ export default async function EditarPessoa({ params }: { params: { id: string } 
           apontamento: s.certidao.apontamento,
           arquivoNome: s.certidao.arquivoNome,
           temArquivo: s.certidao.arquivoNome != null,
+          emissaoAutomatica: s.certidao.emissaoAutomatica,
+          comprovanteUrl: s.certidao.comprovanteUrl,
         }
       : null,
   }));

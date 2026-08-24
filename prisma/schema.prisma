@@ -477,6 +477,14 @@ model Certidao {
   arquivoTipo String?
   hashSha256  String?
 
+  /// Emitida pela consulta automatica, e nao apresentada pela parte.
+  emissaoAutomatica Boolean @default(false)
+  /// Endereco do comprovante no provedor. Guardado alem do arquivo porque o
+  /// endereco pode expirar, e o arquivo nao.
+  comprovanteUrl    String?
+  /// Resposta completa da consulta: e a prova do que foi visto e quando.
+  dadosConsulta     Json?
+
   registradaPorId String?
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt

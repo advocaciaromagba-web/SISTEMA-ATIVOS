@@ -8,6 +8,7 @@ import { registrar } from "@/lib/registro";
 import { executarAuditoria } from "@/lib/auditoria/executar";
 import { CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
 import { emitirCertidao, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
+import { registrarConsumo } from "../avulsos/acoes";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
 const LIMITE_ARQUIVO = 10 * 1024 * 1024; // 10 MB
@@ -186,24 +187,20 @@ export async function emitirCertidaoAutomatica(
   const { usuario, organizacao } = await exigirEdicao();
 
   const definicao = CERTIDAO_POR_CHAVE[chaveCertidao];
-  if (!definicao) return { erro: "Tipo de certidao desconhecido." };
-
-  const pessoaParaUf = await prisma.pessoa.findFirst({
-    where: { id: pessoaId, organizacaoId: organizacao.id },
-    select: { enderecoUf: true },
-  });
-
-  if (!temEmissaoAutomatica(chaveCertidao, pessoaParaUf?.enderecoUf ?? null)) {
-    return {
-      erro:
-        "Esta certidao ainda nao tem emissao automatica. Configure INFOSIMPLES_TOKEN no .env, " +
-        "ou emita pelo link do orgao e registre o arquivo.",
-    };
-  }
+  if (!definicao) return { erro: "Tipo de certidão desconhecido." };
 
   const pessoa = await prisma.pessoa.findFirst({ where: { id: pessoaId, organizacaoId: organizacao.id } });
-  if (!pessoa) return { erro: "Parte nao encontrada." };
-  if (!pessoa.documento) return { erro: "Cadastre o CPF ou CNPJ da parte antes de emitir a certidao." };
+  if (!pessoa) return { erro: "Parte não encontrada." };
+  if (!pessoa.documento) return { erro: "Cadastre o CPF ou CNPJ da parte antes de emitir a certidão." };
+
+  if (!temEmissaoAutomatica(chaveCertidao, pessoa.enderecoUf)) {
+    return {
+      erro:
+        "Esta certidão não tem emissão automática" +
+        (pessoa.enderecoUf ? " neste estado" : "") +
+        ". Confira INFOSIMPLES_TOKEN no .env, ou emita pelo link do órgão e registre o arquivo.",
+    };
+  }
 
   const emissao = await emitirCertidao({
     chaveCertidao,
@@ -215,11 +212,37 @@ export async function emitirCertidaoAutomatica(
     },
   });
 
-  if (!emissao.ok) return { erro: `Nao foi possivel emitir: ${emissao.erro}` };
+  if (!emissao.ok) return { erro: `Não foi possível emitir: ${emissao.erro}` };
 
   const { certidao } = emissao;
 
-  const validaAte = new Date(Date.now() + definicao.validadeDias * 86400000);
+  // Baixa o comprovante e guarda o arquivo, nao so o endereco: o link do
+  // provedor expira, e o que sustenta a operacao depois e o documento em maos.
+  const comprovanteUrl = certidao.comprovantes[0] ?? null;
+  let arquivo: Buffer | null = null;
+  let arquivoNome: string | null = null;
+  let arquivoTipo: string | null = null;
+  let hash: string | null = null;
+
+  if (comprovanteUrl) {
+    try {
+      const baixado = await fetch(comprovanteUrl, { signal: AbortSignal.timeout(60_000) });
+      if (baixado.ok) {
+        const conteudo = Buffer.from(await baixado.arrayBuffer());
+        if (conteudo.length > 0 && conteudo.length <= LIMITE_ARQUIVO) {
+          arquivo = conteudo;
+          arquivoTipo = baixado.headers.get("content-type")?.split(";")[0] ?? "application/pdf";
+          const extensao = arquivoTipo.includes("pdf") ? "pdf" : arquivoTipo.includes("html") ? "html" : "bin";
+          arquivoNome = `${chaveCertidao.toLowerCase().replace(/_/g, "-")}-${Date.now()}.${extensao}`;
+          hash = crypto.createHash("sha256").update(conteudo).digest("hex");
+        }
+      }
+    } catch (erro) {
+      // Comprovante nao baixado nao invalida a consulta: o endereco e a
+      // resposta completa ficam guardados de qualquer forma.
+      console.error("Comprovante da certidão não pôde ser baixado:", erro);
+    }
+  }
 
   const criada = await prisma.certidao.create({
     data: {
@@ -229,16 +252,23 @@ export async function emitirCertidaoAutomatica(
       orgaoEmissor: definicao.orgao,
       numero: certidao.numero,
       emitidaEm: new Date(),
-      validaAte,
+      validaAte: new Date(Date.now() + definicao.validadeDias * 86400000),
       resultado: certidao.resultado,
       apontamento: certidao.apontamento,
       natureza: certidao.natureza,
-      // O comprovante fica no endereco devolvido pela consulta; guardamos a
-      // resposta inteira como prova do que foi visto e quando.
-      arquivoNome: certidao.comprovantes.length > 0 ? "comprovante-consulta-automatica" : null,
+      arquivo,
+      arquivoNome,
+      arquivoTipo,
+      hashSha256: hash,
+      emissaoAutomatica: true,
+      comprovanteUrl,
+      dadosConsulta: (certidao.bruto ?? undefined) as never,
       registradaPorId: usuario.id,
     },
   });
+
+  // Consulta emitida consome cota; o que passar do incluido vira avulso.
+  await registrarConsumo(organizacao.id, "BUREAU");
 
   await registrar({
     acao: "CONSULTAR",
@@ -251,7 +281,7 @@ export async function emitirCertidaoAutomatica(
       certidao: definicao.nome,
       emissaoAutomatica: true,
       resultado: certidao.resultado,
-      comprovantes: certidao.comprovantes,
+      comprovanteGuardado: arquivo != null,
       custo: certidao.custo,
     },
   });
@@ -259,7 +289,7 @@ export async function emitirCertidaoAutomatica(
   try {
     await executarAuditoria({ pessoa, operacao: null, usuario, organizacaoId: organizacao.id });
   } catch (erro) {
-    console.error("Reauditoria apos emissao automatica falhou:", erro);
+    console.error("Reauditoria após emissão automática falhou:", erro);
   }
 
   revalidatePath(`/painel/pessoas/${pessoaId}`);

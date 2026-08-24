@@ -59,6 +59,8 @@ export type ItemCertidao = {
     apontamento: string | null;
     arquivoNome: string | null;
     temArquivo: boolean;
+    emissaoAutomatica: boolean;
+    comprovanteUrl: string | null;
   } | null;
 };
 
@@ -260,13 +262,27 @@ export function Certidoes({
                       {item.certidao.numero && <span>nº {item.certidao.numero}</span>}
                       {item.certidao.emitidaEm && <span>emitida em {item.certidao.emitidaEm}</span>}
                       {item.certidao.validaAte && <span>válida até {item.certidao.validaAte}</span>}
-                      {item.certidao.temArquivo && (
+                      {item.certidao.emissaoAutomatica && (
+                        <span className="etiqueta bg-sky-100 text-sky-800">emitida pelo sistema</span>
+                      )}
+                      {item.certidao.temArquivo ? (
                         <a
                           href={`/api/certidoes/${item.certidao.id}/baixar`}
                           className="font-medium text-slate-700 underline"
                         >
-                          {item.certidao.arquivoNome ?? "abrir arquivo"}
+                          abrir comprovante
                         </a>
+                      ) : (
+                        item.certidao.comprovanteUrl && (
+                          <a
+                            href={item.certidao.comprovanteUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-amber-700 underline"
+                          >
+                            comprovante no provedor (baixe e guarde)
+                          </a>
+                        )
                       )}
                       {podeEditar && (
                         <button
