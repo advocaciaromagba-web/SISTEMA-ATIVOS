@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { MarcaEscura } from "./marca-logo";
 
 const ITENS = [
   { href: "/painel", rotulo: "Início" },
@@ -18,10 +19,12 @@ const ITENS = [
 
 export function Navegacao({
   marcaNome,
+  marcaAssinatura,
   usuarioNome,
   organizacaoNome,
 }: {
   marcaNome: string;
+  marcaAssinatura?: string;
   usuarioNome: string;
   organizacaoNome: string;
 }) {
@@ -31,10 +34,12 @@ export function Navegacao({
     href === "/painel" ? caminho === "/painel" : caminho.startsWith(href);
 
   return (
-    <header style={{ backgroundColor: "var(--marca)" }} className="text-white">
+    // O filete dourado separa a barra do conteudo sem pesar: e a mesma regua
+    // fina que aparece sob o nome no lockup vertical da marca.
+    <header className="faixa-escura border-b-2 border-[color:var(--marca-destaque)]">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-        <Link href="/painel" className="text-lg font-semibold tracking-tight">
-          {marcaNome}
+        <Link href="/painel" aria-label={marcaNome}>
+          <MarcaEscura nome={marcaNome} assinatura={marcaAssinatura} />
         </Link>
 
         <nav className="flex flex-1 flex-wrap gap-1">
@@ -43,7 +48,9 @@ export function Navegacao({
               key={item.href}
               href={item.href}
               className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                ativo(item.href) ? "bg-white/20 font-medium" : "text-white/80 hover:bg-white/10"
+                ativo(item.href)
+                  ? "bg-white/15 font-semibold text-white"
+                  : "text-white/70 hover:bg-white/10 hover:text-white"
               }`}
             >
               {item.rotulo}
@@ -54,7 +61,7 @@ export function Navegacao({
         <div className="flex items-center gap-3 text-sm">
           <div className="text-right leading-tight">
             <div className="font-medium">{usuarioNome}</div>
-            <div className="text-xs text-white/70">{organizacaoNome}</div>
+            <div className="text-xs text-white/60">{organizacaoNome}</div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}

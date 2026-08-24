@@ -8,7 +8,12 @@ export default async function LayoutPainel({ children }: { children: React.React
 
   return (
     <div className="min-h-screen">
-      <Navegacao marcaNome={marca.nome} usuarioNome={usuario.nome} organizacaoNome={organizacao.nome} />
+      <Navegacao
+        marcaNome={marca.nome}
+        marcaAssinatura={marca.assinatura}
+        usuarioNome={usuario.nome}
+        organizacaoNome={organizacao.nome}
+      />
 
       {/* Aviso de assinatura: aparece em toda tela enquanto houver pendência,
           para que ninguém descubra o bloqueio só na hora de gerar um contrato. */}

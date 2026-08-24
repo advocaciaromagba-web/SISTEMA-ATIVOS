@@ -29,12 +29,59 @@ const TAMANHO = 22; // 11pt — docx conta em meio-ponto
 // ---------------------------------------------------------------------
 
 /** Cabeçalho com o logo do próprio assinante, quando ele tiver enviado um. */
+/**
+ * Lê as dimensões da imagem direto dos bytes do arquivo.
+ *
+ * O .docx exige largura e altura em número; sem saber a proporção real, o
+ * cabeçalho esticava toda logo para 160x60 e uma marca quadrada saía achatada.
+ * PNG guarda o tamanho logo no começo; JPEG, num dos marcadores SOF.
+ */
+function dimensoesDaImagem(dados: Buffer): { largura: number; altura: number } | null {
+  // PNG: assinatura de 8 bytes, depois o bloco IHDR com largura e altura.
+  if (dados.length > 24 && dados.readUInt32BE(0) === 0x89504e47) {
+    return { largura: dados.readUInt32BE(16), altura: dados.readUInt32BE(20) };
+  }
+
+  // JPEG: percorre os marcadores até achar um SOF, que carrega as medidas.
+  if (dados.length > 4 && dados[0] === 0xff && dados[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < dados.length) {
+      if (dados[i] !== 0xff) {
+        i += 1;
+        continue;
+      }
+      const marcador = dados[i + 1];
+      // SOF0 a SOF15, fora dos marcadores que não descrevem quadro.
+      if (marcador >= 0xc0 && marcador <= 0xcf && marcador !== 0xc4 && marcador !== 0xc8 && marcador !== 0xcc) {
+        return { largura: dados.readUInt16BE(i + 7), altura: dados.readUInt16BE(i + 5) };
+      }
+      i += 2 + dados.readUInt16BE(i + 2);
+    }
+  }
+
+  return null;
+}
+
 export function cabecalho(logo?: Buffer | null, tipo?: string | null): Header {
   if (!logo || logo.length === 0) {
     return new Header({ children: [new Paragraph({})] });
   }
 
   const formato = (tipo ?? "").includes("jpeg") || (tipo ?? "").includes("jpg") ? "jpg" : "png";
+
+  // Cabe até 180 pontos de largura e 60 de altura; a menor das duas escalas
+  // manda, para a marca nunca invadir o texto nem sair esticada.
+  const LARGURA_MAXIMA = 180;
+  const ALTURA_MAXIMA = 60;
+  const medidas = dimensoesDaImagem(logo);
+  let largura = LARGURA_MAXIMA;
+  let altura = ALTURA_MAXIMA;
+
+  if (medidas && medidas.largura > 0 && medidas.altura > 0) {
+    const escala = Math.min(LARGURA_MAXIMA / medidas.largura, ALTURA_MAXIMA / medidas.altura);
+    largura = Math.round(medidas.largura * escala);
+    altura = Math.round(medidas.altura * escala);
+  }
 
   return new Header({
     children: [
@@ -45,7 +92,7 @@ export function cabecalho(logo?: Buffer | null, tipo?: string | null): Header {
           new ImageRun({
             data: logo,
             type: formato as "png" | "jpg",
-            transformation: { width: 160, height: 60 },
+            transformation: { width: largura, height: altura },
           }),
         ],
       }),

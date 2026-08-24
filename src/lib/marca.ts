@@ -11,6 +11,8 @@ const env = (chave: string, padrao = "") => (process.env[chave] ?? "").trim() ||
 
 export const marca = {
   nome: env("MARCA_NOME", "Plataforma"),
+  /// Linha que acompanha o nome no logotipo ("Solucoes Estrategicas").
+  assinatura: env("MARCA_ASSINATURA"),
   razaoSocial: env("MARCA_RAZAO_SOCIAL"),
   cnpj: env("MARCA_CNPJ"),
   emailSuporte: env("MARCA_EMAIL_SUPORTE"),

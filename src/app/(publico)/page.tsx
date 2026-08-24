@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { marca } from "@/lib/marca";
+import { MarcaLogo } from "@/components/marca-logo";
 import { DIAS_DE_TESTE } from "@/lib/planos";
 import { documentosOrdenados } from "@/lib/documentos/catalogo";
 
@@ -16,37 +17,50 @@ export default function Inicio() {
 
   return (
     <>
-      {/* ---------------- abertura ---------------- */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-16">
-          <h1 className="max-w-3xl text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
+      {/* ---------------- abertura ----------------
+          Capa no azul da marca: é a primeira coisa que o intermediário vê, e
+          numa plataforma vendida por credibilidade a primeira impressão faz
+          parte do produto. O dourado entra só no filete e no botão. */}
+      <section className="faixa-escura relative overflow-hidden border-b-2 border-[color:var(--marca-destaque)]">
+        {/* O pássaro grande, discreto, atrás do texto. */}
+        <div className="pointer-events-none absolute -right-10 top-1/2 hidden -translate-y-1/2 opacity-[0.07] lg:block">
+          <MarcaLogo forma="simbolo" altura={420} />
+        </div>
+
+        <div className="relative mx-auto max-w-5xl px-4 py-20">
+          <p className="sobretitulo">Intermediação de ativos</p>
+
+          <h1 className="titulo mt-4 max-w-3xl text-3xl font-bold leading-tight text-white sm:text-4xl">
             A operação inteira num lugar só — e nenhuma parte entra sem passar por auditoria.
           </h1>
 
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">
-            Para quem intermedeia precatórios, créditos tributários e commodities: as operações organizadas, os{" "}
-            {documentos.length} documentos gerados a partir do cadastro, e a contraparte verificada em fontes
-            oficiais antes de qualquer assinatura.
+          <p className="serif mt-6 max-w-2xl text-lg leading-relaxed text-white/75">
+            Para quem intermedeia precatórios, créditos tributários, commodities e metais: as operações
+            organizadas, os {documentos.length} documentos gerados a partir do cadastro, e a contraparte
+            verificada em fontes oficiais antes de qualquer assinatura.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/planos" className="botao-principal">
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Link href="/planos" className="botao-destaque">
               Ver planos e preços
             </Link>
-            <Link href="/fontes" className="botao-secundario">
+            <Link
+              href="/fontes"
+              className="botao border border-white/30 bg-transparent text-white transition hover:bg-white/10"
+            >
               O que exatamente verificamos
             </Link>
           </div>
 
-          <p className="mt-4 text-sm text-slate-500">
-            {DIAS_DE_TESTE} dias para testar. Preços publicados abaixo, sem "fale com o vendedor".
+          <p className="mt-5 text-sm text-white/55">
+            {DIAS_DE_TESTE} dias para testar. Preços publicados abaixo, sem &ldquo;fale com o vendedor&rdquo;.
           </p>
         </div>
       </section>
 
       {/* ---------------- os três problemas ---------------- */}
       <section className="mx-auto max-w-5xl px-4 py-16">
-        <h2 className="text-2xl font-semibold text-slate-900">Os três lugares onde a operação costuma quebrar</h2>
+        <h2 className="titulo regua-destaque text-2xl font-semibold text-slate-900">Os três lugares onde a operação costuma quebrar</h2>
 
         <div className="mt-8 grid gap-6 sm:grid-cols-3">
           <Bloco
@@ -79,7 +93,7 @@ export default function Inicio() {
       {/* ---------------- o que o sistema faz ---------------- */}
       <section className="border-y border-slate-200 bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16">
-          <h2 className="text-2xl font-semibold text-slate-900">O que está dentro</h2>
+          <h2 className="titulo regua-destaque text-2xl font-semibold text-slate-900">O que está dentro</h2>
 
           <div className="mt-8 grid gap-8 sm:grid-cols-2">
             <Item

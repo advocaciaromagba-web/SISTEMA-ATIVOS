@@ -3,7 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --fonte-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* As três famílias chegam pelo next/font e caem no padrão do sistema se,
+     por qualquer motivo, o arquivo da fonte não carregar. */
+  --fonte-sans: var(--fonte-texto), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fonte-display: var(--fonte-titulo), var(--fonte-sans);
+  --fonte-serif: var(--fonte-serifada), Georgia, "Times New Roman", serif;
   /* As cores da marca chegam por <style> no layout, alimentadas pelo .env. */
   --marca: #0f172a;
   --marca-escura: #020617;
@@ -15,6 +19,44 @@
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
   font-family: var(--fonte-sans);
+}
+
+/* ---------- tipografia ----------
+   O manual da marca pede título em sans-serif bold e texto secundário em
+   serifada. Título é identidade e aparece pouco; corpo de interface continua
+   na fonte de tela, que é a que se lê o dia inteiro sem cansar. */
+
+.titulo,
+h1,
+h2 {
+  font-family: var(--fonte-display);
+  @apply tracking-tight;
+}
+
+h1 {
+  @apply font-bold;
+}
+
+h2,
+h3 {
+  @apply font-semibold;
+}
+
+/* Texto de leitura corrida: página pública, cláusula, texto legal. */
+.serif {
+  font-family: var(--fonte-serif);
+}
+
+/* Olho de página — a frase que apresenta uma seção. */
+.chamada {
+  font-family: var(--fonte-serif);
+  @apply text-lg leading-relaxed text-slate-600;
+}
+
+/* Rótulo pequeno em versalete, usado acima de título de seção. */
+.sobretitulo {
+  @apply text-xs font-semibold uppercase tracking-[0.18em];
+  color: var(--marca-destaque);
 }
 
 /* ---------- componentes repetidos ---------- */
@@ -49,13 +91,38 @@ body {
   background-color: var(--marca-escura);
 }
 
-/* Usado em selo, filete e realce — nunca em area grande. */
+/* Usado em selo, filete e realce — nunca em area grande.
+   Dourado que cobre superficie deixa de ser destaque e vira ruido; e em
+   fundo claro ele nao tem contraste para texto corrido. */
 .destaque {
   color: var(--marca-destaque);
 }
 
 .filete-destaque {
   border-left: 3px solid var(--marca-destaque);
+}
+
+/* Regua fina sob titulo de secao, como no lockup vertical da marca. */
+.regua-destaque::after {
+  content: "";
+  @apply mt-3 block h-px w-16;
+  background-color: var(--marca-destaque);
+}
+
+/* Botao de acao sobre fundo escuro. */
+.botao-destaque {
+  @apply botao font-semibold;
+  background-color: var(--marca-destaque);
+  color: var(--marca);
+}
+.botao-destaque:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* Faixa escura: cabecalho do painel, rodape, capa das paginas publicas. */
+.faixa-escura {
+  background-color: var(--marca);
+  color: var(--marca-contraste);
 }
 
 .botao-secundario {
