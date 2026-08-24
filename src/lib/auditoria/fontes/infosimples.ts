@@ -78,14 +78,17 @@ export async function chamar(
       const detalhe = corpo.errors?.length ? ` ${corpo.errors.join("; ")}` : "";
       const mensagem = corpo.code_message ?? `código ${corpo.code}`;
 
-      // Os dois erros de conta valem uma mensagem própria: são os que o
-      // operador consegue resolver sozinho, e a mensagem crua não diz como.
+      // Códigos confirmados contra a API em 24/08/2026. A mensagem crua diz o
+      // que houve, mas não diz o que fazer — é isso que se acrescenta aqui.
       const explicacao =
         corpo.code === 601
           ? " Confira INFOSIMPLES_TOKEN no arquivo .env."
           : corpo.code === 602
-            ? " A conta da Infosimples está sem saldo."
-            : "";
+            ? " O caminho do serviço está errado no mapa de serviços — não é problema da sua conta."
+            : corpo.code === 615
+              ? " O órgão de origem está fora do ar e a consulta foi pausada pelo provedor. " +
+                "Tente mais tarde ou emita a certidão pelo site do órgão."
+              : "";
 
       return { ok: false, codigo: corpo.code, erro: `${mensagem}.${detalhe}${explicacao}`.trim() };
     }

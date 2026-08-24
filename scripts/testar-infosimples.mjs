@@ -77,22 +77,31 @@ const CAMINHOS = [
   ["CAMINHO INVENTADO (controle)", "tribunal/tjxx/nao-existe", "cnpj"],
 ];
 
-/** Códigos que a API devolve e o que eles significam para este teste. */
+/**
+ * Códigos da API, confirmados contra ela em 24/08/2026.
+ *
+ * O que interessa aqui é separar "o caminho está errado" de "o caminho está
+ * certo mas houve outra coisa" — e os dois casos vêm com códigos diferentes:
+ *
+ *   602  o serviço informado na URL não existe  → caminho errado, corrigir
+ *   615  a fonte de origem está fora do ar      → caminho certo, órgão instável
+ *   603/606/607  erro de parâmetro              → caminho certo, recusou o teste
+ *   601  token recusado
+ */
 function classificar(code, mensagem) {
-  if (code === 200) return { simbolo: "OK   ", nota: "respondeu com sucesso" };
-  if (code === 601) return { simbolo: "TOKEN", nota: "token recusado — confira INFOSIMPLES_TOKEN" };
-  if (code === 602) return { simbolo: "SALDO", nota: "sem saldo na conta" };
+  if (code === 200) return { simbolo: "OK    ", nota: "respondeu com sucesso" };
+  if (code === 601) return { simbolo: "TOKEN ", nota: "token recusado — confira INFOSIMPLES_TOKEN" };
+  if (code === 602) return { simbolo: "FALTA ", nota: "caminho não existe — corrigir no mapa de serviços" };
+  if (code === 615) return { simbolo: "PAUSA ", nota: "caminho existe; o órgão de origem está fora do ar" };
+  if ([603, 606, 607].includes(code)) {
+    return { simbolo: "EXISTE", nota: "caminho existe (recusou o documento de teste)" };
+  }
 
-  // Erro de parâmetro significa que o serviço EXISTE e recebeu a chamada.
   if (/par[aâ]metro|inv[aá]lid|obrigat[oó]ri|preenc/i.test(mensagem)) {
-    return { simbolo: "EXISTE", nota: "serviço existe (recusou o documento de teste)" };
+    return { simbolo: "EXISTE", nota: "caminho existe (recusou o documento de teste)" };
   }
 
-  if (/n[aã]o encontrad|inexistente|not found|indispon[ií]vel/i.test(mensagem)) {
-    return { simbolo: "FALTA", nota: "caminho não existe — corrigir no mapa de serviços" };
-  }
-
-  return { simbolo: "?    ", nota: mensagem.slice(0, 60) };
+  return { simbolo: "?     ", nota: (mensagem || "").slice(0, 60) };
 }
 
 async function principal() {
@@ -117,7 +126,16 @@ async function principal() {
   const comDocumentoReal = Boolean(valorDe("--cpf") || valorDe("--cnpj"));
 
   console.log("");
-  console.log(comDocumentoReal ? "MODO REAL — cada consulta será cobrada." : "MODO SECO — documentos inválidos, sem cobrança esperada.");
+  // Descoberto na prática: mesmo a chamada recusada por parâmetro inválido é
+  // cobrada. Não existe teste de graça aqui, e quem roda precisa saber disso
+  // antes, não depois.
+  const custoEstimado = (CAMINHOS.length * 0.24).toFixed(2);
+  console.log(
+    comDocumentoReal
+      ? "MODO REAL — cada consulta será cobrada."
+      : `ATENÇÃO: mesmo com documento inválido a chamada é cobrada (~R$ 0,24 cada).\n` +
+          `Este teste fará ${CAMINHOS.length} chamadas — cerca de R$ ${custoEstimado}.`
+  );
   console.log("");
 
   const problemas = [];
@@ -147,9 +165,14 @@ async function principal() {
 
       console.log(`  ${simbolo}  ${nome.padEnd(38)} ${String(corpo.code ?? "-").padStart(3)}  ${nota}`);
 
-      if (simbolo === "FALTA") problemas.push(`${nome} → ${caminho}`);
-      if (simbolo === "TOKEN" || simbolo === "SALDO") {
-        console.log("\n  Interrompido: resolva a conta antes de continuar.\n");
+      // O caminho inventado é o controle: ele TEM que dar FALTA. Se não der, a
+      // classificação está errada e o resultado inteiro não vale nada.
+      if (simbolo === "FALTA" && !nome.includes("INVENTADO")) {
+        problemas.push(`${nome} → ${caminho}`);
+      }
+
+      if (simbolo === "TOKEN") {
+        console.log("\n  Interrompido: o token foi recusado.\n");
         process.exit(1);
       }
     } catch (erro) {
