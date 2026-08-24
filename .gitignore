@@ -11,3 +11,6 @@ next-env.d.ts
 /prisma/*.db
 /prisma/*.db-journal
 /tmp
+
+# Copias autossuficientes geradas por scripts/conferir-visual.mjs
+conferencia-visual/

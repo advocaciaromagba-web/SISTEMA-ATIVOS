@@ -4,7 +4,7 @@ import { CATALOGO_CERTIDOES } from "@/lib/auditoria/certidoes";
 import { VALIDADE_AUDITORIA_DIAS } from "@/lib/auditoria/executar";
 
 export const metadata = {
-  title: `O que verificamos — ${marca.nome}`,
+  title: "O que verificamos",
   description:
     "A lista completa das fontes que a plataforma consulta, das que dependem de certidão e do que não é " +
     "verificável no Brasil.",

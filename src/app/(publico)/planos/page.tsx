@@ -4,7 +4,7 @@ import { ADICIONAIS, DIAS_DE_TESTE, PLANOS, SERVICOS, economiaAnual } from "@/li
 import { moeda } from "@/lib/formato";
 
 export const metadata = {
-  title: `Planos e preços — ${marca.nome}`,
+  title: "Planos e preços",
   description: "Preços publicados, sem consulta comercial. Teste antes de assinar.",
 };
 

@@ -3,7 +3,7 @@ import { marca } from "@/lib/marca";
 import { VALIDADE_AUDITORIA_DIAS } from "@/lib/auditoria/executar";
 
 export const metadata = {
-  title: `Segurança — ${marca.nome}`,
+  title: "Segurança",
   description: "Como os dados das operações são protegidos, separados por assinante e registrados.",
 };
 

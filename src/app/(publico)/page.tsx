@@ -5,7 +5,9 @@ import { DIAS_DE_TESTE } from "@/lib/planos";
 import { documentosOrdenados } from "@/lib/documentos/catalogo";
 
 export const metadata = {
-  title: `${marca.nome} — intermediação de ativos com documentação e verificação`,
+  // `absolute` desliga o sufixo do modelo: esta e a linha que aparece na
+  // busca, e ela ja comeca pelo nome da marca.
+  title: { absolute: `${marca.nome} — intermediação de ativos com documentação e verificação` },
   description:
     "Plataforma para intermediários de precatórios, créditos e commodities: cadastro das operações, geração dos " +
     "documentos e verificação das contrapartes em fontes oficiais.",

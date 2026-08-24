@@ -3,7 +3,7 @@ import { marca } from "@/lib/marca";
 import { DIAS_DE_TESTE } from "@/lib/planos";
 
 export const metadata = {
-  title: `Termos de uso — ${marca.nome}`,
+  title: "Termos de uso",
   description: "Condições de contratação e uso da plataforma.",
 };
 

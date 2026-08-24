@@ -3,7 +3,7 @@ import { marca } from "@/lib/marca";
 import { VALIDADE_AUDITORIA_DIAS } from "@/lib/auditoria/executar";
 
 export const metadata = {
-  title: `Política de privacidade — ${marca.nome}`,
+  title: "Política de privacidade",
   description: "Como os dados pessoais são tratados, com que base legal, por quanto tempo e como exercer direitos.",
 };
 

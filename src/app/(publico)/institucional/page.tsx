@@ -2,7 +2,7 @@ import Link from "next/link";
 import { marca } from "@/lib/marca";
 
 export const metadata = {
-  title: `A empresa — ${marca.nome}`,
+  title: "A empresa",
   description: "Quem opera a plataforma, com razão social, CNPJ e canais de contato.",
 };
 
