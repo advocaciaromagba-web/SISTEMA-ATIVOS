@@ -6,6 +6,7 @@ import type { Pessoa } from "@prisma/client";
 import { salvarPessoa, type ResultadoAcao } from "./acoes";
 import { Area, BotaoSalvar, Campo, Marcador, Secao, Selecao } from "@/components/campos";
 import { LeitorDocumentos } from "@/components/leitor-documentos";
+import { BuscarPorDocumento } from "@/components/buscar-por-documento";
 
 const ESTADOS_CIVIS = [
   { valor: "solteiro(a)", rotulo: "Solteiro(a)" },
@@ -45,8 +46,23 @@ export function FormularioPessoa({ pessoa }: { pessoa?: Pessoa }) {
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  /**
+   * A busca pelo documento descobre sozinha se e pessoa fisica ou juridica.
+   * Trocar o tipo antes de preencher importa: os campos do formulario mudam,
+   * e escrever num campo que ainda nao existe na tela nao faz nada.
+   */
+  function trocarTipo(novo: "PF" | "PJ") {
+    setTipo(novo);
+  }
+
   return (
     <div className="space-y-5">
+      <BuscarPorDocumento
+        perfil={tipo === "PJ" ? "PESSOA_PJ" : "PESSOA_PF"}
+        aoAplicar={aplicarLeitura}
+        aoTrocarTipo={trocarTipo}
+      />
+
       <LeitorDocumentos perfil={tipo === "PJ" ? "PESSOA_PJ" : "PESSOA_PF"} aoAplicar={aplicarLeitura} />
 
     <form ref={formulario} action={acao} className="space-y-5">
