@@ -59,10 +59,36 @@ export function campo(ctx: ContextoDocumento, chave: string, padrao = ""): strin
 }
 
 export function campoNumero(ctx: ContextoDocumento, chave: string, padrao: number | null = null): number | null {
-  const v = (ctx.campos?.[chave] ?? "").toString().trim().replace(/\./g, "").replace(",", ".");
-  if (!v) return padrao;
-  const n = Number(v);
+  const bruto = (ctx.campos?.[chave] ?? "").toString().trim();
+  if (!bruto) return padrao;
+  const n = Number(numeroDeTexto(bruto));
   return Number.isFinite(n) ? n : padrao;
+}
+
+/**
+ * Lê número escrito por gente, em formato brasileiro ou não.
+ *
+ * Apagar todo ponto como separador de milhar transformava "2.5" em 25 — numa
+ * cláusula de comissão, erro de dez vezes. A regra abaixo decide pelo formato
+ * do próprio texto:
+ *
+ *   "1.000,50"   vírgula presente   → ponto é milhar, vírgula é decimal
+ *   "2.5"        um ponto, 1 casa   → ponto decimal
+ *   "1.000"      um ponto, 3 casas  → ambíguo; vale a leitura brasileira (mil)
+ *   "1.000.000"  vários pontos      → milhar
+ */
+export function numeroDeTexto(bruto: string): string {
+  const texto = bruto.trim().replace(/\s/g, "");
+
+  if (texto.includes(",")) return texto.replace(/\./g, "").replace(",", ".");
+
+  const pontos = texto.split(".").length - 1;
+  if (pontos === 0) return texto;
+  if (pontos > 1) return texto.replace(/\./g, "");
+
+  const decimais = texto.slice(texto.indexOf(".") + 1);
+  // Três dígitos depois do ponto é a grafia brasileira de milhar.
+  return decimais.length === 3 ? texto.replace(".", "") : texto;
 }
 
 export function campoSim(ctx: ContextoDocumento, chave: string, padrao = false): boolean {
@@ -122,6 +148,22 @@ export function descreverAtivo(ctx: ContextoDocumento): string {
       if (op.homologado != null) {
         partes.push(op.homologado ? "já homologado pela autoridade fiscal" : "pendente de homologação pela autoridade fiscal");
       }
+      break;
+    }
+
+    case "OURO":
+    case "METAIS": {
+      // Em metal, o que identifica o ativo e o teor e o laudo que o comprova.
+      partes.push(`${ou(op.produto, nome)}`);
+      if (op.teor) partes.push(`com teor de ${op.teor}`);
+      if (op.forma) partes.push(`na forma de ${op.forma}`);
+      if (op.quantidade) partes.push(`na quantidade de ${numero(Number(op.quantidade), 4)} ${ou(op.unidade, "unidade")}`);
+      if (op.laudoEnsaio) partes.push(`conforme laudo de ensaio ${op.laudoEnsaio}`);
+      if (op.tituloMinerario) partes.push(`com origem no título minerário ${op.tituloMinerario}`);
+      else if (op.origem) partes.push(`com origem em ${op.origem}`);
+      if (op.incoterm) partes.push(`nas condições ${op.incoterm}`);
+      if (op.destino) partes.push(`e destino a ${op.destino}`);
+      if (op.embarque) partes.push(`entrega prevista para ${op.embarque}`);
       break;
     }
 

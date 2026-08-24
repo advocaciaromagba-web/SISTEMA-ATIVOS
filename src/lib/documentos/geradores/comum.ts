@@ -54,6 +54,38 @@ export function contadorClausulas() {
   };
 }
 
+/** Ordinal feminino da cláusula, para quando o título e montado fora do contador. */
+export function ordinalClausula(n: number): string {
+  return ORDINAIS[n - 1] ?? `${n}ª`;
+}
+
+/**
+ * Lista dentro de uma cláusula, no formato que contrato usa.
+ *
+ * Um parágrafo com seis obrigações separadas por vírgula vira discussão sobre
+ * onde uma termina e a outra começa. Numerar em romano resolve isso e permite
+ * que a cláusula seja citada por item numa eventual disputa.
+ */
+export function listar(itens: string[]): string {
+  if (itens.length === 0) return "";
+  if (itens.length === 1) return itens[0];
+  return itens.map((texto, i) => `(${romano(i + 1)}) ${texto}`).join("; ");
+}
+
+const ROMANOS = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
+
+function romano(n: number): string {
+  return ROMANOS[n - 1] ?? String(n);
+}
+
+/** Encaixa uma frase no meio de outra, sem maiúscula fora de lugar. */
+export function minuscula(texto: string): string {
+  if (!texto) return texto;
+  // Sigla nao vira minuscula: "CPR e promessa" nao pode virar "cPR".
+  if (/^[A-Z]{2,}/.test(texto)) return texto;
+  return texto.charAt(0).toLowerCase() + texto.slice(1);
+}
+
 /** Cláusula de eleição de foro. */
 export function clausulaForo(ctx: ContextoDocumento, numeroClausula: string) {
   const f = foro(ctx);

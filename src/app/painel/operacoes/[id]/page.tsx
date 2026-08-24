@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { exigirSessao, podeEditar } from "@/lib/sessao";
 import { FASES, TIPOS_ATIVO, documentosOrdenados } from "@/lib/documentos/catalogo";
+import { perfilDoAtivo } from "@/lib/ativos/perfis";
 import { moeda, percentualComExtenso, dataCurta } from "@/lib/formato";
 import { formatarDocumento, formatarNumeroProcessoCnj } from "@/lib/validacao";
 import { Partes, type ParteResumo, type PessoaResumo } from "./partes";
@@ -52,6 +53,8 @@ export default async function DetalheOperacao({ params }: { params: { id: string
 
   // Papéis já presentes: usado para dizer quais documentos estão prontos para gerar.
   const papeisPresentes = new Set(operacao.partes.map((p) => p.papel));
+
+  const perfil = perfilDoAtivo(operacao.tipoAtivo);
 
   return (
     <div className="space-y-6">
@@ -181,20 +184,28 @@ export default async function DetalheOperacao({ params }: { params: { id: string
               />
               <Linha rotulo="Tributo" valor={operacao.tributo} />
               <Linha rotulo="Produto" valor={operacao.produto} />
+              <Linha rotulo="Teor" valor={operacao.teor} />
+              <Linha rotulo="Laudo de ensaio" valor={operacao.laudoEnsaio} />
+              <Linha rotulo="Título minerário" valor={operacao.tituloMinerario} />
               <Linha rotulo="Incoterm" valor={operacao.incoterm} />
             </dl>
           </section>
 
-          {operacao.tipoAtivo === "PRECATORIO" && (
-            <div className="aviso-atencao">
-              <strong className="block">Antes de fechar</strong>
-              <span className="mt-1 block">
-                A cessão de precatório só produz efeitos depois de comunicada por petição ao tribunal de origem e à
-                entidade devedora (CF, art. 100, § 14). E a preferência por idade, doença ou natureza alimentar não
-                passa para o comprador (§ 13).
-              </span>
-            </div>
-          )}
+          {/*
+            O aviso sai do mesmo perfil que monta o contrato e a diligência.
+            Assim a tela nunca adverte uma coisa e o documento outra.
+          */}
+          <div className="aviso-atencao">
+            <strong className="block">Antes de fechar — {perfil.nome}</strong>
+            <span className="mt-1 block">{perfil.riscoCentral}</span>
+            {perfil.alertas.length > 0 && (
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {perfil.alertas.map((alerta, i) => (
+                  <li key={i}>{alerta}</li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {operacao.descricao && (
             <section className="cartao">

@@ -14,7 +14,11 @@ export type PapelParte =
   | "TESTEMUNHA"
   | "ANUENTE"
   | "GARANTIDOR"
-  | "INVESTIDOR";
+  | "INVESTIDOR"
+  | "DIVULGADOR"
+  | "RECEPTOR"
+  | "MANDATARIO_VENDA"
+  | "MANDATARIO_COMPRA";
 
 export const PAPEIS: Record<PapelParte, string> = {
   CEDENTE: "Cedente (quem vende o ativo)",
@@ -25,6 +29,10 @@ export const PAPEIS: Record<PapelParte, string> = {
   ANUENTE: "Anuente (cônjuge, sócio, terceiro que concorda)",
   GARANTIDOR: "Garantidor / avalista",
   INVESTIDOR: "Investidor",
+  DIVULGADOR: "Parte divulgadora (quem revela a oportunidade)",
+  RECEPTOR: "Parte receptora (quem recebe a informação)",
+  MANDATARIO_VENDA: "Mandatário de venda",
+  MANDATARIO_COMPRA: "Mandatário de compra",
 };
 
 export const TIPOS_ATIVO: Record<string, string> = {
@@ -35,6 +43,8 @@ export const TIPOS_ATIVO: Record<string, string> = {
   CREDITO_RURAL: "Crédito rural / CPR",
   CREDAQ: "CredAq / crédito de aquisição",
   COMMODITY: "Commodity",
+  OURO: "Ouro (Au)",
+  METAIS: "Metais e minérios",
   DIREITO_CREDITORIO: "Direito creditório (outros)",
   IMOVEL: "Imóvel",
   OUTRO: "Outro ativo",

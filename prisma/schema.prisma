@@ -222,7 +222,7 @@ model Operacao {
   /// Codigo curto e sequencial dentro da organizacao: OP-0001.
   codigo    String
   titulo    String
-  tipoAtivo String // PRECATORIO | CREDITO_ICMS | CREDITO_PIS_COFINS | CREDITO_TRIBUTARIO | CREDITO_RURAL | CREDAQ | COMMODITY | DIREITO_CREDITORIO | IMOVEL | OUTRO
+  tipoAtivo String // PRECATORIO | CREDITO_ICMS | CREDITO_PIS_COFINS | CREDITO_TRIBUTARIO | CREDITO_RURAL | CREDAQ | COMMODITY | OURO | METAIS | DIREITO_CREDITORIO | IMOVEL | OUTRO
   descricao String?
 
   // ----- numeros do negocio -----
@@ -248,7 +248,7 @@ model Operacao {
   processoAdmin    String?
   homologado       Boolean?
 
-  // ----- especifico de commodity -----
+  // ----- especifico de commodity, ouro e metais -----
   produto     String?
   quantidade  Decimal? @db.Decimal(18, 4)
   unidade     String?
@@ -256,6 +256,16 @@ model Operacao {
   origem      String?
   destino     String?
   embarque    String?
+
+  // ----- especifico de ouro e metais -----
+  /// Teor / pureza declarada: 999, 9999, 24k, ou percentual do elemento.
+  teor         String?
+  /// Forma fisica: barra, dore, granulado, lingote, minerio bruto.
+  forma        String?
+  /// Laudo de ensaio: laboratorio, numero e data. E o que sustenta o teor.
+  laudoEnsaio  String?
+  /// Titulo minerario ou registro na ANM da area de origem.
+  tituloMinerario String?
 
   fase String @default("PROSPECCAO") // PROSPECCAO | NDA | DUE_DILIGENCE | PROPOSTA | CONTRATO | LIQUIDACAO | CONCLUIDA | CANCELADA
   /// Operacao sob sigilo: so quem esta na lista de acesso enxerga o detalhe.
@@ -287,7 +297,7 @@ model ParteOperacao {
   pessoaId   String
   pessoa     Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
 
-  papel String // CEDENTE | CESSIONARIO | INTERMEDIARIO | REPRESENTANTE | TESTEMUNHA | ANUENTE | GARANTIDOR | INVESTIDOR
+  papel String // CEDENTE | CESSIONARIO | INTERMEDIARIO | REPRESENTANTE | TESTEMUNHA | ANUENTE | GARANTIDOR | INVESTIDOR | DIVULGADOR | RECEPTOR | MANDATARIO_VENDA | MANDATARIO_COMPRA
 
   /// Percentual de comissao desta parte, quando intermediario.
   comissaoPercentual Decimal? @db.Decimal(7, 4)

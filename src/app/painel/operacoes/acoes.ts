@@ -83,6 +83,10 @@ export async function salvarOperacao(_anterior: ResultadoAcao, dados: FormData):
     origem: texto(dados, "origem"),
     destino: texto(dados, "destino"),
     embarque: texto(dados, "embarque"),
+    teor: texto(dados, "teor"),
+    forma: texto(dados, "forma"),
+    laudoEnsaio: texto(dados, "laudoEnsaio"),
+    tituloMinerario: texto(dados, "tituloMinerario"),
     fase: texto(dados, "fase") ?? "PROSPECCAO",
     confidencial: dados.get("confidencial") === "on",
   };

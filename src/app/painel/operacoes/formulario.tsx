@@ -17,6 +17,10 @@ const opcoes = (mapa: Record<string, string>) =>
 /** Tipos de ativo que puxam o bloco de crédito judicial. */
 const JUDICIAL = ["PRECATORIO", "DIREITO_CREDITORIO", "CREDITO_RURAL"];
 const TRIBUTARIO = ["CREDITO_ICMS", "CREDITO_PIS_COFINS", "CREDITO_TRIBUTARIO", "CREDAQ"];
+/** Ativos que se entregam: têm produto, quantidade, Incoterm e embarque. */
+const MERCADORIA = ["COMMODITY", "OURO", "METAIS"];
+/** Metal pede teor e origem — é o que sustenta preço e diligência. */
+const METAL = ["OURO", "METAIS"];
 
 export function FormularioOperacao({ operacao }: { operacao?: Operacao }) {
   const [estado, acao] = useFormState(salvarOperacao, inicial);
@@ -176,16 +180,62 @@ export function FormularioOperacao({ operacao }: { operacao?: Operacao }) {
         </Secao>
       )}
 
-      {tipo === "COMMODITY" && (
-        <Secao titulo="Commodity">
+      {MERCADORIA.includes(tipo) && (
+        <Secao titulo={tipo === "COMMODITY" ? "Commodity" : "Mercadoria"}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Campo nome="produto" rotulo="Produto" valor={operacao?.produto} placeholder="Açúcar VHP" />
+            <Campo
+              nome="produto"
+              rotulo="Produto"
+              valor={operacao?.produto}
+              placeholder={tipo === "OURO" ? "ouro em barras" : tipo === "METAIS" ? "minério de ferro" : "Açúcar VHP"}
+            />
             <Campo nome="incoterm" rotulo="Incoterm" valor={operacao?.incoterm} placeholder="FOB Santos" />
             <Campo nome="quantidade" rotulo="Quantidade" valor={numero(operacao?.quantidade)} />
-            <Campo nome="unidade" rotulo="Unidade" valor={operacao?.unidade} placeholder="toneladas métricas" />
+            <Campo
+              nome="unidade"
+              rotulo="Unidade"
+              valor={operacao?.unidade}
+              placeholder={tipo === "OURO" ? "quilogramas" : "toneladas métricas"}
+            />
             <Campo nome="origem" rotulo="Origem" valor={operacao?.origem} />
             <Campo nome="destino" rotulo="Destino" valor={operacao?.destino} />
             <Campo nome="embarque" rotulo="Embarque previsto" valor={operacao?.embarque} className="sm:col-span-2" />
+          </div>
+        </Secao>
+      )}
+
+      {METAL.includes(tipo) && (
+        <Secao titulo="Metal — teor e origem">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Campo
+              nome="teor"
+              rotulo="Teor / pureza"
+              valor={operacao?.teor}
+              placeholder={tipo === "OURO" ? "999,9" : "62% Fe"}
+              ajuda="É o que define o preço. Só vale o que o laudo comprova."
+            />
+            <Campo
+              nome="forma"
+              rotulo="Forma física"
+              valor={operacao?.forma}
+              placeholder={tipo === "OURO" ? "barra de 1 kg" : "granulado"}
+            />
+            <Campo
+              nome="laudoEnsaio"
+              rotulo="Laudo de ensaio"
+              valor={operacao?.laudoEnsaio}
+              placeholder="nº 4471/2026, Laboratório Metalquímica"
+              ajuda="Laboratório, número e data. Laudo do próprio vendedor não substitui laudo independente."
+              className="sm:col-span-2"
+            />
+            <Campo
+              nome="tituloMinerario"
+              rotulo="Título minerário / ANM"
+              valor={operacao?.tituloMinerario}
+              placeholder="ANM 802.115/2019"
+              ajuda="Sem origem documentada, a diligência não fecha — o risco do metal é a procedência."
+              className="sm:col-span-2"
+            />
           </div>
         </Secao>
       )}
