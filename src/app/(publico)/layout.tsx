@@ -87,7 +87,17 @@ export default function LayoutPublico({ children }: { children: React.ReactNode 
             </div>
           </div>
 
-          <p className="serif mt-10 border-t border-white/15 pt-6 text-xs leading-relaxed text-white/60">
+          {marca.notaLegal && (
+            <p className="serif mt-8 border-t border-white/15 pt-6 text-xs leading-relaxed text-white/60">
+              {marca.notaLegal}
+            </p>
+          )}
+
+          <p
+            className={`serif text-xs leading-relaxed text-white/60 ${
+              marca.notaLegal ? "mt-4" : "mt-10 border-t border-white/15 pt-6"
+            }`}
+          >
             {marca.nome} é uma plataforma de gestão, geração de documentos e verificação de contrapartes.{" "}
             <strong className="font-semibold text-white/80">
               Não é escritório de advocacia e não presta consultoria jurídica.

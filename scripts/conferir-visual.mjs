@@ -16,7 +16,7 @@ import path from "path";
 
 const RAIZ = process.cwd();
 const COMPILADO = path.join(RAIZ, ".next");
-const PAGINAS = ["index", "login", "planos"];
+const PAGINAS = ["index", "login", "planos", "institucional", "privacidade"];
 
 const paraUrl = (arquivo) => "file:///" + arquivo.replace(/\\/g, "/");
 

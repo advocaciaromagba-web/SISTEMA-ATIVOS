@@ -14,6 +14,18 @@ export const marca = {
   /// Linha que acompanha o nome no logotipo ("Solucoes Estrategicas").
   assinatura: env("MARCA_ASSINATURA"),
   razaoSocial: env("MARCA_RAZAO_SOCIAL"),
+  /**
+   * Linha de identificacao legal, para quando a marca e a razao social ainda
+   * nao coincidem.
+   *
+   * Um site que exibe "BLACKBIRD SOLUCOES ESTRATEGICAS LTDA" ao lado de um
+   * CNPJ que na Receita responde por outra razao social esta afirmando algo
+   * que a base publica desmente — e essa e exatamente a divergencia que a
+   * propria auditoria da plataforma aponta como risco numa contraparte.
+   * Enquanto a alteracao societaria nao e arquivada, o caminho honesto e
+   * dizer quem opera a marca. Feita a alteracao, esta variavel fica vazia.
+   */
+  notaLegal: env("MARCA_NOTA_LEGAL"),
   cnpj: env("MARCA_CNPJ"),
   emailSuporte: env("MARCA_EMAIL_SUPORTE"),
   telefone: env("MARCA_TELEFONE"),
