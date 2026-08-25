@@ -3,14 +3,15 @@ import { marca } from "@/lib/marca";
 import { MarcaLogo } from "@/components/marca-logo";
 import { DIAS_DE_TESTE } from "@/lib/planos";
 import { documentosOrdenados } from "@/lib/documentos/catalogo";
+import { ROTULO_ESTADO, SOLUCOES } from "@/lib/solucoes";
 
 export const metadata = {
   // `absolute` desliga o sufixo do modelo: esta e a linha que aparece na
   // busca, e ela ja comeca pelo nome da marca.
-  title: { absolute: `${marca.nome} — intermediação de ativos com documentação e verificação` },
+  title: { absolute: `${marca.nome} — compliance, due diligence e gestão de ativos` },
   description:
-    "Plataforma para intermediários de precatórios, créditos e commodities: cadastro das operações, geração dos " +
-    "documentos e verificação das contrapartes em fontes oficiais.",
+    "Compliance de empresas e due diligence de pessoas para o mercado de ativos financeiros e commodities, " +
+    "com verificação em fontes oficiais, conferência de documentos e gestão das operações.",
   robots: { index: true, follow: true },
 };
 
@@ -30,21 +31,21 @@ export default function Inicio() {
         </div>
 
         <div className="relative mx-auto max-w-5xl px-4 py-20">
-          <p className="sobretitulo">Intermediação de ativos</p>
+          <p className="sobretitulo">Soluções estratégicas</p>
 
           <h1 className="titulo mt-4 max-w-3xl text-3xl font-bold leading-tight text-white sm:text-4xl">
-            A operação inteira num lugar só — e nenhuma parte entra sem passar por auditoria.
+            Saber com quem se está tratando — antes de assinar, contratar ou pagar.
           </h1>
 
           <p className="serif mt-6 max-w-2xl text-lg leading-relaxed text-white/75">
-            Para quem intermedeia precatórios, créditos tributários, commodities e metais: as operações
-            organizadas, os {documentos.length} documentos gerados a partir do cadastro, e a contraparte
-            verificada em fontes oficiais antes de qualquer assinatura.
+            Compliance de empresas e due diligence de pessoas para o mercado de ativos financeiros e commodities.
+            A contraparte verificada em fontes oficiais, os documentos conferidos, e a gestão dos ativos no mesmo
+            lugar — com {documentos.length} documentos gerados a partir do cadastro.
           </p>
 
           <div className="mt-9 flex flex-wrap gap-3">
-            <Link href="/planos" className="botao-destaque">
-              Ver planos e preços
+            <Link href="/solucoes" className="botao-destaque">
+              Ver as soluções
             </Link>
             <Link
               href="/fontes"
@@ -57,6 +58,40 @@ export default function Inicio() {
           <p className="mt-5 text-sm text-white/55">
             {DIAS_DE_TESTE} dias para testar. Preços publicados abaixo, sem &ldquo;fale com o vendedor&rdquo;.
           </p>
+        </div>
+      </section>
+
+      {/* ---------------- as soluções ----------------
+          Vem logo depois da capa porque é a resposta à primeira pergunta de
+          quem chega: o que exatamente vocês fazem. O estado de cada uma
+          aparece aqui, e não escondido numa página interna. */}
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-5xl px-4 py-16">
+          <h2 className="titulo regua-destaque text-2xl font-semibold text-slate-900">As soluções</h2>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {SOLUCOES.map((s) => (
+              <Link
+                key={s.chave}
+                href="/solucoes"
+                className="cartao flex flex-col transition hover:border-slate-400"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="titulo text-base font-semibold text-slate-900">{s.nome}</h3>
+                  {s.estado !== "DISPONIVEL" && (
+                    <span
+                      className={`etiqueta shrink-0 ${
+                        s.estado === "PARCIAL" ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {ROTULO_ESTADO[s.estado]}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{s.resumo}</p>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 

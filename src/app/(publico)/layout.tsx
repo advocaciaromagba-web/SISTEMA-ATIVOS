@@ -10,6 +10,7 @@ import { MarcaLogo } from "@/components/marca-logo";
  */
 
 const PAGINAS = [
+  { href: "/solucoes", rotulo: "Soluções" },
   { href: "/planos", rotulo: "Planos" },
   { href: "/fontes", rotulo: "O que verificamos" },
   { href: "/seguranca", rotulo: "Segurança" },
