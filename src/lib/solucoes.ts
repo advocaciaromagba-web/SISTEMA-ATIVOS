@@ -148,19 +148,29 @@ export const SOLUCOES: Solucao[] = [
   {
     chave: "LICITACOES",
     nome: "Análise de licitações",
-    resumo: "O edital lido e cada participante conferido contra as exigências dele.",
+    resumo: "O edital lido, a documentação organizada e o participante conferido — para quem analisa e para quem participa.",
     paraQuem:
-      "Prefeituras, autarquias e órgãos que precisam analisar a habilitação dos participantes de uma licitação " +
-      "— e empresas que querem conferir a própria documentação antes de entregar.",
-    entrada: ["O edital", "A lista de participantes, por CNPJ"],
+      "Serve os dois lados do mesmo certame. Para o ente público — prefeituras, autarquias, órgãos —: recebe a " +
+      "documentação de cada participante já organizada, confere a veracidade e a regularidade sem trabalho manual. " +
+      "Para quem participa — empresas e prestadores de serviço —: mantém a documentação pronta e reaproveitável " +
+      "para concorrer em vários certames, em qualquer município do país, assinando em vez de montar processo do zero " +
+      "a cada edital.",
+    entrada: [
+      "Do ente público: o edital e o CNPJ de cada participante",
+      "Do participante: os documentos da empresa, uma vez, mantidos atualizados",
+    ],
     entrega: [
-      "As exigências de habilitação extraídas do edital, item por item",
-      "Cada participante conferido contra cada exigência, com o resultado apontado",
-      "As certidões de cada participante emitidas e arquivadas",
-      "Relatório consolidado entregue por e-mail",
+      "Para o ente público — as exigências de habilitação extraídas do edital, item por item",
+      "Para o ente público — cada participante conferido contra cada exigência, com o resultado apontado",
+      "Para o ente público — autenticidade das certidões e das assinaturas apresentadas, validada na fonte",
+      "Para o ente público — relatório consolidado da comissão, entregue por e-mail",
+      "Para o participante — o dossiê de habilitação em PDF, pronto para anexar a qualquer certame",
+      "Para o participante — assinatura pelo gov.br no que falta assinar, sem montar o processo de novo a cada edital",
+      "Oportunidades publicadas por prefeituras compatíveis com o segmento e a região do participante",
     ],
     fontes: [
       "O próprio edital",
+      "Portal Nacional de Contratações Públicas (PNCP), instituído pela Lei nº 14.133/2021",
       "Receita Federal",
       "Procuradoria-Geral da Fazenda Nacional",
       "Controladoria-Geral da União",
@@ -169,8 +179,9 @@ export const SOLUCOES: Solucao[] = [
     ],
     estado: "EM_CONSTRUCAO",
     limite:
-      "A verificação de cada participante já existe e funciona hoje, uma a uma. O que está sendo construído é a " +
-      "leitura do edital, o cruzamento automático em lote e a entrega por e-mail. O relatório apoia a decisão da " +
+      "A verificação de cada participante já existe e funciona hoje, uma a uma — é o compliance de empresas " +
+      "aplicado ao certame. O que está sendo construído é a leitura automática do edital, o cruzamento em lote, o " +
+      "dossiê reaproveitável do participante e a busca de oportunidades no PNCP. O relatório apoia a decisão da " +
       "comissão de licitação; não a substitui, nem emite juízo sobre habilitar ou inabilitar.",
   },
 
