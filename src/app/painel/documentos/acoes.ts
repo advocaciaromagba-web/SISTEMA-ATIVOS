@@ -113,6 +113,7 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
 
   const tipo = (dados.get("tipo")?.toString() ?? "").trim();
   const operacaoId = (dados.get("operacaoId")?.toString() ?? "").trim() || null;
+  const licitanteId = (dados.get("licitanteId")?.toString() ?? "").trim() || null;
 
   if (!tipoExiste(tipo)) return { erro: "Tipo de documento desconhecido." };
 
@@ -132,6 +133,15 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
     : null;
 
   if (operacaoId && !operacao) return { erro: "Operação não encontrada." };
+
+  // Declarações de licitação pedem a empresa avulsa, não a operação.
+  const licitante = definicao.exigeLicitante && licitanteId
+    ? await prisma.pessoa.findFirst({ where: { id: licitanteId, organizacaoId: organizacao.id } })
+    : null;
+
+  if (definicao.exigeLicitante && licitanteId && !licitante) {
+    return { erro: "Empresa licitante não encontrada." };
+  }
 
   // O relatório de due diligence é o único documento que atravessa as travas.
   // Ele não cria obrigação para ninguém: ele DESCREVE a situação, inclusive a
@@ -199,6 +209,7 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
     usuario,
     campos,
     agora: new Date(),
+    licitante,
     // O relatório de due diligence é o único documento que precisa varrer o
     // histórico inteiro de auditoria e certidões de cada parte.
     diligencia:
@@ -237,6 +248,8 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
             documento: p.pessoa.documento,
             comissaoPercentual: p.comissaoPercentual != null ? Number(p.comissaoPercentual) : null,
           })) ?? [],
+        // Retrato da empresa licitante, nas declarações de habilitação.
+        licitante: licitante ? { nome: licitante.nome, documento: licitante.documento } : null,
       } as never,
       arquivoNome: gerado.nomeArquivo,
       arquivo: gerado.buffer,
@@ -257,6 +270,7 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
     detalhe: {
       tipo,
       operacao: operacao?.codigo ?? null,
+      licitante: licitante?.nome ?? null,
       hash: gerado.hashSha256,
       pendencias: gerado.pendencias.length,
     },

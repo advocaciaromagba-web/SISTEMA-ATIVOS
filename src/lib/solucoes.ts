@@ -160,16 +160,16 @@ export const SOLUCOES: Solucao[] = [
       "Do participante: os documentos da empresa, uma vez, mantidos atualizados",
     ],
     entrega: [
+      "Para o participante — as cinco declarações padronizadas de habilitação geradas do cadastro: credenciamento, inexistência de fato superveniente, não emprego de menor, pleno atendimento e ME/EPP",
+      "Para o participante — a mesma empresa reaproveitada em qualquer certame, só trocando o órgão, a modalidade e o número",
+      "Para o ente público — cada participante conferido contra a Receita, a dívida ativa da União, a CNDT e as demais fontes do compliance de empresas",
       "Para o ente público — as exigências de habilitação extraídas do edital, item por item",
-      "Para o ente público — cada participante conferido contra cada exigência, com o resultado apontado",
-      "Para o ente público — autenticidade das certidões e das assinaturas apresentadas, validada na fonte",
       "Para o ente público — relatório consolidado da comissão, entregue por e-mail",
-      "Para o participante — o dossiê de habilitação em PDF, pronto para anexar a qualquer certame",
-      "Para o participante — assinatura pelo gov.br no que falta assinar, sem montar o processo de novo a cada edital",
       "Oportunidades publicadas por prefeituras compatíveis com o segmento e a região do participante",
     ],
     fontes: [
       "O próprio edital",
+      "Lei nº 8.666/1993 e Lei nº 14.133/2021, para a taxonomia fechada dos requisitos de habilitação",
       "Portal Nacional de Contratações Públicas (PNCP), instituído pela Lei nº 14.133/2021",
       "Receita Federal",
       "Procuradoria-Geral da Fazenda Nacional",
@@ -177,12 +177,13 @@ export const SOLUCOES: Solucao[] = [
       "Tribunal Superior do Trabalho",
       "Tribunais estaduais e federais",
     ],
-    estado: "EM_CONSTRUCAO",
+    estado: "PARCIAL",
     limite:
-      "A verificação de cada participante já existe e funciona hoje, uma a uma — é o compliance de empresas " +
-      "aplicado ao certame. O que está sendo construído é a leitura automática do edital, o cruzamento em lote, o " +
-      "dossiê reaproveitável do participante e a busca de oportunidades no PNCP. O relatório apoia a decisão da " +
-      "comissão de licitação; não a substitui, nem emite juízo sobre habilitar ou inabilitar.",
+      "As cinco declarações e a verificação individual de cada participante já funcionam hoje — a redação foi " +
+      "conferida contra um edital real, não inventada. O que está sendo construído é a leitura automática do " +
+      "edital, o cruzamento em lote de vários participantes de uma vez, a assinatura pelo gov.br e a busca de " +
+      "oportunidades no PNCP. O relatório apoia a decisão da comissão de licitação; não a substitui, nem emite " +
+      "juízo sobre habilitar ou inabilitar.",
   },
 
   {

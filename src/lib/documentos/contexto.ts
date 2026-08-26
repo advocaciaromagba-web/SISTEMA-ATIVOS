@@ -28,6 +28,16 @@ export type ContextoDocumento = {
    * certidões de todas as partes — trabalho que nenhum outro documento faz.
    */
   diligencia?: import("./geradores/diligencia").DadosDiligencia;
+  /**
+   * A empresa que participa de uma licitação, para as declarações de
+   * habilitação.
+   *
+   * Fica fora de `operacao` de propósito: não existe cessão, cedente ou
+   * cessionário aqui — é uma declaração unilateral da própria empresa perante
+   * o ente público, reaproveitável em qualquer certame. Por isso é uma
+   * `Pessoa` avulsa do cadastro, não uma parte vinculada a um negócio.
+   */
+  licitante?: Pessoa | null;
 };
 
 // ---------------------------------------------------------------------

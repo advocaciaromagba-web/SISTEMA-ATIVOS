@@ -89,9 +89,32 @@ export type TipoDocumento = {
   exigeTestemunhas?: boolean;
   /// Se recomenda registro em cartório ou escritura pública.
   exigeFormaEspecial?: string;
+  /**
+   * Se este documento precisa de uma empresa licitante em vez de uma operação.
+   *
+   * As declarações de habilitação não cedem nem compram ativo: são
+   * declaração unilateral de uma empresa perante o ente público, reaproveitável
+   * em qualquer certame. Por isso pedem uma `Pessoa` avulsa do cadastro
+   * (`ctx.licitante`), não uma operação com partes.
+   */
+  exigeLicitante?: boolean;
   /// Ordem de exibição na tela.
   ordem: number;
 };
+
+/** Os três dados do certame que toda declaração de licitação carrega. */
+const CAMPOS_CERTAME: CampoExtra[] = [
+  { chave: "orgaoLicitante", rotulo: "Órgão licitante", tipo: "texto", obrigatorio: true, ajuda: "Ex.: Prefeitura Municipal de Icém/SP." },
+  { chave: "modalidade", rotulo: "Modalidade", tipo: "opcao", obrigatorio: true, opcoes: [
+    { valor: "Pregão Presencial", rotulo: "Pregão Presencial" },
+    { valor: "Pregão Eletrônico", rotulo: "Pregão Eletrônico" },
+    { valor: "Concorrência", rotulo: "Concorrência" },
+    { valor: "Tomada de Preços", rotulo: "Tomada de Preços" },
+    { valor: "Dispensa de Licitação", rotulo: "Dispensa de Licitação" },
+    { valor: "Convite", rotulo: "Convite" },
+  ] },
+  { chave: "numeroCertame", rotulo: "Número do certame", tipo: "texto", obrigatorio: true, ajuda: "Ex.: 004/2021." },
+];
 
 export const CATALOGO: TipoDocumento[] = [
   // -----------------------------------------------------------------
@@ -411,6 +434,71 @@ export const CATALOGO: TipoDocumento[] = [
     ],
     exigeTestemunhas: true,
     ordem: 160,
+  },
+
+  // -----------------------------------------------------------------
+  // 9. LICITAÇÃO — habilitação do participante
+  // -----------------------------------------------------------------
+  // As cinco declarações abaixo pedem os mesmos três dados do certame
+  // (órgão, modalidade, número). Escrever o bloco cinco vezes seria
+  // repetição — CAMPOS_CERTAME é montado uma vez e espalhado em cada uma.
+
+  {
+    chave: "LICIT_CREDENCIAMENTO",
+    nome: "Termo de Credenciamento",
+    paraQueServe:
+      "Autoriza a pessoa que vai representar a empresa na sessão do certame — quem pode dar lance, negociar preço e desistir de recurso em nome dela.",
+    papeisObrigatorios: [],
+    exigeLicitante: true,
+    baseLegal: ["Lei nº 8.666/1993, art. 27; Lei nº 14.133/2021, art. 62"],
+    campos: [
+      ...CAMPOS_CERTAME,
+      { chave: "nomeCredenciado", rotulo: "Nome de quem vai representar a empresa", tipo: "texto", ajuda: "Em branco, usa o representante legal cadastrado." },
+      { chave: "rgCredenciado", rotulo: "RG de quem representa", tipo: "texto" },
+      { chave: "cpfCredenciado", rotulo: "CPF de quem representa", tipo: "texto" },
+    ],
+    ordem: 170,
+  },
+  {
+    chave: "LICIT_FATO_SUPERVENIENTE",
+    nome: "Declaração de Inexistência de Fato Superveniente Impeditivo",
+    paraQueServe: "Declara que nada mudou na empresa, desde que ela se cadastrou, que a impeça de ser habilitada.",
+    papeisObrigatorios: [],
+    exigeLicitante: true,
+    baseLegal: ["Lei nº 8.666/1993, art. 32, § 2º; Lei nº 14.133/2021, art. 63, § 4º"],
+    campos: CAMPOS_CERTAME,
+    ordem: 171,
+  },
+  {
+    chave: "LICIT_NAO_EMPREGA_MENOR",
+    nome: "Declaração de Que Não Emprega Menores",
+    paraQueServe: "Declaração exigida em praticamente todo edital, sobre não empregar menor em trabalho noturno, perigoso, insalubre, ou menor de 16 anos salvo aprendiz.",
+    papeisObrigatorios: [],
+    exigeLicitante: true,
+    baseLegal: ["Constituição Federal, art. 7º, XXXIII", "Lei nº 9.854/1999"],
+    campos: CAMPOS_CERTAME,
+    ordem: 172,
+  },
+  {
+    chave: "LICIT_PLENO_ATENDIMENTO",
+    nome: "Declaração de Pleno Atendimento aos Requisitos de Habilitação",
+    paraQueServe: "Declaração de que a empresa atende a tudo que o edital exige — exigida antes mesmo de abrir os envelopes, em pregão.",
+    papeisObrigatorios: [],
+    exigeLicitante: true,
+    baseLegal: ["Lei nº 10.520/2002, art. 4º, VII"],
+    campos: CAMPOS_CERTAME,
+    ordem: 173,
+  },
+  {
+    chave: "LICIT_ME_EPP",
+    nome: "Declaração de Microempresa ou Empresa de Pequeno Porte",
+    paraQueServe: "Só para quem se enquadra: dá direito a desempate favorável e a prazo extra para regularizar pendência fiscal.",
+    papeisObrigatorios: [],
+    exigeLicitante: true,
+    baseLegal: ["Lei Complementar nº 123/2006, art. 3º, com as alterações da Lei Complementar nº 147/2014"],
+    campos: CAMPOS_CERTAME,
+    alerta: "Só gere esta declaração se a empresa realmente se enquadra como ME ou EPP. Declaração falsa sujeita a empresa às penas da lei.",
+    ordem: 174,
   },
 ];
 

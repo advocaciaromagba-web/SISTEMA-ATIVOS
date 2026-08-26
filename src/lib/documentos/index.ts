@@ -25,6 +25,13 @@ import {
 import { gerarTermoComissao, gerarTermoQuitacao, gerarAditivo, gerarDistrato } from "./geradores/encerramento";
 import { gerarDeclaracaoOrigem, gerarFichaKyc } from "./geradores/compliance";
 import { gerarRelatorioDiligencia } from "./geradores/diligencia";
+import {
+  gerarLicitCredenciamento,
+  gerarLicitFatoSuperveniente,
+  gerarLicitNaoEmpregaMenor,
+  gerarLicitPlenoAtendimento,
+  gerarLicitMeEpp,
+} from "./geradores/licitacao";
 
 type Gerador = (ctx: ContextoDocumento) => MontagemDocumento;
 
@@ -46,6 +53,11 @@ const GERADORES: Record<string, Gerador> = {
   DECLARACAO_ORIGEM: gerarDeclaracaoOrigem,
   FICHA_KYC: gerarFichaKyc,
   RELATORIO_DILIGENCIA: gerarRelatorioDiligencia,
+  LICIT_CREDENCIAMENTO: gerarLicitCredenciamento,
+  LICIT_FATO_SUPERVENIENTE: gerarLicitFatoSuperveniente,
+  LICIT_NAO_EMPREGA_MENOR: gerarLicitNaoEmpregaMenor,
+  LICIT_PLENO_ATENDIMENTO: gerarLicitPlenoAtendimento,
+  LICIT_ME_EPP: gerarLicitMeEpp,
 };
 
 export function tipoExiste(tipo: string): boolean {
@@ -99,6 +111,21 @@ export function conferirRequisitos(tipo: string, ctx: ContextoDocumento): Penden
       }
       if (pessoa.tipo === "PJ" && !pessoa.repNome) {
         pendencias.push({ campo: pessoa.nome, motivo: "Pessoa jurídica sem representante legal cadastrado." });
+      }
+    }
+  }
+
+  // Declarações de licitação não têm operação nem partes — pedem a empresa
+  // licitante avulsa. Sem ela, não há quem declarar.
+  if (definicao.exigeLicitante) {
+    if (!ctx.licitante) {
+      pendencias.push({ campo: "Empresa licitante", motivo: "Nenhuma empresa selecionada para gerar a declaração." });
+    } else {
+      if (!ctx.licitante.documento) {
+        pendencias.push({ campo: ctx.licitante.nome, motivo: "Sem CPF/CNPJ cadastrado." });
+      }
+      if (ctx.licitante.tipo === "PJ" && !ctx.licitante.repNome) {
+        pendencias.push({ campo: ctx.licitante.nome, motivo: "Pessoa jurídica sem representante legal cadastrado." });
       }
     }
   }
