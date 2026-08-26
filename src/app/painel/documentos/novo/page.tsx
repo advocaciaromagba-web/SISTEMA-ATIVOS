@@ -72,18 +72,19 @@ export default async function NovoDocumento({
         })
       : null;
 
-  // Declarações de licitação pedem uma empresa avulsa do cadastro, em vez de
-  // uma operação com partes — a lista carrega só quando o documento exige.
+  // Declarações de licitação pedem uma empresa do cadastro próprio da
+  // solução (LicitanteEmpresa), não uma Pessoa da gestão de ativos — a
+  // lista carrega só quando o documento exige.
   const licitantes = definicao.exigeLicitante
-    ? await prisma.pessoa.findMany({
-        where: { organizacaoId: organizacao.id, tipo: "PJ" },
+    ? await prisma.licitanteEmpresa.findMany({
+        where: { organizacaoId: organizacao.id, ativa: true },
         select: { id: true, nome: true, documento: true },
         orderBy: { nome: "asc" },
       })
     : [];
 
   const licitante = definicao.exigeLicitante && licitanteId
-    ? await prisma.pessoa.findFirst({ where: { id: licitanteId, organizacaoId: organizacao.id } })
+    ? await prisma.licitanteEmpresa.findFirst({ where: { id: licitanteId, organizacaoId: organizacao.id } })
     : null;
 
   // Confere as partes e a qualificação delas. As pendências de campo do

@@ -5,7 +5,7 @@
  * permite guardar o contexto junto com o documento e reproduzir o mesmo arquivo
  * meses depois, mesmo que o cadastro tenha mudado desde então.
  */
-import type { Organizacao, Operacao, ParteOperacao, Pessoa, Usuario } from "@prisma/client";
+import type { Organizacao, Operacao, ParteOperacao, Pessoa, Usuario, LicitanteEmpresa } from "@prisma/client";
 import { marca } from "@/lib/marca";
 import { TIPOS_ATIVO, type PapelParte } from "./catalogo";
 import { moedaComExtenso, percentualComExtenso, numero } from "@/lib/formato";
@@ -32,12 +32,12 @@ export type ContextoDocumento = {
    * A empresa que participa de uma licitação, para as declarações de
    * habilitação.
    *
-   * Fica fora de `operacao` de propósito: não existe cessão, cedente ou
-   * cessionário aqui — é uma declaração unilateral da própria empresa perante
-   * o ente público, reaproveitável em qualquer certame. Por isso é uma
-   * `Pessoa` avulsa do cadastro, não uma parte vinculada a um negócio.
+   * É `LicitanteEmpresa`, não `Pessoa`: a solução de licitações tem cadastro
+   * próprio, isolado do cadastro de partes da gestão de ativos, ainda que os
+   * dois guardem o mesmo tipo de informação. Nenhuma tabela de uma solução
+   * referencia a tabela de outra.
    */
-  licitante?: Pessoa | null;
+  licitante?: LicitanteEmpresa | null;
 };
 
 // ---------------------------------------------------------------------

@@ -13,10 +13,51 @@
  * o mesmo conteúdo jurídico do anexo correspondente daquele edital, só que
  * escrita para ser gerada a partir do cadastro, não digitada à mão.
  */
-import { paragrafo, paragrafoRico } from "../base";
-import { qualificar, identificacao, nomeCurto } from "../qualificacao";
+import { paragrafo, paragrafoRico, ou } from "../base";
 import { campo, type ContextoDocumento } from "../contexto";
 import type { MontagemDocumento } from "../montagem";
+import { formatarCep, formatarDocumento } from "@/lib/validacao";
+import type { LicitanteEmpresa } from "@prisma/client";
+
+/**
+ * Qualificação da empresa licitante — versão própria da solução de
+ * licitações, que não importa `qualificacao.ts` porque aquele módulo é
+ * tipado em `Pessoa`, do cadastro de partes da gestão de ativos. As duas
+ * soluções não compartilham tabela, então também não compartilham a função
+ * que lê os campos dela.
+ */
+function qualificarLicitante(e: LicitanteEmpresa): string {
+  const partes = [
+    e.nome.toUpperCase(),
+    "pessoa jurídica de direito privado",
+    `inscrita no CNPJ/MF sob o nº ${formatarDocumento(e.documento) || "[CNPJ NÃO INFORMADO]"}`,
+  ];
+
+  if (e.inscricaoEstadual) partes.push(`inscrição estadual nº ${e.inscricaoEstadual}`);
+
+  partes.push(
+    `com sede na ${ou(e.enderecoRua, "endereço")}, nº ${ou(e.enderecoNumero, "número")}` +
+      `${e.enderecoComplemento ? `, ${e.enderecoComplemento}` : ""}, ${ou(e.enderecoBairro, "bairro")}, ` +
+      `${ou(e.enderecoCidade, "cidade")}/${ou(e.enderecoUf, "UF")}, CEP ${formatarCep(e.enderecoCep) || "[CEP NÃO INFORMADO]"}`
+  );
+
+  if (e.emailContato) partes.push(`endereço eletrônico ${e.emailContato}`);
+
+  partes.push(
+    `neste ato representada por ${ou(e.repNome, "nome do representante")}, ` +
+      `${ou(e.repNacionalidade, "nacionalidade")}, ${ou(e.repEstadoCivil, "estado civil")}, ` +
+      `${ou(e.repProfissao ?? e.repCargo, "profissão/cargo")}, portador(a) do RG nº ${ou(e.repRg, "RG")} e ` +
+      `inscrito(a) no CPF/MF sob o nº ${formatarDocumento(e.repCpf) || "[CPF DO REPRESENTANTE NÃO INFORMADO]"}` +
+      `${e.repCargo ? `, na qualidade de ${e.repCargo}` : ""}`
+  );
+
+  return partes.join(", ");
+}
+
+/** "CNPJ 00.000.000/0000-00" — como aparece no bloco de assinatura. */
+function identificacaoLicitante(e: LicitanteEmpresa): string {
+  return `CNPJ ${formatarDocumento(e.documento) || "[CNPJ NÃO INFORMADO]"}${e.repNome ? ` — p.p. ${e.repNome}` : ""}`;
+}
 
 /** Dados do certame que toda declaração de licitação carrega no preâmbulo. */
 function dadosDoCertame(ctx: ContextoDocumento) {
@@ -31,16 +72,16 @@ function licitanteOuAviso(ctx: ContextoDocumento): string {
   if (!ctx.licitante) {
     return "[EMPRESA LICITANTE NÃO INFORMADA — selecione a empresa antes de gerar]";
   }
-  return qualificar(ctx.licitante);
+  return qualificarLicitante(ctx.licitante);
 }
 
 function assinanteDoLicitante(ctx: ContextoDocumento) {
   if (!ctx.licitante) return [];
   return [
     {
-      nome: ctx.licitante.repNome || nomeCurto(ctx.licitante),
+      nome: ctx.licitante.repNome || ctx.licitante.nome,
       papel: ctx.licitante.repCargo || "Representante legal",
-      identificacao: identificacao(ctx.licitante),
+      identificacao: identificacaoLicitante(ctx.licitante),
     },
   ];
 }

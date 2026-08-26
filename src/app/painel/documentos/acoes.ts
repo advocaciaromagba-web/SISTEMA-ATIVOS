@@ -134,9 +134,10 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
 
   if (operacaoId && !operacao) return { erro: "Operação não encontrada." };
 
-  // Declarações de licitação pedem a empresa avulsa, não a operação.
+  // Declarações de licitação pedem a empresa do cadastro próprio da
+  // solução (LicitanteEmpresa), não a operação nem a Pessoa da gestão de ativos.
   const licitante = definicao.exigeLicitante && licitanteId
-    ? await prisma.pessoa.findFirst({ where: { id: licitanteId, organizacaoId: organizacao.id } })
+    ? await prisma.licitanteEmpresa.findFirst({ where: { id: licitanteId, organizacaoId: organizacao.id } })
     : null;
 
   if (definicao.exigeLicitante && licitanteId && !licitante) {

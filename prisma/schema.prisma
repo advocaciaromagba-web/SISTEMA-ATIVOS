@@ -53,8 +53,8 @@ model Organizacao {
   asaasCustomerId     String?
   asaasSubscriptionId String?
 
-  ativa    Boolean  @default(true)
-  criadoEm DateTime @default(now())
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   usuarios   Usuario[]
@@ -68,6 +68,12 @@ model Organizacao {
   consumos   Consumo[]
   logs       LogAuditoria[]
 
+  // ----- solucao de licitacoes (isolada do restante) -----
+  licitantesEmpresa LicitanteEmpresa[]
+  editaisInteresse  EditalInteresse[]
+  envelopes         Envelope[]
+  certames          Certame[]
+
   @@index([statusAssinatura])
 }
 
@@ -79,25 +85,25 @@ model Organizacao {
 /// Os dados civis (CPF, endereco...) existem porque o usuario costuma
 /// figurar como INTERMEDIARIO nos documentos que ele mesmo gera.
 model Usuario {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
   nome         String
-  email        String @unique
+  email        String  @unique
   passwordHash String
-  papel        String @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
   /// Administrador da plataforma (equipe da empresa gestora), enxerga o painel
   /// de assinantes. Nada a ver com "DONO", que e o dono de uma organizacao.
   admin        Boolean @default(false)
   ativo        Boolean @default(true)
 
-  telefone     String?
-  cpf          String?
-  rg           String?
+  telefone      String?
+  cpf           String?
+  rg            String?
   nacionalidade String? @default("brasileiro(a)")
-  estadoCivil  String?
-  profissao    String?
+  estadoCivil   String?
+  profissao     String?
 
   enderecoRua         String?
   enderecoNumero      String?
@@ -108,9 +114,9 @@ model Usuario {
   enderecoCep         String?
 
   /// Verificacao em duas etapas (Google Authenticator e semelhantes).
-  totpSegredo   String?
-  totpAtivado   Boolean   @default(false)
-  totpAtivadoEm DateTime?
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
   /// Codigos de recuperacao embaralhados, um uso cada.
   totpRecuperacao String?
 
@@ -133,21 +139,21 @@ model Usuario {
 /// cessionario, intermediario, testemunha, anuente.
 /// A qualificacao completa existe porque e ela que entra nos contratos.
 model Pessoa {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
-  tipo      String // PF | PJ
-  nome      String // nome civil ou razao social
-  nomeFantasia String?
-  documento String? // CPF ou CNPJ, guardado so com numeros
-  rg        String?
-  orgaoEmissor String?
+  tipo              String // PF | PJ
+  nome              String // nome civil ou razao social
+  nomeFantasia      String?
+  documento         String? // CPF ou CNPJ, guardado so com numeros
+  rg                String?
+  orgaoEmissor      String?
   inscricaoEstadual String?
 
-  nacionalidade String? @default("brasileiro(a)")
-  estadoCivil   String?
-  profissao     String?
+  nacionalidade  String?   @default("brasileiro(a)")
+  estadoCivil    String?
+  profissao      String?
   dataNascimento DateTime?
 
   email    String?
@@ -163,48 +169,48 @@ model Pessoa {
   enderecoPais        String? @default("Brasil")
 
   // ----- representante legal (quando PJ, ou PF representada) -----
-  repNome     String?
-  repCpf      String?
-  repRg       String?
-  repCargo    String?
+  repNome          String?
+  repCpf           String?
+  repRg            String?
+  repCargo         String?
   repNacionalidade String?
   repEstadoCivil   String?
   repProfissao     String?
-  repEmail    String?
+  repEmail         String?
 
   // ----- compliance / PLD-FT -----
   /// Pessoa Exposta Politicamente (Circular Bacen e Lei 9.613/98).
-  pep            Boolean  @default(false)
-  pepDetalhe     String?
-  observacoes    String?
+  pep         Boolean @default(false)
+  pepDetalhe  String?
+  observacoes String?
 
   // ----- resultado da ultima auditoria -----
   // Copiado da auditoria mais recente para que a lista e as travas nao
   // precisem consultar o dossie inteiro a cada tela.
   /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
-  situacaoCompliance String?
-  complianceEm       DateTime?
+  situacaoCompliance  String?
+  complianceEm        DateTime?
   /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
   capacidadePagamento String?
   /// 0 a 100. Quanto maior, melhor. Serve para ordenar, nao para decidir sozinho.
-  pontuacao          Int?
+  pontuacao           Int?
 
   /// Enquanto true, a parte nao entra em documento nem em operacao nova.
   /// E ligada automaticamente quando a auditoria encontra restricao.
-  bloqueada             Boolean   @default(false)
+  bloqueada              Boolean   @default(false)
   /// Liberacao manual de uma parte bloqueada, sempre com justificativa e autor.
-  liberadaPorId         String?
-  liberadaEm            DateTime?
+  liberadaPorId          String?
+  liberadaEm             DateTime?
   justificativaLiberacao String?
 
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  partes    ParteOperacao[]
-  consultas Consulta[]
+  partes     ParteOperacao[]
+  consultas  Consulta[]
   auditorias Auditoria[]
-  certidoes Certidao[]
-  pedidos   Pedido[]
+  certidoes  Certidao[]
+  pedidos    Pedido[]
 
   @@index([organizacaoId])
   @@index([organizacaoId, documento])
@@ -215,7 +221,7 @@ model Pessoa {
 // ---------------------------------------------------------------------
 
 model Operacao {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
@@ -226,10 +232,10 @@ model Operacao {
   descricao String?
 
   // ----- numeros do negocio -----
-  moeda             String   @default("BRL")
-  valorFace         Decimal? @db.Decimal(18, 2)
-  desagioPercentual Decimal? @db.Decimal(7, 4)
-  valorNegociado    Decimal? @db.Decimal(18, 2)
+  moeda              String   @default("BRL")
+  valorFace          Decimal? @db.Decimal(18, 2)
+  desagioPercentual  Decimal? @db.Decimal(7, 4)
+  valorNegociado     Decimal? @db.Decimal(18, 2)
   comissaoPercentual Decimal? @db.Decimal(7, 4)
   comissaoValor      Decimal? @db.Decimal(18, 2)
 
@@ -243,31 +249,31 @@ model Operacao {
   anoOrcamentario  Int?
 
   // ----- especifico de credito tributario -----
-  tributo          String?
-  ufCredito        String?
-  processoAdmin    String?
-  homologado       Boolean?
+  tributo       String?
+  ufCredito     String?
+  processoAdmin String?
+  homologado    Boolean?
 
   // ----- especifico de commodity, ouro e metais -----
-  produto     String?
-  quantidade  Decimal? @db.Decimal(18, 4)
-  unidade     String?
-  incoterm    String?
-  origem      String?
-  destino     String?
-  embarque    String?
+  produto    String?
+  quantidade Decimal? @db.Decimal(18, 4)
+  unidade    String?
+  incoterm   String?
+  origem     String?
+  destino    String?
+  embarque   String?
 
   // ----- especifico de ouro e metais -----
   /// Teor / pureza declarada: 999, 9999, 24k, ou percentual do elemento.
-  teor         String?
+  teor            String?
   /// Forma fisica: barra, dore, granulado, lingote, minerio bruto.
-  forma        String?
+  forma           String?
   /// Laudo de ensaio: laboratorio, numero e data. E o que sustenta o teor.
-  laudoEnsaio  String?
+  laudoEnsaio     String?
   /// Titulo minerario ou registro na ANM da area de origem.
   tituloMinerario String?
 
-  fase String @default("PROSPECCAO") // PROSPECCAO | NDA | DUE_DILIGENCE | PROPOSTA | CONTRATO | LIQUIDACAO | CONCLUIDA | CANCELADA
+  fase         String  @default("PROSPECCAO") // PROSPECCAO | NDA | DUE_DILIGENCE | PROPOSTA | CONTRATO | LIQUIDACAO | CONCLUIDA | CANCELADA
   /// Operacao sob sigilo: so quem esta na lista de acesso enxerga o detalhe.
   confidencial Boolean @default(true)
 
@@ -291,19 +297,19 @@ model Operacao {
 /// Liga uma Pessoa a uma Operacao com um papel. A mesma pessoa pode ter mais
 /// de um papel na mesma operacao (ex: intermediario e representante).
 model ParteOperacao {
-  id         String @id @default(cuid())
+  id         String   @id @default(cuid())
   operacaoId String
   operacao   Operacao @relation(fields: [operacaoId], references: [id], onDelete: Cascade)
   pessoaId   String
-  pessoa     Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  pessoa     Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
 
   papel String // CEDENTE | CESSIONARIO | INTERMEDIARIO | REPRESENTANTE | TESTEMUNHA | ANUENTE | GARANTIDOR | INVESTIDOR | DIVULGADOR | RECEPTOR | MANDATARIO_VENDA | MANDATARIO_COMPRA
 
   /// Percentual de comissao desta parte, quando intermediario.
   comissaoPercentual Decimal? @db.Decimal(7, 4)
   /// Posicao na cadeia de intermediacao — e o que o NCNDA protege.
-  ordemCadeia Int?
-  observacao  String?
+  ordemCadeia        Int?
+  observacao         String?
 
   criadoEm DateTime @default(now())
 
@@ -316,11 +322,11 @@ model ParteOperacao {
 // ---------------------------------------------------------------------
 
 model Documento {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
   operacaoId    String?
-  operacao      Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+  operacao      Operacao?   @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
 
   tipo   String // NDA | NCNDA | IMFPA | PROCURACAO | MANDATO | CESSAO_CREDITO | CESSAO_DIREITOS | CESSAO_PRECATORIO | LOI | TERMO_COMISSAO | DECLARACAO_ORIGEM | TERMO_QUITACAO | ADITIVO | DISTRATO
   titulo String
@@ -364,7 +370,7 @@ model Documento {
 /// se repete no tempo: a empresa idonea de hoje pode estar inapta em seis meses,
 /// e a comparacao entre dossies e o que mostra isso.
 model Auditoria {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
@@ -385,7 +391,7 @@ model Auditoria {
   pontuacao  Int?
 
   /// Leitura do resultado em linguagem simples, para quem nao e do ramo.
-  parecer String?
+  parecer      String?
   /// Lista estruturada: [{ gravidade, titulo, detalhe, fonte }]
   apontamentos Json?
 
@@ -398,8 +404,8 @@ model Auditoria {
   fontesIndisponiveis Json?
 
   solicitadoPorId String?
-  criadoEm    DateTime  @default(now())
-  concluidaEm DateTime?
+  criadoEm        DateTime  @default(now())
+  concluidaEm     DateTime?
 
   consultas Consulta[]
 
@@ -411,27 +417,27 @@ model Auditoria {
 /// A resposta bruta fica guardada para servir de prova do que foi consultado
 /// e em que data.
 model Consulta {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
-  pessoaId   String?
-  pessoa     Pessoa? @relation(fields: [pessoaId], references: [id], onDelete: SetNull)
-  operacaoId String?
-  operacao   Operacao? @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
+  pessoaId    String?
+  pessoa      Pessoa?    @relation(fields: [pessoaId], references: [id], onDelete: SetNull)
+  operacaoId  String?
+  operacao    Operacao?  @relation(fields: [operacaoId], references: [id], onDelete: SetNull)
   auditoriaId String?
   auditoria   Auditoria? @relation(fields: [auditoriaId], references: [id], onDelete: Cascade)
 
   fonte     String // RECEITA_CNPJ | CEIS | CNEP | CEPIM | SANCOES_OFAC | DATAJUD | BUREAU | PROTESTO | IA_DOCUMENTO
   parametro String // o que foi consultado: CPF, CNPJ, numero do processo...
 
-  status    String @default("PENDENTE") // PENDENTE | CONCLUIDA | ERRO
-  resultado Json?
+  status        String  @default("PENDENTE") // PENDENTE | CONCLUIDA | ERRO
+  resultado     Json?
   /// Leitura em linguagem simples do que a consulta encontrou.
-  resumo    String?
+  resumo        String?
   /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
   classificacao String?
-  erro      String?
+  erro          String?
 
   solicitadoPorId String?
   solicitadoPor   Usuario? @relation(fields: [solicitadoPorId], references: [id], onDelete: SetNull)
@@ -451,7 +457,7 @@ model Consulta {
 /// a certidao da propria parte, guardar o arquivo e travar a operacao enquanto
 /// faltar.
 model Certidao {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
@@ -496,8 +502,8 @@ model Certidao {
   dadosConsulta     Json?
 
   registradaPorId String?
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
 
   @@index([organizacaoId, pessoaId])
   @@index([pessoaId, tipo])
@@ -523,27 +529,27 @@ model DividaAtivaUniao {
   id String @id @default(cuid())
 
   /// Documento como veio no arquivo, so com numeros e letras.
-  documento String
+  documento  String
   /// Os seis digitos visiveis do CPF mascarado. Nulo quando e CNPJ.
-  cpfMiolo  String?
+  cpfMiolo   String?
   tipoPessoa String // PF | PJ
 
-  nome           String
+  nome            String
   nomeNormalizado String // sem acento, maiusculas — para casar pessoa fisica
-  uf             String?
+  uf              String?
 
   /// FGTS | PREVIDENCIARIO | NAO_PREVIDENCIARIO
   tipoDivida String
 
-  numeroInscricao String
+  numeroInscricao  String
   /// Em cobranca | Beneficio Fiscal | Garantia
-  tipoSituacao    String?
+  tipoSituacao     String?
   /// INSCRITA | AJUIZADA | PROTESTADA | EMBARGADA | PARCELAMENTO...
-  situacao        String?
+  situacao         String?
   receitaPrincipal String?
-  dataInscricao   DateTime?
-  ajuizado        Boolean  @default(false)
-  valorConsolidado Decimal  @db.Decimal(18, 2)
+  dataInscricao    DateTime?
+  ajuizado         Boolean   @default(false)
+  valorConsolidado Decimal   @db.Decimal(18, 2)
 
   /// Trimestre de origem do arquivo: 2026_trimestre_02.
   origem String
@@ -564,9 +570,9 @@ model CargaDados {
   /// Trimestre carregado: 2026_trimestre_02.
   referencia String
 
-  situacao   String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
-  registros  Int    @default(0)
-  erro       String?
+  situacao  String  @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+  registros Int     @default(0)
+  erro      String?
 
   iniciadaEm  DateTime  @default(now())
   concluidaEm DateTime?
@@ -586,7 +592,7 @@ model CargaDados {
 /// e o assinante que estoura o incluido no plano tambem compra avulso em vez
 /// de ser obrigado a subir de faixa.
 model Pedido {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
@@ -594,9 +600,9 @@ model Pedido {
   numero String
 
   /// Chave do catalogo em src/lib/avulsos.ts
-  item      String
-  descricao String
-  quantidade Int     @default(1)
+  item          String
+  descricao     String
+  quantidade    Int     @default(1)
   valorUnitario Decimal @db.Decimal(18, 2)
   valorTotal    Decimal @db.Decimal(18, 2)
 
@@ -628,8 +634,8 @@ model Pedido {
   observacao String?
 
   solicitadoPorId String?
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
 
   @@unique([organizacaoId, numero])
   @@index([organizacaoId, situacao])
@@ -641,12 +647,12 @@ model Pedido {
 /// cobrar avulso — e nao depois. Cobranca surpresa em software de assinatura e
 /// o caminho mais rapido para o cancelamento.
 model Consumo {
-  id            String @id @default(cuid())
+  id            String      @id @default(cuid())
   organizacaoId String
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
   /// LEITURA_IA | ASSINATURA | BUREAU | DOCUMENTO
-  tipo String
+  tipo        String
   /// Mes de referencia no formato AAAA-MM.
   competencia String
 
@@ -660,16 +666,16 @@ model Consumo {
 
 /// Registro de quem fez o que. Nunca e apagado nem editado pelo sistema.
 model LogAuditoria {
-  id            String @id @default(cuid())
+  id            String       @id @default(cuid())
   organizacaoId String?
   organizacao   Organizacao? @relation(fields: [organizacaoId], references: [id], onDelete: SetNull)
   usuarioId     String?
-  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuario       Usuario?     @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
-  acao      String // LOGIN | LOGIN_FALHA | CRIAR | EDITAR | EXCLUIR | GERAR_DOCUMENTO | ENVIAR_ASSINATURA | CONSULTAR | EXPORTAR
-  entidade  String?
+  acao       String // LOGIN | LOGIN_FALHA | CRIAR | EDITAR | EXCLUIR | GERAR_DOCUMENTO | ENVIAR_ASSINATURA | CONSULTAR | EXPORTAR
+  entidade   String?
   entidadeId String?
-  detalhe   Json?
+  detalhe    Json?
 
   ip     String?
   agente String?
@@ -688,4 +694,252 @@ model TentativaLogin {
   criadoEm DateTime @default(now())
 
   @@index([email, criadoEm])
+}
+
+// =====================================================================
+// LICITAÇÕES
+//
+// Solução isolada: nenhum modelo abaixo referencia Pessoa, Operacao ou
+// ParteOperacao, que pertencem à solução de gestão de ativos. É regra do
+// produto — cada solução tem seu próprio cadastro, sem tabela compartilhada
+// entre soluções, mesmo quando os dados parecem os mesmos (uma empresa
+// licitante "parece" uma Pessoa PJ comum; ainda assim, tem tabela própria).
+//
+// A solução tem duas frentes, e elas TAMBÉM não se comunicam entre si:
+//
+//   FRENTE DO LICITANTE — a empresa organiza o próprio dossiê de habilitação
+//   e monta o envelope de um edital que ela escolheu.
+//
+//   FRENTE DO ENTE PÚBLICO — a prefeitura analisa os participantes que se
+//   apresentaram a um certame dela, verificando documentação e assinatura.
+//
+// A mesma empresa do mundo real pode aparecer em LicitanteEmpresa (pelo
+// próprio cadastro) e em ParticipanteCertame (pelo olhar da prefeitura que
+// recebeu a documentação dela) sem que um registro aponte para o outro.
+// =====================================================================
+
+// ---------------------------------------------------------------------
+// FRENTE DO LICITANTE
+// ---------------------------------------------------------------------
+
+/// Cadastro da empresa que participa de licitações — próprio da solução,
+/// preenchido uma vez e reaproveitado em qualquer certame.
+model LicitanteEmpresa {
+  id            String      @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  nome              String
+  documento         String // CNPJ
+  inscricaoEstadual String?
+  microempresaOuEpp Boolean @default(false)
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  // ----- representante legal, para as declaracoes e o credenciamento -----
+  repNome          String?
+  repCpf           String?
+  repRg            String?
+  repCargo         String?
+  repNacionalidade String?
+  repEstadoCivil   String?
+  repProfissao     String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  documentosPessoais LicitanteDocumentoPessoal[]
+  envelopes          Envelope[]
+
+  @@index([organizacaoId])
+  @@index([organizacaoId, documento])
+}
+
+/// Documento pessoal do representante — RG, comprovante de residência e
+/// afins. É o que falta depois das declarações geradas: a plataforma monta
+/// tudo o que pode a partir do cadastro, e isto aqui é o que só a própria
+/// pessoa consegue apresentar.
+model LicitanteDocumentoPessoal {
+  id                 String           @id @default(cuid())
+  organizacaoId      String
+  licitanteEmpresaId String
+  licitanteEmpresa   LicitanteEmpresa @relation(fields: [licitanteEmpresaId], references: [id], onDelete: Cascade)
+
+  tipo        String // RG | CPF | COMPROVANTE_RESIDENCIA | CONTRATO_SOCIAL | OUTRO
+  nomeArquivo String
+  arquivo     Bytes
+  arquivoTipo String? // image/jpeg | application/pdf | ...
+
+  enviadoEm DateTime @default(now())
+
+  @@index([organizacaoId, licitanteEmpresaId])
+}
+
+/// Um edital que a empresa trouxe porque tem interesse em participar.
+model EditalInteresse {
+  id            String      @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  orgaoLicitante String
+  modalidade     String
+  numeroCertame  String
+  objeto         String?
+
+  arquivoNome String?
+  arquivo     Bytes?
+
+  prazoEnvio DateTime?
+
+  criadoEm DateTime @default(now())
+
+  envelopes Envelope[]
+
+  @@index([organizacaoId])
+}
+
+/// O pacote de submissão: identifica o certame e a empresa, e reúne as
+/// declarações geradas com os documentos pessoais anexados. É a resposta
+/// concreta a "reunir toda a documentação, já pronta para anexar".
+model Envelope {
+  id                 String           @id @default(cuid())
+  organizacaoId      String
+  organizacao        Organizacao      @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  licitanteEmpresaId String
+  licitanteEmpresa   LicitanteEmpresa @relation(fields: [licitanteEmpresaId], references: [id], onDelete: Cascade)
+  editalInteresseId  String
+  editalInteresse    EditalInteresse  @relation(fields: [editalInteresseId], references: [id], onDelete: Cascade)
+
+  status String @default("MONTAGEM") // MONTAGEM | COMPLETO | ENVIADO
+
+  /// Registro de quais declarações e documentos entraram, e o hash de cada
+  /// arquivo gerado, para provar depois que o envelope não foi alterado.
+  itens Json
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([organizacaoId])
+  @@index([licitanteEmpresaId])
+}
+
+// ---------------------------------------------------------------------
+// FRENTE DO ENTE PÚBLICO
+// ---------------------------------------------------------------------
+
+/// O certame gerenciado pela prefeitura ou órgão — onde ela cadastra os
+/// participantes que se apresentaram, para qualificação.
+model Certame {
+  id            String      @id @default(cuid())
+  organizacaoId String
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  orgaoLicitante String
+  modalidade     String
+  numeroCertame  String
+  objeto         String?
+
+  arquivoEditalNome String?
+  arquivoEdital     Bytes?
+
+  dataSessao DateTime?
+  fase       String    @default("ANALISE") // ANALISE | CONCLUIDO | CANCELADO
+
+  criadoEm DateTime @default(now())
+
+  participantes ParticipanteCertame[]
+
+  @@index([organizacaoId])
+}
+
+/// Um participante do certame, pelo olhar da prefeitura — não é a mesma
+/// tabela de LicitanteEmpresa, mesmo quando descreve a mesma empresa: a
+/// prefeitura só enxerga o que o participante apresentou a ela.
+model ParticipanteCertame {
+  id        String  @id @default(cuid())
+  certameId String
+  certame   Certame @relation(fields: [certameId], references: [id], onDelete: Cascade)
+
+  nome      String
+  documento String // CNPJ apresentado
+
+  situacao String @default("EM_ANALISE") // EM_ANALISE | QUALIFICADO | INABILITADO
+
+  /// Motivo da qualificação ou inabilitação, requisito por requisito —
+  /// preenchido conforme a taxonomia fechada de src/lib/licitacoes/requisitos.ts.
+  parecer Json?
+
+  criadoEm DateTime @default(now())
+
+  documentos DocumentoParticipante[]
+
+  @@index([certameId])
+}
+
+/// Documento apresentado pelo participante para aquele certame — o que se
+/// confere quanto a autenticidade e a assinatura.
+model DocumentoParticipante {
+  id                    String              @id @default(cuid())
+  participanteCertameId String
+  participanteCertame   ParticipanteCertame @relation(fields: [participanteCertameId], references: [id], onDelete: Cascade)
+
+  tipo        String // requisito da taxonomia (ex.: CERTIDAO_FGTS) ou "OUTRO"
+  nomeArquivo String
+  arquivo     Bytes
+  arquivoTipo String?
+
+  /// Se o mesmo documento existe emitido direto na fonte oficial, para
+  /// comparar o apresentado contra o que o orgao emissor responde hoje.
+  autenticidadeConferida Boolean @default(false)
+  autenticidadeResultado String? // CONFERE | DIVERGE | NAO_VERIFICAVEL
+
+  assinatura ValidacaoAssinatura?
+
+  enviadoEm DateTime @default(now())
+
+  @@index([participanteCertameId])
+}
+
+/// Validação da assinatura de um documento apresentado.
+///
+/// Assinatura digital tem certificado verificável na fonte (ICP-Brasil,
+/// gov.br, ou o provedor de assinatura eletrônica) — isso a plataforma
+/// confere de verdade. Assinatura manuscrita, escaneada, não tem base
+/// pública de comparação automática confiável: o que a plataforma oferece
+/// aqui é colocar as duas assinaturas lado a lado para o analista comparar,
+/// não um veredito automático de "é genuína". Prometer isso seria exatamente
+/// o tipo de afirmação que a própria auditoria da plataforma trata como
+/// risco quando encontra numa contraparte.
+model ValidacaoAssinatura {
+  id                      String                @id @default(cuid())
+  documentoParticipanteId String                @unique
+  documentoParticipante   DocumentoParticipante @relation(fields: [documentoParticipanteId], references: [id], onDelete: Cascade)
+
+  tipo String // DIGITAL | MANUSCRITA
+
+  // ----- assinatura digital -----
+  provedor               String? // ICP_BRASIL | GOV_BR | AUTENTIQUE | OUTRO
+  certificadoValido      Boolean?
+  identificadorValidacao String? // codigo/URL de verificacao no provedor
+
+  // ----- assinatura manuscrita -----
+  /// Nunca "GENUINA" automatico — so registra que foi colocada para
+  /// conferencia visual, e o que o analista humano concluiu.
+  conferenciaVisualFeitaPor String?
+  observacaoAnalista        String?
+
+  resultado String @default("PENDENTE") // PENDENTE | VALIDA | INVALIDA | NAO_VERIFICAVEL
+
+  validadoEm DateTime?
+  criadoEm   DateTime  @default(now())
 }

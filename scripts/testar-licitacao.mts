@@ -6,7 +6,7 @@
  *
  * Uso: node --experimental-strip-types --import ./scripts/registrar.mjs scripts/testar-licitacao.mts
  */
-import type { Organizacao, Pessoa, Usuario } from "@prisma/client";
+import type { Organizacao, LicitanteEmpresa, Usuario } from "@prisma/client";
 import fs from "fs/promises";
 import path from "path";
 import { gerarDocumento } from "@/lib/documentos";
@@ -25,8 +25,7 @@ const organizacao = {
 const usuario = { id: "u1", nome: "Operador", email: "op@exemplo.com.br" } as unknown as Usuario;
 
 const licitante = {
-  id: "p1",
-  tipo: "PJ",
+  id: "le1",
   nome: "Distribuidora Guariba de Materiais de Limpeza Ltda",
   documento: "11222333000181",
   enderecoRua: "Rua Rui Barbosa",
@@ -42,7 +41,7 @@ const licitante = {
   repNacionalidade: "brasileiro",
   repEstadoCivil: "casado",
   repProfissao: "empresário",
-} as unknown as Pessoa;
+} as unknown as LicitanteEmpresa;
 
 const CAMPOS_CERTAME = {
   orgaoLicitante: "Prefeitura Municipal de Icém/SP",

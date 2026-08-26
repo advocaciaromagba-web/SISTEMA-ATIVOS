@@ -122,10 +122,10 @@ export function conferirRequisitos(tipo: string, ctx: ContextoDocumento): Penden
       pendencias.push({ campo: "Empresa licitante", motivo: "Nenhuma empresa selecionada para gerar a declaração." });
     } else {
       if (!ctx.licitante.documento) {
-        pendencias.push({ campo: ctx.licitante.nome, motivo: "Sem CPF/CNPJ cadastrado." });
+        pendencias.push({ campo: ctx.licitante.nome, motivo: "Sem CNPJ cadastrado." });
       }
-      if (ctx.licitante.tipo === "PJ" && !ctx.licitante.repNome) {
-        pendencias.push({ campo: ctx.licitante.nome, motivo: "Pessoa jurídica sem representante legal cadastrado." });
+      if (!ctx.licitante.repNome) {
+        pendencias.push({ campo: ctx.licitante.nome, motivo: "Sem representante legal cadastrado." });
       }
     }
   }
