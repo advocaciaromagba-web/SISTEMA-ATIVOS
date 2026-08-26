@@ -8,6 +8,7 @@ import { registrar } from "@/lib/registro";
 import { somenteAlfanumerico, somenteNumeros, validarDocumento, validarEmail } from "@/lib/validacao";
 import { gerarDocumento } from "@/lib/documentos";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
+import { auditarLicitante } from "@/lib/licitacoes/auditoria";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -94,6 +95,19 @@ export async function salvarLicitante(_anterior: ResultadoAcao, dados: FormData)
       entidadeId: licitanteId,
       detalhe: { nome },
     });
+  }
+
+  // Todo cadastro passa por auditoria — aqui, e não num botão à parte, é onde
+  // a regra se cumpre de verdade. A falha de uma fonte externa não pode
+  // impedir o cadastro de ficar salvo, então o erro é engolido e a empresa
+  // fica marcada como ainda não auditada.
+  const salva = await prisma.licitanteEmpresa.findUnique({ where: { id: licitanteId } });
+  if (salva?.documento) {
+    try {
+      await auditarLicitante({ licitante: salva, usuario, organizacaoId: organizacao.id });
+    } catch (erro) {
+      console.error("Auditoria automática do licitante falhou:", erro);
+    }
   }
 
   revalidatePath("/painel/licitacoes/licitantes");

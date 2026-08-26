@@ -69,10 +69,11 @@ model Organizacao {
   logs       LogAuditoria[]
 
   // ----- solucao de licitacoes (isolada do restante) -----
-  licitantesEmpresa LicitanteEmpresa[]
-  editaisInteresse  EditalInteresse[]
-  envelopes         Envelope[]
-  certames          Certame[]
+  licitantesEmpresa   LicitanteEmpresa[]
+  editaisInteresse    EditalInteresse[]
+  envelopes           Envelope[]
+  certames            Certame[]
+  licitanteAuditorias LicitanteAuditoria[]
 
   @@index([statusAssinatura])
 }
@@ -754,15 +755,83 @@ model LicitanteEmpresa {
   repEstadoCivil   String?
   repProfissao     String?
 
+  // ----- resultado da ultima auditoria de compliance -----
+  // Cache do que a auditoria mais recente encontrou, no mesmo espirito do
+  // que Pessoa guarda para a gestao de ativos — mas em coluna propria desta
+  // tabela, nao na tabela da outra solucao.
+  /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  situacaoCompliance  String?
+  complianceEm        DateTime?
+  /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
+  capacidadePagamento String?
+  pontuacao           Int?
+  /// Enquanto true, nao deveria gerar envelope novo sem revisao manual.
+  bloqueada           Boolean   @default(false)
+
   ativa        Boolean  @default(true)
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
   documentosPessoais LicitanteDocumentoPessoal[]
   envelopes          Envelope[]
+  auditorias         LicitanteAuditoria[]
 
   @@index([organizacaoId])
   @@index([organizacaoId, documento])
+}
+
+/// Auditoria de compliance da empresa licitante — tabela propria desta
+/// solucao, no formato de Auditoria (gestao de ativos), mas sem nenhuma
+/// chave estrangeira para Pessoa ou Operacao.
+model LicitanteAuditoria {
+  id                 String           @id @default(cuid())
+  organizacaoId      String
+  organizacao        Organizacao      @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  licitanteEmpresaId String
+  licitanteEmpresa   LicitanteEmpresa @relation(fields: [licitanteEmpresaId], references: [id], onDelete: Cascade)
+
+  situacao String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+
+  idoneidade   String? // SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  capacidade   String? // SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
+  pontuacao    Int?
+  parecer      String?
+  apontamentos Json?
+
+  dadosCadastrais     Json?
+  fontesIndisponiveis Json?
+
+  solicitadoPorId String?
+  criadoEm        DateTime  @default(now())
+  concluidaEm     DateTime?
+
+  consultas LicitanteConsulta[]
+
+  @@index([organizacaoId, criadoEm])
+  @@index([licitanteEmpresaId, criadoEm])
+}
+
+/// Uma consulta a fonte externa, feita para auditar a empresa licitante.
+model LicitanteConsulta {
+  id                   String              @id @default(cuid())
+  organizacaoId        String
+  licitanteEmpresaId   String
+  licitanteAuditoriaId String?
+  licitanteAuditoria   LicitanteAuditoria? @relation(fields: [licitanteAuditoriaId], references: [id], onDelete: Cascade)
+
+  fonte     String // RECEITA_CNPJ | CEIS | CNEP | CEPIM | SANCOES_OFAC | DIVIDA_ATIVA | BUREAU
+  parametro String
+
+  status    String  @default("PENDENTE") // PENDENTE | CONCLUIDA | ERRO
+  resultado Json?
+  resumo    String?
+  erro      String?
+
+  criadoEm    DateTime  @default(now())
+  concluidaEm DateTime?
+
+  @@index([organizacaoId, fonte])
+  @@index([licitanteEmpresaId])
 }
 
 /// Documento pessoal do representante — RG, comprovante de residência e
@@ -879,11 +948,67 @@ model ParticipanteCertame {
   /// preenchido conforme a taxonomia fechada de src/lib/licitacoes/requisitos.ts.
   parecer Json?
 
+  // ----- resultado automatico da verificacao de compliance -----
+  // Separado de `situacao`/`parecer` de proposito: aqueles sao a DECISAO da
+  // comissao; isto e o INSUMO automatico que ajuda a decidir. A comissao
+  // pode divergir do resultado automatico, e o registro de que divergiu
+  // fica no parecer, nao aqui.
+  complianceIdoneidade String? // SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  complianceEm         DateTime?
+  compliancePontuacao  Int?
+
   criadoEm DateTime @default(now())
 
   documentos DocumentoParticipante[]
+  auditorias ParticipanteAuditoria[]
 
   @@index([certameId])
+}
+
+/// Auditoria de compliance do participante — pelo olhar da prefeitura.
+/// Mesma logica de verificacao da LicitanteAuditoria, tabela propria.
+model ParticipanteAuditoria {
+  id                    String              @id @default(cuid())
+  participanteCertameId String
+  participanteCertame   ParticipanteCertame @relation(fields: [participanteCertameId], references: [id], onDelete: Cascade)
+
+  situacao String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+
+  idoneidade   String?
+  capacidade   String?
+  pontuacao    Int?
+  parecer      String?
+  apontamentos Json?
+
+  dadosCadastrais     Json?
+  fontesIndisponiveis Json?
+
+  criadoEm    DateTime  @default(now())
+  concluidaEm DateTime?
+
+  consultas ParticipanteConsulta[]
+
+  @@index([participanteCertameId, criadoEm])
+}
+
+model ParticipanteConsulta {
+  id                      String                 @id @default(cuid())
+  participanteCertameId   String
+  participanteAuditoriaId String?
+  participanteAuditoria   ParticipanteAuditoria? @relation(fields: [participanteAuditoriaId], references: [id], onDelete: Cascade)
+
+  fonte     String
+  parametro String
+
+  status    String  @default("PENDENTE")
+  resultado Json?
+  resumo    String?
+  erro      String?
+
+  criadoEm    DateTime  @default(now())
+  concluidaEm DateTime?
+
+  @@index([participanteCertameId])
 }
 
 /// Documento apresentado pelo participante para aquele certame — o que se

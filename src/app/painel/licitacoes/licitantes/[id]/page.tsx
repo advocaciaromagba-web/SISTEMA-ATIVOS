@@ -25,9 +25,12 @@ export default async function DetalheLicitante({ params }: { params: { id: strin
     include: {
       documentosPessoais: { orderBy: { enviadoEm: "desc" } },
       envelopes: { orderBy: { criadoEm: "desc" }, include: { editalInteresse: true } },
+      auditorias: { orderBy: { criadoEm: "desc" }, take: 1 },
     },
   });
   if (!licitante) notFound();
+
+  const ultimaAuditoria = licitante.auditorias[0] ?? null;
 
   const editais = await prisma.editalInteresse.findMany({
     where: { organizacaoId: organizacao.id },
@@ -47,6 +50,8 @@ export default async function DetalheLicitante({ params }: { params: { id: strin
         </div>
         <p className="text-sm text-slate-500">{formatarDocumento(licitante.documento)}</p>
       </div>
+
+      <PainelCompliance licitante={licitante} auditoria={ultimaAuditoria} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -161,6 +166,71 @@ function Linha({ rotulo, valor }: { rotulo: string; valor: string | null | undef
     <div>
       <dt className="text-xs text-slate-500">{rotulo}</dt>
       <dd className="text-slate-800">{valor}</dd>
+    </div>
+  );
+}
+
+const ROTULO_IDONEIDADE: Record<string, string> = {
+  SEM_APONTAMENTO: "sem apontamentos",
+  ATENCAO: "atenção",
+  RESTRICAO: "restrição",
+};
+const COR_IDONEIDADE: Record<string, string> = {
+  SEM_APONTAMENTO: "bg-emerald-100 text-emerald-800",
+  ATENCAO: "bg-amber-100 text-amber-800",
+  RESTRICAO: "bg-red-100 text-red-800",
+};
+
+type Apontamento = { gravidade: string; titulo: string; detalhe: string; fonte: string };
+
+/**
+ * O resultado da auditoria automática — insumo, não trava. Só bloqueia a
+ * geração de envelope indiretamente, pelo aviso: a decisão de seguir mesmo
+ * com restrição continua sendo de quem opera.
+ */
+function PainelCompliance({
+  licitante,
+  auditoria,
+}: {
+  licitante: { situacaoCompliance: string | null; complianceEm: Date | null; capacidadePagamento: string | null; pontuacao: number | null };
+  auditoria: { parecer: string | null; apontamentos: unknown } | null;
+}) {
+  if (!licitante.situacaoCompliance) {
+    return (
+      <div className="aviso-atencao">
+        <strong className="block">Ainda não auditada</strong>
+        <span className="mt-1 block">
+          Sem CNPJ válido no cadastro a auditoria não roda. Complete o cadastro e salve novamente.
+        </span>
+      </div>
+    );
+  }
+
+  const apontamentos = (auditoria?.apontamentos as Apontamento[] | null) ?? [];
+  const cor = COR_IDONEIDADE[licitante.situacaoCompliance] ?? "bg-slate-100 text-slate-700";
+
+  return (
+    <div className={`aviso ${licitante.situacaoCompliance === "RESTRICAO" ? "aviso-erro" : "aviso-info"}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <strong>Compliance:</strong>
+        <span className={`etiqueta ${cor}`}>{ROTULO_IDONEIDADE[licitante.situacaoCompliance] ?? licitante.situacaoCompliance}</span>
+        {licitante.pontuacao != null && <span className="text-xs text-slate-500">pontuação {licitante.pontuacao}/100</span>}
+        {licitante.complianceEm && (
+          <span className="text-xs text-slate-500">
+            auditado em {new Date(licitante.complianceEm).toLocaleDateString("pt-BR")}
+          </span>
+        )}
+      </div>
+      {auditoria?.parecer && <p className="mt-2">{auditoria.parecer}</p>}
+      {apontamentos.length > 0 && (
+        <ul className="mt-2 list-inside list-disc space-y-1">
+          {apontamentos.map((a, i) => (
+            <li key={i}>
+              <span className="font-medium">{a.titulo}</span> — {a.detalhe}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

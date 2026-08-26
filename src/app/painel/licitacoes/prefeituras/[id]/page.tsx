@@ -17,6 +17,16 @@ const COR_SITUACAO: Record<string, string> = {
   QUALIFICADO: "bg-emerald-100 text-emerald-800",
   INABILITADO: "bg-red-100 text-red-800",
 };
+const ROTULO_COMPLIANCE: Record<string, string> = {
+  SEM_APONTAMENTO: "sem apontamentos",
+  ATENCAO: "atenção",
+  RESTRICAO: "restrição",
+};
+const COR_COMPLIANCE: Record<string, string> = {
+  SEM_APONTAMENTO: "bg-emerald-100 text-emerald-800",
+  ATENCAO: "bg-amber-100 text-amber-800",
+  RESTRICAO: "bg-red-100 text-red-800",
+};
 
 export default async function DetalheCertame({ params }: { params: { id: string } }) {
   const { organizacao } = await exigirSessao();
@@ -58,6 +68,7 @@ export default async function DetalheCertame({ params }: { params: { id: string 
                   <th>Participante</th>
                   <th>CNPJ</th>
                   <th>Documentos</th>
+                  <th>Compliance</th>
                   <th>Situação</th>
                 </tr>
               </thead>
@@ -74,6 +85,15 @@ export default async function DetalheCertame({ params }: { params: { id: string 
                     </td>
                     <td className="text-slate-600">{formatarDocumento(p.documento) || "—"}</td>
                     <td className="text-slate-600">{p._count.documentos}</td>
+                    <td>
+                      {p.complianceIdoneidade ? (
+                        <span className={`etiqueta ${COR_COMPLIANCE[p.complianceIdoneidade] ?? "bg-slate-100 text-slate-700"}`}>
+                          {ROTULO_COMPLIANCE[p.complianceIdoneidade] ?? p.complianceIdoneidade}
+                        </span>
+                      ) : (
+                        <span className="etiqueta bg-slate-100 text-slate-600">—</span>
+                      )}
+                    </td>
                     <td>
                       <span className={`etiqueta ${COR_SITUACAO[p.situacao] ?? "bg-slate-100 text-slate-700"}`}>
                         {ROTULO_SITUACAO[p.situacao] ?? p.situacao}

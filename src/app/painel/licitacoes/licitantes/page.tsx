@@ -40,6 +40,7 @@ export default async function Licitantes() {
                 <th>Representante</th>
                 <th>Documentos pessoais</th>
                 <th>Envelopes</th>
+                <th>Compliance</th>
               </tr>
             </thead>
             <tbody>
@@ -60,6 +61,9 @@ export default async function Licitantes() {
                   <td className="text-slate-600">{l.repNome || "—"}</td>
                   <td className="text-slate-600">{l._count.documentosPessoais}</td>
                   <td className="text-slate-600">{l._count.envelopes}</td>
+                  <td>
+                    <SituacaoCompliance valor={l.situacaoCompliance} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -68,4 +72,21 @@ export default async function Licitantes() {
       )}
     </div>
   );
+}
+
+function SituacaoCompliance({ valor }: { valor: string | null }) {
+  if (!valor) return <span className="etiqueta bg-slate-100 text-slate-600">não auditada</span>;
+
+  const estilos: Record<string, string> = {
+    SEM_APONTAMENTO: "bg-emerald-100 text-emerald-800",
+    ATENCAO: "bg-amber-100 text-amber-800",
+    RESTRICAO: "bg-red-100 text-red-800",
+  };
+  const rotulos: Record<string, string> = {
+    SEM_APONTAMENTO: "sem apontamentos",
+    ATENCAO: "atenção",
+    RESTRICAO: "restrição",
+  };
+
+  return <span className={`etiqueta ${estilos[valor] ?? "bg-slate-100 text-slate-600"}`}>{rotulos[valor] ?? valor}</span>;
 }

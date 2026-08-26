@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirEdicao } from "@/lib/sessao";
 import { registrar } from "@/lib/registro";
 import { somenteAlfanumerico, validarDocumento } from "@/lib/validacao";
+import { auditarParticipante } from "@/lib/licitacoes/auditoria";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -80,9 +81,19 @@ export async function salvarParticipante(_anterior: ResultadoAcao, dados: FormDa
   const certame = await prisma.certame.findFirst({ where: { id: certameId, organizacaoId: organizacao.id } });
   if (!certame) return { erro: "Certame não encontrado." };
 
-  await prisma.participanteCertame.create({
+  const participante = await prisma.participanteCertame.create({
     data: { certameId, nome, documento: documento || "" },
   });
+
+  // A auditoria automática aqui é insumo para a comissão, não uma trava — a
+  // decisão de qualificar ou inabilitar continua sendo sempre humana.
+  if (documento) {
+    try {
+      await auditarParticipante({ participante });
+    } catch (erro) {
+      console.error("Auditoria automática do participante falhou:", erro);
+    }
+  }
 
   revalidatePath(`/painel/licitacoes/prefeituras/${certameId}`);
   return { ok: true };

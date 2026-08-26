@@ -32,9 +32,14 @@ export default async function DetalheParticipante({
 
   const participante = await prisma.participanteCertame.findFirst({
     where: { id: params.participanteId, certameId: certame.id },
-    include: { documentos: { orderBy: { enviadoEm: "desc" }, include: { assinatura: true } } },
+    include: {
+      documentos: { orderBy: { enviadoEm: "desc" }, include: { assinatura: true } },
+      auditorias: { orderBy: { criadoEm: "desc" }, take: 1 },
+    },
   });
   if (!participante) notFound();
+
+  const ultimaAuditoria = participante.auditorias[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -45,6 +50,8 @@ export default async function DetalheParticipante({
         <h1 className="mt-1 text-xl font-semibold">{participante.nome}</h1>
         <p className="text-sm text-slate-500">{formatarDocumento(participante.documento)}</p>
       </div>
+
+      <PainelCompliance participante={participante} auditoria={ultimaAuditoria} />
 
       <section className="cartao">
         <h2 className="mb-1 text-base font-semibold">Documentos apresentados</h2>
@@ -101,6 +108,74 @@ export default async function DetalheParticipante({
           situacaoAtual={participante.situacao}
         />
       </section>
+    </div>
+  );
+}
+
+const ROTULO_IDONEIDADE: Record<string, string> = {
+  SEM_APONTAMENTO: "sem apontamentos",
+  ATENCAO: "atenção",
+  RESTRICAO: "restrição",
+};
+const COR_IDONEIDADE: Record<string, string> = {
+  SEM_APONTAMENTO: "bg-emerald-100 text-emerald-800",
+  ATENCAO: "bg-amber-100 text-amber-800",
+  RESTRICAO: "bg-red-100 text-red-800",
+};
+
+type Apontamento = { titulo: string; detalhe: string };
+
+/**
+ * O resultado automático da verificação — Receita, dívida ativa, sanções,
+ * punições. É insumo para a comissão, nunca a qualificação em si: quem
+ * qualifica ou inabilita é sempre a decisão humana registrada no parecer
+ * abaixo.
+ */
+function PainelCompliance({
+  participante,
+  auditoria,
+}: {
+  participante: { complianceIdoneidade: string | null; complianceEm: Date | null; compliancePontuacao: number | null };
+  auditoria: { parecer: string | null; apontamentos: unknown } | null;
+}) {
+  if (!participante.complianceIdoneidade) {
+    return (
+      <div className="aviso-atencao">
+        <strong className="block">Verificação automática ainda não rodou</strong>
+        <span className="mt-1 block">Sem CNPJ válido cadastrado a verificação não roda.</span>
+      </div>
+    );
+  }
+
+  const apontamentos = (auditoria?.apontamentos as Apontamento[] | null) ?? [];
+  const cor = COR_IDONEIDADE[participante.complianceIdoneidade] ?? "bg-slate-100 text-slate-700";
+
+  return (
+    <div className={`aviso ${participante.complianceIdoneidade === "RESTRICAO" ? "aviso-erro" : "aviso-info"}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <strong>Verificação automática:</strong>
+        <span className={`etiqueta ${cor}`}>
+          {ROTULO_IDONEIDADE[participante.complianceIdoneidade] ?? participante.complianceIdoneidade}
+        </span>
+        {participante.compliancePontuacao != null && (
+          <span className="text-xs text-slate-500">pontuação {participante.compliancePontuacao}/100</span>
+        )}
+        {participante.complianceEm && (
+          <span className="text-xs text-slate-500">
+            em {new Date(participante.complianceEm).toLocaleDateString("pt-BR")}
+          </span>
+        )}
+      </div>
+      {auditoria?.parecer && <p className="mt-2">{auditoria.parecer}</p>}
+      {apontamentos.length > 0 && (
+        <ul className="mt-2 list-inside list-disc space-y-1">
+          {apontamentos.map((a, i) => (
+            <li key={i}>
+              <span className="font-medium">{a.titulo}</span> — {a.detalhe}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
