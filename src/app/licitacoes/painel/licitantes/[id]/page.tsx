@@ -6,6 +6,7 @@ import { formatarDocumento, formatarCep } from "@/lib/validacao";
 import { FormularioDocumentoPessoal } from "./documento-form";
 import { FormularioEdital } from "./edital-form";
 import { FormularioEnvelope } from "./envelope-form";
+import { LiberacaoLicitante } from "./liberacao";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ const ROTULO_DOCUMENTO: Record<string, string> = {
 };
 
 export default async function DetalheLicitante({ params }: { params: { id: string } }) {
-  const { conta } = await exigirSessaoLicitacoes();
+  const { usuario, conta } = await exigirSessaoLicitacoes();
 
   const licitante = await prisma.licitanteEmpresa.findFirst({
     where: { id: params.id, licitacaoContaId: conta.id },
@@ -51,7 +52,20 @@ export default async function DetalheLicitante({ params }: { params: { id: strin
         <p className="text-sm text-slate-500">{formatarDocumento(licitante.documento)}</p>
       </div>
 
-      <PainelCompliance licitante={licitante} auditoria={ultimaAuditoria} />
+      <PainelCompliance
+        licitante={licitante}
+        auditoria={ultimaAuditoria}
+        ehDono={usuario.papel === "DONO"}
+        liberacao={
+          licitante.liberadaEm
+            ? {
+                justificativa: licitante.justificativaLiberacao ?? "",
+                por: licitante.liberadaPorNome,
+                em: licitante.liberadaEm.toLocaleDateString("pt-BR"),
+              }
+            : null
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -191,9 +205,20 @@ type Apontamento = { gravidade: string; titulo: string; detalhe: string; fonte: 
 function PainelCompliance({
   licitante,
   auditoria,
+  ehDono,
+  liberacao,
 }: {
-  licitante: { situacaoCompliance: string | null; complianceEm: Date | null; capacidadePagamento: string | null; pontuacao: number | null };
+  licitante: {
+    id: string;
+    situacaoCompliance: string | null;
+    complianceEm: Date | null;
+    capacidadePagamento: string | null;
+    pontuacao: number | null;
+    bloqueada: boolean;
+  };
   auditoria: { parecer: string | null; apontamentos: unknown } | null;
+  ehDono: boolean;
+  liberacao: { justificativa: string; por: string | null; em: string } | null;
 }) {
   if (!licitante.situacaoCompliance) {
     return (
@@ -231,6 +256,12 @@ function PainelCompliance({
           ))}
         </ul>
       )}
+      <LiberacaoLicitante
+        licitanteEmpresaId={licitante.id}
+        bloqueada={licitante.bloqueada}
+        ehDono={ehDono}
+        liberacao={liberacao}
+      />
     </div>
   );
 }

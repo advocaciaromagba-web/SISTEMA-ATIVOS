@@ -98,6 +98,64 @@ export async function salvarLicitante(_anterior: ResultadoAcao, dados: FormData)
   redirect(`/licitacoes/painel/licitantes/${licitanteId}`);
 }
 
+/**
+ * Libera manualmente uma empresa bloqueada por restrição — exige o papel de
+ * DONO e uma justificativa mínima, no mesmo espírito da liberação de parte
+ * da Gestão de Ativos, mas sem tocar em nenhuma tabela daquela solução.
+ */
+export async function liberarLicitante(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
+  const { usuario, conta } = await exigirEdicaoLicitacoes();
+
+  if (usuario.papel !== "DONO") {
+    return { erro: "Somente o responsável pela conta pode liberar uma empresa bloqueada." };
+  }
+
+  const licitanteEmpresaId = texto(dados, "licitanteEmpresaId");
+  const justificativa = texto(dados, "justificativa") ?? "";
+  if (!licitanteEmpresaId) return { erro: "Empresa não informada." };
+  if (justificativa.length < 20) {
+    return { erro: "Escreva a justificativa da liberação — no mínimo uma frase explicando a decisão." };
+  }
+
+  const licitante = await prisma.licitanteEmpresa.findFirst({
+    where: { id: licitanteEmpresaId, licitacaoContaId: conta.id },
+  });
+  if (!licitante) return { erro: "Empresa licitante não encontrada." };
+
+  await prisma.licitanteEmpresa.update({
+    where: { id: licitanteEmpresaId },
+    data: {
+      bloqueada: false,
+      liberadaPorNome: usuario.nome,
+      liberadaEm: new Date(),
+      justificativaLiberacao: justificativa,
+    },
+  });
+
+  revalidatePath(`/licitacoes/painel/licitantes/${licitanteEmpresaId}`);
+  return { ok: true };
+}
+
+export async function rebloquearLicitante(licitanteEmpresaId: string): Promise<ResultadoAcao> {
+  const { usuario, conta } = await exigirEdicaoLicitacoes();
+  if (usuario.papel !== "DONO") {
+    return { erro: "Somente o responsável pela conta pode bloquear novamente uma empresa." };
+  }
+
+  const licitante = await prisma.licitanteEmpresa.findFirst({
+    where: { id: licitanteEmpresaId, licitacaoContaId: conta.id },
+  });
+  if (!licitante) return { erro: "Empresa licitante não encontrada." };
+
+  await prisma.licitanteEmpresa.update({
+    where: { id: licitanteEmpresaId },
+    data: { bloqueada: true, liberadaPorNome: null, liberadaEm: null, justificativaLiberacao: null },
+  });
+
+  revalidatePath(`/licitacoes/painel/licitantes/${licitanteEmpresaId}`);
+  return { ok: true };
+}
+
 export async function excluirLicitante(id: string): Promise<ResultadoAcao> {
   const { conta } = await exigirEdicaoLicitacoes();
 

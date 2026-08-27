@@ -7,6 +7,7 @@ import { dataCurta } from "@/lib/formato";
 import { FormularioCertidao } from "./certidao-form";
 import { FormularioRelatorio } from "./relatorio-form";
 import { BotaoReauditar } from "./reauditar-botao";
+import { LiberacaoEmpresa } from "./liberacao";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,20 @@ export default async function DetalheEmpresa({ params }: { params: { id: string 
               ))}
             </ul>
           )}
+          <LiberacaoEmpresa
+            complianceEmpresaId={empresa.id}
+            bloqueada={empresa.bloqueada}
+            ehDono={usuario.papel === "DONO"}
+            liberacao={
+              empresa.liberadaEm
+                ? {
+                    justificativa: empresa.justificativaLiberacao ?? "",
+                    por: empresa.liberadaPorNome,
+                    em: empresa.liberadaEm.toLocaleDateString("pt-BR"),
+                  }
+                : null
+            }
+          />
         </div>
       ) : (
         <div className="aviso-atencao flex items-center justify-between gap-3">

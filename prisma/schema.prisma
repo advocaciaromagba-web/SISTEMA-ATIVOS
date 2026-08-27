@@ -862,6 +862,11 @@ model LicitanteEmpresa {
   pontuacao           Int?
   /// Enquanto true, nao deveria gerar envelope novo sem revisao manual.
   bloqueada           Boolean   @default(false)
+  /// Liberacao manual da restricao — so sai do bloqueio com confirmacao
+  /// humana registrada, nunca automaticamente.
+  liberadaPorNome        String?
+  liberadaEm             DateTime?
+  justificativaLiberacao String?
 
   ativa        Boolean  @default(true)
   criadoEm     DateTime @default(now())
@@ -1278,6 +1283,11 @@ model ComplianceEmpresa {
   capacidadePagamento String?
   pontuacao           Int?
   bloqueada           Boolean   @default(false)
+  /// Liberacao manual da restricao — so sai do bloqueio com confirmacao
+  /// humana registrada, nunca automaticamente.
+  liberadaPorNome        String?
+  liberadaEm             DateTime?
+  justificativaLiberacao String?
 
   ativa        Boolean  @default(true)
   criadoEm     DateTime @default(now())

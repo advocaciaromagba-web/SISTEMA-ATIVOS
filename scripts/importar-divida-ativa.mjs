@@ -63,6 +63,38 @@ function lerValor(texto) {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Os três conjuntos (FGTS, previdenciário, não previdenciário) não têm o
+ * mesmo número de colunas — o previdenciário, por exemplo, não tem
+ * ENTIDADE_RESPONSAVEL nem UNIDADE_INSCRICAO, então tudo desloca. Por isso o
+ * índice de cada campo é lido do cabeçalho de cada arquivo, nunca fixo — um
+ * índice fixo já causou carga "concluída" com zero linhas, sem erro nenhum.
+ */
+const CAMPOS = {
+  documento: ["CPF_CNPJ"],
+  tipoPessoa: ["TIPO_PESSOA"],
+  nome: ["NOME_DEVEDOR"],
+  uf: ["UF_DEVEDOR"],
+  numeroInscricao: ["NUMERO_INSCRICAO"],
+  tipoSituacao: ["TIPO_SITUACAO_INSCRICAO"],
+  situacao: ["SITUACAO_INSCRICAO"],
+  receitaPrincipal: ["RECEITA_PRINCIPAL", "TIPO_CREDITO"],
+  dataInscricao: ["DATA_INSCRICAO"],
+  ajuizado: ["INDICADOR_AJUIZADO"],
+  valorConsolidado: ["VALOR_CONSOLIDADO"],
+};
+
+function mapearCabecalho(linhaCabecalho) {
+  const colunas = linhaCabecalho.split(";").map((c) => c.trim().toUpperCase());
+  const indices = {};
+  for (const [campo, nomesPossiveis] of Object.entries(CAMPOS)) {
+    const idx = colunas.findIndex((c) => nomesPossiveis.includes(c));
+    if (idx < 0) throw new Error(`Cabeçalho sem a coluna esperada para "${campo}" (${nomesPossiveis.join(" ou ")}). Colunas: ${colunas.join(", ")}`);
+    indices[campo] = idx;
+  }
+  return { indices, minimoColunas: colunas.length };
+}
+
 async function descobrirUltimoTrimestre() {
   const html = await (await fetch(`${BASE}/`)).text();
   const pastas = [...html.matchAll(/href="(\d{4}_trimestre_\d{2})\//g)].map((m) => m[1]);
@@ -137,27 +169,28 @@ async function importarConjunto(conjunto, trimestre, pasta) {
 
     for (const item of itens) {
       console.log(`  lendo ${item.nome} (${(item.tamanhoAberto / 1024 / 1024).toFixed(0)} MB abertos)`);
-      let primeira = true;
+      let cab = null;
 
       for await (const linha of lerLinhas(destino, item)) {
-        if (primeira) {
-          primeira = false;
-          if (linha.startsWith("CPF_CNPJ")) continue;
+        if (!cab) {
+          cab = mapearCabecalho(linha);
+          continue;
         }
         if (!linha.trim()) continue;
 
         const c = linha.split(";");
-        if (c.length < 15) continue;
+        if (c.length < cab.minimoColunas) continue;
+        const idx = cab.indices;
 
-        const documentoBruto = (c[0] ?? "").trim();
-        const ehPf = (c[1] ?? "").toLowerCase().includes("física");
+        const documentoBruto = (c[idx.documento] ?? "").trim();
+        const ehPf = (c[idx.tipoPessoa] ?? "").toLowerCase().includes("física");
 
         // No arquivo público o CPF vem mascarado: XXX878.325XX. Guardamos os
         // seis dígitos do meio, que é tudo o que dá para casar depois.
         const documento = soAlfanumerico(documentoBruto);
         const cpfMiolo = ehPf ? (documentoBruto.match(/(\d{3})\.(\d{3})/)?.slice(1, 3).join("") ?? null) : null;
 
-        const nome = (c[3] ?? "").trim();
+        const nome = (c[idx.nome] ?? "").trim();
 
         lote.push({
           documento,
@@ -165,15 +198,15 @@ async function importarConjunto(conjunto, trimestre, pasta) {
           tipoPessoa: ehPf ? "PF" : "PJ",
           nome,
           nomeNormalizado: normalizarNome(nome),
-          uf: (c[4] ?? "").trim() || null,
+          uf: (c[idx.uf] ?? "").trim() || null,
           tipoDivida: conjunto,
-          numeroInscricao: (c[8] ?? "").trim(),
-          tipoSituacao: (c[9] ?? "").trim() || null,
-          situacao: (c[10] ?? "").trim() || null,
-          receitaPrincipal: (c[11] ?? "").trim() || null,
-          dataInscricao: lerData(c[12]),
-          ajuizado: (c[13] ?? "").trim().toUpperCase() === "SIM",
-          valorConsolidado: lerValor(c[14]),
+          numeroInscricao: (c[idx.numeroInscricao] ?? "").trim(),
+          tipoSituacao: (c[idx.tipoSituacao] ?? "").trim() || null,
+          situacao: (c[idx.situacao] ?? "").trim() || null,
+          receitaPrincipal: (c[idx.receitaPrincipal] ?? "").trim() || null,
+          dataInscricao: lerData(c[idx.dataInscricao]),
+          ajuizado: (c[idx.ajuizado] ?? "").trim().toUpperCase() === "SIM",
+          valorConsolidado: lerValor(c[idx.valorConsolidado]),
           origem: trimestre,
         });
 
@@ -184,6 +217,13 @@ async function importarConjunto(conjunto, trimestre, pasta) {
           if (total % 100_000 === 0) console.log(`    ${total.toLocaleString("pt-BR")} registros`);
         }
       }
+    }
+
+    // Uma carga que termina com zero linhas é quase sempre um layout de
+    // colunas não reconhecido, nunca um conjunto de fato vazio — a PGFN
+    // não publica arquivo de dívida ativa sem nenhuma inscrição.
+    if (total === 0) {
+      throw new Error("Zero registros lidos — verifique o layout de colunas do CSV deste conjunto.");
     }
 
     if (lote.length > 0) {

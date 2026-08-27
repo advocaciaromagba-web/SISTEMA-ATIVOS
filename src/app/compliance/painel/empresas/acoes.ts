@@ -69,6 +69,64 @@ export async function salvarEmpresa(_anterior: ResultadoAcao, dados: FormData): 
   redirect(`/compliance/painel/empresas/${empresa.id}`);
 }
 
+/**
+ * Libera manualmente uma empresa bloqueada por restrição — exige o papel de
+ * DONO e uma justificativa mínima, mesmo padrão da Gestão de Ativos e de
+ * Licitações, cada qual na sua própria tabela.
+ */
+export async function liberarEmpresaCompliance(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
+  const { usuario, conta } = await exigirEdicaoCompliance();
+
+  if (usuario.papel !== "DONO") {
+    return { erro: "Somente o responsável pela conta pode liberar uma empresa bloqueada." };
+  }
+
+  const complianceEmpresaId = texto(dados, "complianceEmpresaId");
+  const justificativa = texto(dados, "justificativa") ?? "";
+  if (!complianceEmpresaId) return { erro: "Empresa não informada." };
+  if (justificativa.length < 20) {
+    return { erro: "Escreva a justificativa da liberação — no mínimo uma frase explicando a decisão." };
+  }
+
+  const empresa = await prisma.complianceEmpresa.findFirst({
+    where: { id: complianceEmpresaId, complianceContaId: conta.id },
+  });
+  if (!empresa) return { erro: "Empresa não encontrada." };
+
+  await prisma.complianceEmpresa.update({
+    where: { id: complianceEmpresaId },
+    data: {
+      bloqueada: false,
+      liberadaPorNome: usuario.nome,
+      liberadaEm: new Date(),
+      justificativaLiberacao: justificativa,
+    },
+  });
+
+  revalidatePath(`/compliance/painel/empresas/${complianceEmpresaId}`);
+  return { ok: true };
+}
+
+export async function rebloquearEmpresaCompliance(complianceEmpresaId: string): Promise<ResultadoAcao> {
+  const { usuario, conta } = await exigirEdicaoCompliance();
+  if (usuario.papel !== "DONO") {
+    return { erro: "Somente o responsável pela conta pode bloquear novamente uma empresa." };
+  }
+
+  const empresa = await prisma.complianceEmpresa.findFirst({
+    where: { id: complianceEmpresaId, complianceContaId: conta.id },
+  });
+  if (!empresa) return { erro: "Empresa não encontrada." };
+
+  await prisma.complianceEmpresa.update({
+    where: { id: complianceEmpresaId },
+    data: { bloqueada: true, liberadaPorNome: null, liberadaEm: null, justificativaLiberacao: null },
+  });
+
+  revalidatePath(`/compliance/painel/empresas/${complianceEmpresaId}`);
+  return { ok: true };
+}
+
 export async function reauditarEmpresa(id: string): Promise<ResultadoAcao> {
   const { usuario, conta } = await exigirEdicaoCompliance();
 
