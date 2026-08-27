@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function NovoDocumento({
   searchParams,
 }: {
-  searchParams: { operacao?: string; tipo?: string; licitante?: string };
+  searchParams: { operacao?: string; tipo?: string };
 }) {
   const { organizacao, usuario } = await exigirSessao();
 
@@ -22,7 +22,6 @@ export default async function NovoDocumento({
   });
 
   const operacaoId = searchParams.operacao;
-  const licitanteId = searchParams.licitante;
   const tipo = searchParams.tipo;
 
   // ---- passo 1: escolher o tipo ----
@@ -35,26 +34,27 @@ export default async function NovoDocumento({
         </div>
 
         <ul className="grid gap-3 sm:grid-cols-2">
-          {documentosOrdenados().map((d) => (
-            <li key={d.chave}>
-              <Link
-                href={`/painel/documentos/novo?tipo=${d.chave}${operacaoId ? `&operacao=${operacaoId}` : ""}`}
-                className="block h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
-              >
-                <div className="font-medium text-slate-900">{d.nome}</div>
-                <p className="mt-1 text-sm text-slate-500">{d.paraQueServe}</p>
-                {d.exigeLicitante ? (
-                  <p className="mt-2 text-xs text-slate-400">Exige: empresa licitante</p>
-                ) : (
-                  d.papeisObrigatorios.length > 0 && (
+          {/* As declarações de licitação (exigeLicitante) ficam de fora: pedem a
+              conta da solução de Licitações, que não é a mesma da Gestão de
+              Ativos — geram-se em /licitacoes/painel, não aqui. */}
+          {documentosOrdenados()
+            .filter((d) => !d.exigeLicitante)
+            .map((d) => (
+              <li key={d.chave}>
+                <Link
+                  href={`/painel/documentos/novo?tipo=${d.chave}${operacaoId ? `&operacao=${operacaoId}` : ""}`}
+                  className="block h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-400"
+                >
+                  <div className="font-medium text-slate-900">{d.nome}</div>
+                  <p className="mt-1 text-sm text-slate-500">{d.paraQueServe}</p>
+                  {d.papeisObrigatorios.length > 0 && (
                     <p className="mt-2 text-xs text-slate-400">
                       Exige: {d.papeisObrigatorios.map((p) => PAPEIS[p].replace(/ \(.*\)$/, "")).join(", ")}
                     </p>
-                  )
-                )}
-              </Link>
-            </li>
-          ))}
+                  )}
+                </Link>
+              </li>
+            ))}
         </ul>
       </div>
     );
@@ -63,33 +63,16 @@ export default async function NovoDocumento({
   // ---- passo 2: preencher e conferir ----
   const definicao = CATALOGO_POR_CHAVE[tipo];
 
-  const operacao = definicao.exigeLicitante
-    ? null
-    : operacaoId
-      ? await prisma.operacao.findFirst({
-          where: { id: operacaoId, organizacaoId: organizacao.id },
-          include: { partes: { include: { pessoa: true } } },
-        })
-      : null;
-
-  // Declarações de licitação pedem uma empresa do cadastro próprio da
-  // solução (LicitanteEmpresa), não uma Pessoa da gestão de ativos — a
-  // lista carrega só quando o documento exige.
-  const licitantes = definicao.exigeLicitante
-    ? await prisma.licitanteEmpresa.findMany({
-        where: { organizacaoId: organizacao.id, ativa: true },
-        select: { id: true, nome: true, documento: true },
-        orderBy: { nome: "asc" },
+  const operacao = operacaoId
+    ? await prisma.operacao.findFirst({
+        where: { id: operacaoId, organizacaoId: organizacao.id },
+        include: { partes: { include: { pessoa: true } } },
       })
-    : [];
-
-  const licitante = definicao.exigeLicitante && licitanteId
-    ? await prisma.licitanteEmpresa.findFirst({ where: { id: licitanteId, organizacaoId: organizacao.id } })
     : null;
 
   // Confere as partes e a qualificação delas. As pendências de campo do
   // formulário ficam de fora: o operador ainda vai preenchê-los agora.
-  const contexto: ContextoDocumento = { organizacao, operacao, usuario, campos: {}, agora: new Date(), licitante };
+  const contexto: ContextoDocumento = { organizacao, operacao, usuario, campos: {}, agora: new Date() };
   const pendencias = conferirRequisitos(tipo, contexto).filter(
     (p) => p.motivo !== "Campo obrigatório não preenchido."
   );
@@ -139,9 +122,6 @@ export default async function NovoDocumento({
         campos={definicao.campos ?? []}
         operacoes={operacoes}
         operacaoSelecionada={operacaoId ?? ""}
-        exigeLicitante={definicao.exigeLicitante ?? false}
-        licitantes={licitantes}
-        licitanteSelecionado={licitanteId ?? ""}
         exigeTestemunhas={definicao.exigeTestemunhas ?? false}
         baseLegal={definicao.baseLegal}
       />

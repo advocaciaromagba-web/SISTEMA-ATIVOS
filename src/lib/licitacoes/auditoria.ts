@@ -22,7 +22,7 @@
  * inabilitar é sempre a comissão de licitação — o resultado automático é
  * insumo, registrado à parte do parecer, nunca a decisão em si.
  */
-import type { LicitanteEmpresa, ParticipanteCertame, Usuario } from "@prisma/client";
+import type { LicitanteEmpresa, LicitacaoUsuario, ParticipanteCertame } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { consultarReceita } from "@/lib/auditoria/fontes/receita";
 import { consultarPunicoes } from "@/lib/auditoria/fontes/transparencia";
@@ -30,7 +30,6 @@ import { consultarSancoes } from "@/lib/auditoria/fontes/sancoes";
 import { consultarDividaAtiva } from "@/lib/auditoria/fontes/divida-ativa";
 import { consultarBureau } from "@/lib/auditoria/fontes/bureau";
 import { consolidar } from "@/lib/auditoria/analise";
-import { registrar } from "@/lib/registro";
 import { somenteNumeros } from "@/lib/validacao";
 import type { ResultadoAuditoria, ResultadoFonte } from "@/lib/auditoria/tipos";
 
@@ -99,14 +98,14 @@ async function avaliarComplianceEmpresa(params: {
 
 export async function auditarLicitante(params: {
   licitante: LicitanteEmpresa;
-  usuario: Usuario;
-  organizacaoId: string;
+  usuario: LicitacaoUsuario;
+  licitacaoContaId: string;
 }): Promise<{ auditoriaId: string; resultado: ResultadoAuditoria }> {
-  const { licitante, usuario, organizacaoId } = params;
+  const { licitante, usuario, licitacaoContaId } = params;
 
   const auditoria = await prisma.licitanteAuditoria.create({
     data: {
-      organizacaoId,
+      licitacaoContaId,
       licitanteEmpresaId: licitante.id,
       situacao: "EM_ANDAMENTO",
       solicitadoPorId: usuario.id,
@@ -120,7 +119,7 @@ export async function auditarLicitante(params: {
 
   await prisma.licitanteConsulta.createMany({
     data: fontes.map((f) => ({
-      organizacaoId,
+      licitacaoContaId,
       licitanteEmpresaId: licitante.id,
       licitanteAuditoriaId: auditoria.id,
       fonte: f.fonte,
@@ -158,21 +157,6 @@ export async function auditarLicitante(params: {
       // Sinaliza para revisão manual; não trava a geração do envelope — ver
       // nota no topo do arquivo sobre por que este lado não bloqueia sozinho.
       bloqueada: resultado.idoneidade === "RESTRICAO",
-    },
-  });
-
-  await registrar({
-    acao: "CONSULTAR",
-    organizacaoId,
-    usuarioId: usuario.id,
-    entidade: "LicitanteAuditoria",
-    entidadeId: auditoria.id,
-    detalhe: {
-      empresa: licitante.nome,
-      idoneidade: resultado.idoneidade,
-      capacidade: resultado.capacidade,
-      pontuacao: resultado.pontuacao,
-      fontes: fontes.map((f) => `${f.fonte}:${f.status}`).join(", "),
     },
   });
 

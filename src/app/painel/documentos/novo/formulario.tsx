@@ -13,9 +13,6 @@ export function FormularioGeracao({
   campos,
   operacoes,
   operacaoSelecionada,
-  exigeLicitante,
-  licitantes,
-  licitanteSelecionado,
   exigeTestemunhas,
   baseLegal,
 }: {
@@ -23,10 +20,6 @@ export function FormularioGeracao({
   campos: CampoExtra[];
   operacoes: Array<{ id: string; codigo: string; titulo: string }>;
   operacaoSelecionada: string;
-  /** Declarações de licitação pedem uma empresa avulsa, não uma operação. */
-  exigeLicitante: boolean;
-  licitantes: Array<{ id: string; nome: string; documento: string | null }>;
-  licitanteSelecionado: string;
   exigeTestemunhas: boolean;
   baseLegal: string[];
 }) {
@@ -38,48 +31,25 @@ export function FormularioGeracao({
 
       {estado.erro && <div className="aviso-erro">{estado.erro}</div>}
 
-      {exigeLicitante ? (
-        <Secao titulo="Empresa licitante">
-          <div>
-            <label className="rotulo" htmlFor="licitanteId">
-              De qual empresa é esta declaração
-            </label>
-            <select id="licitanteId" name="licitanteId" defaultValue={licitanteSelecionado} className="campo">
-              <option value="">Selecione a empresa</option>
-              {licitantes.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                  {p.documento ? ` — ${p.documento}` : ""}
-                </option>
-              ))}
-            </select>
-            <p className="ajuda">
-              É do cadastro dela que saem o CNPJ, o endereço e o representante legal. Sem a empresa aqui, o
-              documento sai com os campos em aberto. Ao trocar, recarregue a página para reconferir o que falta.
-            </p>
-          </div>
-        </Secao>
-      ) : (
-        <Secao titulo="Operação">
-          <div>
-            <label className="rotulo" htmlFor="operacaoId">
-              A que operação este documento se refere
-            </label>
-            <select id="operacaoId" name="operacaoId" defaultValue={operacaoSelecionada} className="campo">
-              <option value="">Nenhuma — documento avulso</option>
-              {operacoes.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.codigo} — {o.titulo}
-                </option>
-              ))}
-            </select>
-            <p className="ajuda">
-              É da operação que saem as partes, os valores e a descrição do ativo. Ao trocar aqui, recarregue a
-              página para reconferir o que falta.
-            </p>
-          </div>
-        </Secao>
-      )}
+      <Secao titulo="Operação">
+        <div>
+          <label className="rotulo" htmlFor="operacaoId">
+            A que operação este documento se refere
+          </label>
+          <select id="operacaoId" name="operacaoId" defaultValue={operacaoSelecionada} className="campo">
+            <option value="">Nenhuma — documento avulso</option>
+            {operacoes.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.codigo} — {o.titulo}
+              </option>
+            ))}
+          </select>
+          <p className="ajuda">
+            É da operação que saem as partes, os valores e a descrição do ativo. Ao trocar aqui, recarregue a
+            página para reconferir o que falta.
+          </p>
+        </div>
+      </Secao>
 
       {campos.length > 0 && (
         <Secao titulo="Condições do documento">

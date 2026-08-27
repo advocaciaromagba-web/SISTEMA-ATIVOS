@@ -68,12 +68,8 @@ model Organizacao {
   consumos   Consumo[]
   logs       LogAuditoria[]
 
-  // ----- solucao de licitacoes (isolada do restante) -----
-  licitantesEmpresa   LicitanteEmpresa[]
-  editaisInteresse    EditalInteresse[]
-  envelopes           Envelope[]
-  certames            Certame[]
-  licitanteAuditorias LicitanteAuditoria[]
+  // A solucao de Licitacoes NAO aparece aqui: tem conta e login proprios
+  // (LicitacaoConta/LicitacaoUsuario), sem relacao nenhuma com Organizacao.
 
   @@index([statusAssinatura])
 }
@@ -717,7 +713,106 @@ model TentativaLogin {
 // A mesma empresa do mundo real pode aparecer em LicitanteEmpresa (pelo
 // próprio cadastro) e em ParticipanteCertame (pelo olhar da prefeitura que
 // recebeu a documentação dela) sem que um registro aponte para o outro.
+//
+// O isolamento vale também para o LOGIN: cada solução tem sua própria conta,
+// sua própria senha e sua própria verificação em duas etapas. Quem assina
+// Licitações entra por uma porta própria (LicitacaoConta/LicitacaoUsuario),
+// nunca pela conta que assina a Gestão de Ativos (Organizacao/Usuario) —
+// mesmo que seja a mesma empresa do mundo real assinando as duas soluções.
 // =====================================================================
+
+// ---------------------------------------------------------------------
+// CONTA E LOGIN — próprios desta solução
+// ---------------------------------------------------------------------
+
+/// O assinante da solução de Licitações. Equivalente a `Organizacao`, mas
+/// sem nenhuma relação com ela: é o "conta" desta solução, não da Gestão de
+/// Ativos. Serve tanto o licitante (empresa ou profissional autônomo) quanto
+/// o ente público, porque os dois usam a mesma solução por frentes distintas.
+model LicitacaoConta {
+  id String @id @default(cuid())
+
+  tipo        String // PF | PJ
+  nome        String
+  razaoSocial String?
+  /// CPF quando tipo=PF, CNPJ quando tipo=PJ.
+  documento   String?
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  // ----- cobrança: o cliente escolhe, entre as tres formas -----
+  formaCobranca    String    @default("ASSINATURA") // AVULSO | CREDITO | ASSINATURA
+  plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
+  statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
+  testeExpiraEm    DateTime?
+  assinaturaAte    DateTime?
+  /// Saldo do crédito pré-pago, quando formaCobranca = CREDITO.
+  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuarios          LicitacaoUsuario[]
+  licitantesEmpresa LicitanteEmpresa[]
+  editaisInteresse  EditalInteresse[]
+  envelopes         Envelope[]
+  certames          Certame[]
+  auditorias        LicitanteAuditoria[]
+
+  @@index([statusAssinatura])
+}
+
+/// Quem entra no painel da solução de Licitações. Equivalente a `Usuario`,
+/// mas com senha, sessão e verificação em duas etapas inteiramente próprias
+/// — logar aqui não abre nem depende da conta da Gestão de Ativos.
+model LicitacaoUsuario {
+  id               String         @id @default(cuid())
+  licitacaoContaId String
+  licitacaoConta   LicitacaoConta @relation(fields: [licitacaoContaId], references: [id], onDelete: Cascade)
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  ativo        Boolean @default(true)
+
+  /// Verificação em duas etapas (aplicativo autenticador), própria desta
+  /// solução — o segredo de um login não vale para o outro.
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
+  totpRecuperacao String?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([licitacaoContaId])
+}
+
+/// Tentativas de login da solução de Licitações — travadas separadamente da
+/// Gestão de Ativos, para o limite de uma não valer para a outra.
+model LicitacaoTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
 
 // ---------------------------------------------------------------------
 // FRENTE DO LICITANTE
@@ -726,9 +821,9 @@ model TentativaLogin {
 /// Cadastro da empresa que participa de licitações — próprio da solução,
 /// preenchido uma vez e reaproveitado em qualquer certame.
 model LicitanteEmpresa {
-  id            String      @id @default(cuid())
-  organizacaoId String
-  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  licitacaoContaId String
+  licitacaoConta   LicitacaoConta @relation(fields: [licitacaoContaId], references: [id], onDelete: Cascade)
 
   nome              String
   documento         String // CNPJ
@@ -776,8 +871,8 @@ model LicitanteEmpresa {
   envelopes          Envelope[]
   auditorias         LicitanteAuditoria[]
 
-  @@index([organizacaoId])
-  @@index([organizacaoId, documento])
+  @@index([licitacaoContaId])
+  @@index([licitacaoContaId, documento])
 }
 
 /// Auditoria de compliance da empresa licitante — tabela propria desta
@@ -785,8 +880,8 @@ model LicitanteEmpresa {
 /// chave estrangeira para Pessoa ou Operacao.
 model LicitanteAuditoria {
   id                 String           @id @default(cuid())
-  organizacaoId      String
-  organizacao        Organizacao      @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  licitacaoContaId   String
+  licitacaoConta     LicitacaoConta   @relation(fields: [licitacaoContaId], references: [id], onDelete: Cascade)
   licitanteEmpresaId String
   licitanteEmpresa   LicitanteEmpresa @relation(fields: [licitanteEmpresaId], references: [id], onDelete: Cascade)
 
@@ -807,14 +902,14 @@ model LicitanteAuditoria {
 
   consultas LicitanteConsulta[]
 
-  @@index([organizacaoId, criadoEm])
+  @@index([licitacaoContaId, criadoEm])
   @@index([licitanteEmpresaId, criadoEm])
 }
 
 /// Uma consulta a fonte externa, feita para auditar a empresa licitante.
 model LicitanteConsulta {
   id                   String              @id @default(cuid())
-  organizacaoId        String
+  licitacaoContaId     String
   licitanteEmpresaId   String
   licitanteAuditoriaId String?
   licitanteAuditoria   LicitanteAuditoria? @relation(fields: [licitanteAuditoriaId], references: [id], onDelete: Cascade)
@@ -830,7 +925,7 @@ model LicitanteConsulta {
   criadoEm    DateTime  @default(now())
   concluidaEm DateTime?
 
-  @@index([organizacaoId, fonte])
+  @@index([licitacaoContaId, fonte])
   @@index([licitanteEmpresaId])
 }
 
@@ -840,7 +935,6 @@ model LicitanteConsulta {
 /// pessoa consegue apresentar.
 model LicitanteDocumentoPessoal {
   id                 String           @id @default(cuid())
-  organizacaoId      String
   licitanteEmpresaId String
   licitanteEmpresa   LicitanteEmpresa @relation(fields: [licitanteEmpresaId], references: [id], onDelete: Cascade)
 
@@ -851,14 +945,14 @@ model LicitanteDocumentoPessoal {
 
   enviadoEm DateTime @default(now())
 
-  @@index([organizacaoId, licitanteEmpresaId])
+  @@index([licitanteEmpresaId])
 }
 
 /// Um edital que a empresa trouxe porque tem interesse em participar.
 model EditalInteresse {
-  id            String      @id @default(cuid())
-  organizacaoId String
-  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  licitacaoContaId String
+  licitacaoConta   LicitacaoConta @relation(fields: [licitacaoContaId], references: [id], onDelete: Cascade)
 
   orgaoLicitante String
   modalidade     String
@@ -874,7 +968,7 @@ model EditalInteresse {
 
   envelopes Envelope[]
 
-  @@index([organizacaoId])
+  @@index([licitacaoContaId])
 }
 
 /// O pacote de submissão: identifica o certame e a empresa, e reúne as
@@ -882,8 +976,8 @@ model EditalInteresse {
 /// concreta a "reunir toda a documentação, já pronta para anexar".
 model Envelope {
   id                 String           @id @default(cuid())
-  organizacaoId      String
-  organizacao        Organizacao      @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  licitacaoContaId   String
+  licitacaoConta     LicitacaoConta   @relation(fields: [licitacaoContaId], references: [id], onDelete: Cascade)
   licitanteEmpresaId String
   licitanteEmpresa   LicitanteEmpresa @relation(fields: [licitanteEmpresaId], references: [id], onDelete: Cascade)
   editalInteresseId  String
@@ -898,7 +992,7 @@ model Envelope {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  @@index([organizacaoId])
+  @@index([licitacaoContaId])
   @@index([licitanteEmpresaId])
 }
 
@@ -909,9 +1003,9 @@ model Envelope {
 /// O certame gerenciado pela prefeitura ou órgão — onde ela cadastra os
 /// participantes que se apresentaram, para qualificação.
 model Certame {
-  id            String      @id @default(cuid())
-  organizacaoId String
-  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  licitacaoContaId String
+  licitacaoConta   LicitacaoConta @relation(fields: [licitacaoContaId], references: [id], onDelete: Cascade)
 
   orgaoLicitante String
   modalidade     String
@@ -928,7 +1022,7 @@ model Certame {
 
   participantes ParticipanteCertame[]
 
-  @@index([organizacaoId])
+  @@index([licitacaoContaId])
 }
 
 /// Um participante do certame, pelo olhar da prefeitura — não é a mesma
