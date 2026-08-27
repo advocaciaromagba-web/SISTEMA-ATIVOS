@@ -389,7 +389,8 @@ function montarParecer(
   apontamentos: Apontamento[],
   d: DadosCadastrais | null,
   valor: number | null,
-  indisponiveis: string[]
+  indisponiveis: string[],
+  bloqueiaAutomaticamente: boolean
 ): string {
   const linhas: string[] = [];
 
@@ -399,8 +400,11 @@ function montarParecer(
   // ----- veredito -----
   if (idoneidade === "RESTRICAO") {
     linhas.push(
-      `A auditoria encontrou restrição em ${nome}. Enquanto o ponto não for esclarecido, a parte fica ` +
-        "bloqueada para novas operações e para geração de documentos."
+      bloqueiaAutomaticamente
+        ? `A auditoria encontrou restrição em ${nome}. Enquanto o ponto não for esclarecido, a parte fica ` +
+            "bloqueada para novas operações e para geração de documentos."
+        : `A auditoria encontrou restrição em ${nome}. O cadastro fica marcado para revisão manual — o ponto ` +
+            "precisa ser esclarecido antes de prosseguir."
     );
   } else if (idoneidade === "ATENCAO") {
     linhas.push(`${nome} não tem restrição impeditiva, mas há pontos que pedem conferência antes de assinar.`);
@@ -466,8 +470,18 @@ export function consolidar(params: {
   fontes: ResultadoFonte[];
   /** Apontamentos vindos das certidões apresentadas pela parte. */
   apontamentosExtras?: Apontamento[];
+  /**
+   * Se restrição bloqueia automaticamente novas operações e documentos.
+   *
+   * Verdadeiro na Gestão de Ativos, onde há dinheiro de terceiro em jogo
+   * numa cessão. Falso em soluções como Licitações e Compliance de
+   * Empresas, onde restrição vira sinal para revisão manual, não trava —
+   * e o parecer não pode afirmar um bloqueio que não acontece.
+   */
+  bloqueiaAutomaticamente?: boolean;
 }): ResultadoAuditoria {
   const { nome, tipo, dadosCadastrais: d, representante, pep, valorReferencia, fontes } = params;
+  const bloqueiaAutomaticamente = params.bloqueiaAutomaticamente ?? true;
 
   const apontamentos: Apontamento[] = [];
 
@@ -541,7 +555,16 @@ export function consolidar(params: {
     idoneidade,
     capacidade,
     pontuacao,
-    parecer: montarParecer(nome, idoneidade, capacidade, apontamentos, d, valorReferencia, indisponiveis),
+    parecer: montarParecer(
+      nome,
+      idoneidade,
+      capacidade,
+      apontamentos,
+      d,
+      valorReferencia,
+      indisponiveis,
+      bloqueiaAutomaticamente
+    ),
     apontamentos,
     dadosCadastrais: d,
     fontes,

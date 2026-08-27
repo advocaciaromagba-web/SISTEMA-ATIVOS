@@ -1162,3 +1162,220 @@ model ValidacaoAssinatura {
   validadoEm DateTime?
   criadoEm   DateTime  @default(now())
 }
+
+// =====================================================================
+// COMPLIANCE DE EMPRESAS
+//
+// Solução isolada, com conta e login próprios — a mesma regra de
+// Licitações: nenhuma tabela aqui referencia Organizacao, Usuario, Pessoa
+// ou qualquer tabela de outra solução, e o login é inteiramente separado
+// (ComplianceConta/ComplianceUsuario), mesmo que o mesmo cliente assine
+// mais de uma solução da plataforma.
+// =====================================================================
+
+/// O assinante da solução de Compliance de Empresas.
+model ComplianceConta {
+  id String @id @default(cuid())
+
+  tipo        String // PF | PJ
+  nome        String
+  razaoSocial String?
+  documento   String?
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  // ----- cobrança: o cliente escolhe, entre as tres formas -----
+  formaCobranca    String    @default("ASSINATURA") // AVULSO | CREDITO | ASSINATURA
+  plano            String    @default("TESTE")
+  statusAssinatura String    @default("TESTE")
+  testeExpiraEm    DateTime?
+  assinaturaAte    DateTime?
+  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuarios ComplianceUsuario[]
+  empresas ComplianceEmpresa[]
+
+  @@index([statusAssinatura])
+}
+
+/// Quem entra no painel da solução de Compliance de Empresas. Senha e
+/// verificação em duas etapas inteiramente próprias desta solução.
+model ComplianceUsuario {
+  id                String          @id @default(cuid())
+  complianceContaId String
+  complianceConta   ComplianceConta @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  ativo        Boolean @default(true)
+
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
+  totpRecuperacao String?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([complianceContaId])
+}
+
+/// Tentativas de login desta solução, travadas separadamente das demais.
+model ComplianceTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
+
+/// A empresa sendo verificada — o cadastro central desta solução.
+model ComplianceEmpresa {
+  id                String          @id @default(cuid())
+  complianceContaId String
+  complianceConta   ComplianceConta @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
+
+  nome              String
+  documento         String // CNPJ
+  inscricaoEstadual String?
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  // ----- resultado da ultima auditoria -----
+  /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  situacaoCompliance  String?
+  complianceEm        DateTime?
+  /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
+  capacidadePagamento String?
+  pontuacao           Int?
+  bloqueada           Boolean   @default(false)
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  certidoes  ComplianceCertidao[]
+  auditorias ComplianceAuditoria[]
+  documentos ComplianceDocumento[]
+
+  @@index([complianceContaId])
+  @@index([complianceContaId, documento])
+}
+
+/// Auditoria de compliance da empresa — mesmo formato de LicitanteAuditoria,
+/// tabela própria desta solução.
+model ComplianceAuditoria {
+  id                  String            @id @default(cuid())
+  complianceContaId   String
+  complianceEmpresaId String
+  complianceEmpresa   ComplianceEmpresa @relation(fields: [complianceEmpresaId], references: [id], onDelete: Cascade)
+
+  situacao String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+
+  idoneidade   String?
+  capacidade   String?
+  pontuacao    Int?
+  parecer      String?
+  apontamentos Json?
+
+  dadosCadastrais     Json?
+  fontesIndisponiveis Json?
+
+  solicitadoPorId String?
+  criadoEm        DateTime  @default(now())
+  concluidaEm     DateTime?
+
+  consultas ComplianceConsulta[]
+
+  @@index([complianceContaId, criadoEm])
+  @@index([complianceEmpresaId, criadoEm])
+}
+
+model ComplianceConsulta {
+  id                    String               @id @default(cuid())
+  complianceEmpresaId   String
+  complianceAuditoriaId String?
+  complianceAuditoria   ComplianceAuditoria? @relation(fields: [complianceAuditoriaId], references: [id], onDelete: Cascade)
+
+  fonte     String
+  parametro String
+
+  status    String  @default("PENDENTE")
+  resultado Json?
+  resumo    String?
+  erro      String?
+
+  criadoEm    DateTime  @default(now())
+  concluidaEm DateTime?
+
+  @@index([complianceEmpresaId])
+}
+
+/// Certidão da empresa — apresentada por ela ou emitida direto na fonte —
+/// com prazo de validade. É o que sustenta "certidões emitidas e
+/// arquivadas, com controle de validade" no relatório final.
+model ComplianceCertidao {
+  id                  String            @id @default(cuid())
+  complianceEmpresaId String
+  complianceEmpresa   ComplianceEmpresa @relation(fields: [complianceEmpresaId], references: [id], onDelete: Cascade)
+
+  tipo   String // CERTIDAO_TRIBUTOS_FEDERAIS | CERTIDAO_FGTS | CNDT | CERTIDAO_FALENCIA_CONCORDATA | OUTRO
+  origem String @default("APRESENTADA") // APRESENTADA | EMITIDA
+
+  nomeArquivo String?
+  arquivo     Bytes?
+  arquivoTipo String?
+
+  emitidaEm DateTime?
+  validaAte DateTime?
+
+  criadoEm DateTime @default(now())
+
+  @@index([complianceEmpresaId])
+}
+
+/// Relatório de compliance gerado e guardado — arquivo e impressão digital,
+/// para provar depois que o documento entregue não foi alterado.
+model ComplianceDocumento {
+  id                  String            @id @default(cuid())
+  complianceEmpresaId String
+  complianceEmpresa   ComplianceEmpresa @relation(fields: [complianceEmpresaId], references: [id], onDelete: Cascade)
+
+  titulo      String
+  arquivoNome String
+  arquivo     Bytes
+  hashSha256  String
+
+  criadoEm DateTime @default(now())
+
+  @@index([complianceEmpresaId])
+}

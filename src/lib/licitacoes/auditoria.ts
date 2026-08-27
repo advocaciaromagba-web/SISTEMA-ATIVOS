@@ -24,73 +24,8 @@
  */
 import type { LicitanteEmpresa, LicitacaoUsuario, ParticipanteCertame } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { consultarReceita } from "@/lib/auditoria/fontes/receita";
-import { consultarPunicoes } from "@/lib/auditoria/fontes/transparencia";
-import { consultarSancoes } from "@/lib/auditoria/fontes/sancoes";
-import { consultarDividaAtiva } from "@/lib/auditoria/fontes/divida-ativa";
-import { consultarBureau } from "@/lib/auditoria/fontes/bureau";
-import { consolidar } from "@/lib/auditoria/analise";
-import { somenteNumeros } from "@/lib/validacao";
-import type { ResultadoAuditoria, ResultadoFonte } from "@/lib/auditoria/tipos";
-
-/**
- * O núcleo puro: recebe CNPJ e nome, devolve o veredito. Sem gravar nada —
- * quem chama decide onde persistir.
- */
-async function avaliarComplianceEmpresa(params: {
-  documento: string;
-  nome: string;
-  valorReferencia?: number | null;
-}): Promise<{ resultado: ResultadoAuditoria; fontes: ResultadoFonte[] }> {
-  const documento = somenteNumeros(params.documento);
-  const valorReferencia = params.valorReferencia ?? null;
-
-  const [receita, punicoes, sancoes, dividaAtiva, bureau] = await Promise.all([
-    documento.length === 14 ? consultarReceita(documento) : Promise.resolve(null),
-    documento ? consultarPunicoes(documento) : Promise.resolve([]),
-    consultarSancoes(params.nome),
-    documento
-      ? consultarDividaAtiva({ documento, tipoPessoa: "PJ", nome: params.nome, valorOperacao: valorReferencia })
-      : Promise.resolve(null),
-    documento ? consultarBureau(documento, "PJ", valorReferencia) : Promise.resolve(null),
-  ]);
-
-  const fontes: ResultadoFonte[] = [];
-  if (receita) fontes.push(receita);
-  fontes.push(...punicoes);
-  fontes.push(sancoes);
-  if (dividaAtiva) fontes.push(dividaAtiva);
-  if (bureau) fontes.push(bureau);
-
-  if (!documento) {
-    fontes.push({
-      fonte: "CADASTRO",
-      status: "INDISPONIVEL",
-      resumo: "Empresa sem CNPJ cadastrado — quase nenhuma fonte pôde ser consultada.",
-      apontamentos: [
-        {
-          gravidade: "GRAVE",
-          eixo: "CADASTRO",
-          titulo: "Empresa sem CNPJ",
-          detalhe: "Sem CNPJ não há como confirmar a empresa nem consultar qualquer base. Complete o cadastro.",
-          fonte: "Sistema",
-        },
-      ],
-    });
-  }
-
-  const resultado = consolidar({
-    nome: params.nome,
-    tipo: "PJ",
-    dadosCadastrais: receita?.dados ?? null,
-    representante: null,
-    pep: false,
-    valorReferencia,
-    fontes,
-  });
-
-  return { resultado, fontes };
-}
+import { avaliarComplianceEmpresa } from "@/lib/auditoria/motor-empresa";
+import type { ResultadoAuditoria } from "@/lib/auditoria/tipos";
 
 // ---------------------------------------------------------------------
 // Frente do licitante
