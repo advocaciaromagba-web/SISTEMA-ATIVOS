@@ -1399,3 +1399,110 @@ model ComplianceDocumento {
 
   @@index([complianceEmpresaId])
 }
+
+// ---------------------------------------------------------------------
+// CONSULTA CADASTRAL SERASA — sexta solução, isolada das demais.
+// Conta e login próprios (SerasaConta/SerasaUsuario), sem nenhuma relação
+// com Organizacao, LicitacaoConta ou ComplianceConta. Cobrança fechada em
+// crédito pré-pago — não tem assinatura nem avulso, diferente das outras
+// cinco, porque é assim que o dono do negócio decidiu vender esta.
+// ---------------------------------------------------------------------
+
+model SerasaConta {
+  id String @id @default(cuid())
+
+  tipo        String // PF | PJ
+  nome        String
+  razaoSocial String?
+  documento   String?
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  /// Saldo do crédito pré-pago — única forma de cobrança desta solução.
+  saldoCredito Decimal @default(0) @db.Decimal(12, 2)
+
+  /// TESTE dá um pouco de crédito de cortesia para experimentar sem pagar
+  /// nada; não existe "assinatura" nem "avulso" aqui.
+  statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
+  testeExpiraEm    DateTime?
+
+  asaasCustomerId String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuarios  SerasaUsuario[]
+  consultas SerasaConsulta[]
+
+  @@index([statusAssinatura])
+}
+
+model SerasaUsuario {
+  id            String      @id @default(cuid())
+  serasaContaId String
+  serasaConta   SerasaConta @relation(fields: [serasaContaId], references: [id], onDelete: Cascade)
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  ativo        Boolean @default(true)
+
+  /// Verificação em duas etapas, própria desta solução.
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
+  totpRecuperacao String?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([serasaContaId])
+}
+
+model SerasaTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
+
+/// Cada consulta cadastral pedida — registrada mesmo quando falha, porque
+/// "não configurado ainda" também é uma resposta que precisa ficar no
+/// histórico, não sumir.
+model SerasaConsulta {
+  id            String      @id @default(cuid())
+  serasaContaId String
+  serasaConta   SerasaConta @relation(fields: [serasaContaId], references: [id], onDelete: Cascade)
+
+  documento     String // CPF ou CNPJ consultado
+  tipoPessoa    String // PF | PJ
+  nomeInformado String?
+
+  situacao  String  @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO | INDISPONIVEL
+  resultado Json?
+  erro      String?
+
+  /// Quanto saiu do saldo — zero quando a consulta falhou ou não rodou.
+  creditoDebitado Decimal @default(0) @db.Decimal(10, 2)
+
+  solicitadoPorId String?
+  criadoEm        DateTime  @default(now())
+  concluidaEm     DateTime?
+
+  @@index([serasaContaId])
+  @@index([serasaContaId, documento])
+}

@@ -87,10 +87,22 @@ export function IconeSelo({ className = "" }: Props) {
   );
 }
 
+export function IconeFichaCadastral({ className = "" }: Props) {
+  return (
+    <svg viewBox="0 0 24 24" className={`${base} ${className}`} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="17" height="14" rx="1.4" />
+      <circle cx="8.5" cy="10.3" r="1.8" />
+      <path d="M5.8 15.5c.5-1.7 1.7-2.6 2.7-2.6s2.2.9 2.7 2.6" />
+      <path d="M14 9.5h4M14 12.5h4M14 15.5h2.5" />
+    </svg>
+  );
+}
+
 export const ICONE_SOLUCAO: Record<string, (props: Props) => JSX.Element> = {
   COMPLIANCE_EMPRESA: IconePredio,
   DILIGENCIA_PESSOA: IconePessoa,
   VERIFICACAO_DOCUMENTOS: IconeDocumentoCheck,
   LICITACOES: IconeMartelo,
   GESTAO_ATIVOS: IconeAtivos,
+  CONSULTA_CADASTRAL_SERASA: IconeFichaCadastral,
 };

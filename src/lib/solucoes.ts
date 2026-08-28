@@ -211,6 +211,26 @@ export const SOLUCOES: Solucao[] = [
       "Os documentos são minutas, feitas para revisão por advogado antes da assinatura. A plataforma não é " +
       "escritório de advocacia e não presta consultoria jurídica.",
   },
+
+  {
+    chave: "CONSULTA_CADASTRAL_SERASA",
+    nome: "Consulta cadastral",
+    resumo: "Situação, score e restrições de uma pessoa ou empresa, direto na base do SERASA.",
+    paraQuem:
+      "Quem precisa de uma resposta rápida sobre a situação cadastral de alguém — antes de vender a prazo, " +
+      "fechar uma parceria ou aceitar um novo cliente — sem precisar de um relatório completo de due diligence.",
+    entrada: ["CPF ou CNPJ da pessoa ou empresa"],
+    entrega: [
+      "Situação cadastral e score",
+      "Restrições: negativação, protesto, ações judiciais",
+      "Histórico salvo, consultável a qualquer momento",
+    ],
+    fontes: ["SERASA"],
+    estado: "EM_CONSTRUCAO",
+    limite:
+      "Ainda não está no ar — falta o contrato com o SERASA. O cadastro, o login e o crédito pré-pago já " +
+      "funcionam; a consulta em si passa a responder assim que a integração for ligada.",
+  },
 ];
 
 export function solucao(chave: string): Solucao | undefined {
