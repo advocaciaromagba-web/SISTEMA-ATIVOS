@@ -11,7 +11,7 @@ export const metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function Solucoes() {
+export default function Solucoes({ searchParams }: { searchParams?: { s?: string } }) {
   return (
     <>
       <section className="faixa-escura border-b-2 border-[color:var(--marca-destaque)]">
@@ -28,7 +28,7 @@ export default function Solucoes() {
       </section>
 
       <section className="mx-auto max-w-5xl px-4 py-14">
-        <AbasSolucoes solucoes={SOLUCOES} />
+        <AbasSolucoes solucoes={SOLUCOES} inicial={searchParams?.s} />
       </section>
 
       <section className="border-t border-slate-200 bg-white">

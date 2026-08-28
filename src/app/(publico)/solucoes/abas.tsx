@@ -17,8 +17,9 @@ const CORES_ESTADO: Record<EstadoSolucao, string> = {
  * estrutura permite comparar as soluções entre si, que é o que alguém decidindo
  * a compra precisa fazer.
  */
-export function AbasSolucoes({ solucoes }: { solucoes: Solucao[] }) {
-  const [ativa, setAtiva] = useState(solucoes[0]?.chave ?? "");
+export function AbasSolucoes({ solucoes, inicial }: { solucoes: Solucao[]; inicial?: string }) {
+  const chaveInicial = inicial && solucoes.some((s) => s.chave === inicial) ? inicial : solucoes[0]?.chave ?? "";
+  const [ativa, setAtiva] = useState(chaveInicial);
 
   /**
    * Enquanto o JavaScript não assumiu, TODAS as soluções ficam visíveis, uma
