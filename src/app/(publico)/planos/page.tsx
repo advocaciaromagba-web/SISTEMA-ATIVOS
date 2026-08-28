@@ -91,7 +91,7 @@ export default function Planos() {
             )}
 
             <Link
-              href="/login"
+              href="/cadastro"
               className={`mt-6 text-center ${plano.destaque ? "botao-principal" : "botao-secundario"}`}
             >
               Começar o teste

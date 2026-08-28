@@ -12,7 +12,7 @@ export default withAuth({
  * protegida.
  *
  * Ficam de fora:
- * - /login ......... senão não haveria como entrar
+ * - /login, /cadastro ... senão não haveria como entrar nem como assinar
  * - /api ........... cada rota confere a sessão por conta própria, e os
  *                    webhooks de pagamento são chamados de fora, sem sessão
  * - estáticos ...... arquivos da própria página
@@ -21,6 +21,6 @@ export const config = {
   matcher: [
     // O `.+` no fim (em vez de `.*`) deixa a raiz "/" de fora: ela é a página
     // pública de apresentação. As demais páginas públicas estão nomeadas.
-    "/((?!login|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
+    "/((?!login|cadastro|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
   ],
 };

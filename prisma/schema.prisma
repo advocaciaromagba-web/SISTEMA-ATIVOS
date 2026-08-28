@@ -21,6 +21,9 @@ datasource db {
 /// dados: nenhuma consulta do sistema roda sem filtrar por organizacaoId.
 model Organizacao {
   id           String  @id @default(cuid())
+  /// PF | PJ — mesma flexibilizacao que Licitacoes e Compliance ja tem;
+  /// aqui faltava porque esta e a solucao mais antiga.
+  tipo         String  @default("PJ")
   nome         String
   razaoSocial  String?
   cnpj         String? @unique
@@ -44,7 +47,8 @@ model Organizacao {
   foroCidade String?
   foroUf     String?
 
-  // ----- assinatura paga -----
+  // ----- assinatura paga: o cliente escolhe, entre as tres formas -----
+  formaCobranca    String    @default("ASSINATURA") // AVULSO | CREDITO | ASSINATURA
   plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
   statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
   testeExpiraEm    DateTime?
@@ -968,6 +972,12 @@ model EditalInteresse {
   arquivo     Bytes?
 
   prazoEnvio DateTime?
+
+  /// Preenchidos quando o edital foi encontrado pela busca de oportunidades
+  /// no PNCP, em vez de cadastrado manualmente — é o link de volta ao edital
+  /// original, não um cache do conteúdo dele.
+  numeroControlePncp String?
+  linkPncp           String?
 
   criadoEm DateTime @default(now())
 

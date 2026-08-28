@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { exigirEdicaoLicitacoes } from "@/lib/licitacoes/sessao";
+import { exigirEdicaoLicitacoes, exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { somenteAlfanumerico, somenteNumeros, validarDocumento, validarEmail } from "@/lib/validacao";
 import { gerarDocumento } from "@/lib/documentos";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import { auditarLicitante } from "@/lib/licitacoes/auditoria";
 import { contaComoOrganizacao, usuarioLicitacoesComoUsuario } from "@/lib/licitacoes/contexto";
+import { buscarOportunidadesPncp, type OportunidadePncp } from "@/lib/licitacoes/pncp";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -264,6 +265,54 @@ export async function salvarEditalInteresse(_anterior: ResultadoAcao, dados: For
       arquivo: bytes,
       prazoEnvio: prazoEnvio ? new Date(prazoEnvio) : null,
     },
+  });
+
+  revalidatePath("/licitacoes/painel/licitantes");
+  return { ok: true };
+}
+
+/**
+ * Busca ao vivo no PNCP — roda no servidor para não expor a chamada externa
+ * ao navegador e para poder exigir sessão antes de qualquer requisição.
+ */
+export async function buscarOportunidades(params: {
+  modalidade?: string;
+  uf?: string;
+  palavraChave?: string;
+  pagina?: number;
+}): Promise<{ ok: true; total: number; itens: OportunidadePncp[] } | { ok: false; erro: string }> {
+  await exigirSessaoLicitacoes();
+  return buscarOportunidadesPncp(params);
+}
+
+/**
+ * Registra como edital de interesse uma oportunidade encontrada na busca do
+ * PNCP — mesma tabela que o cadastro manual usa, só que sem arquivo (o edital
+ * fica no PNCP; aqui guarda o link de volta, não uma cópia).
+ */
+export async function salvarEditalDoPncp(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoLicitacoes();
+
+  const orgaoLicitante = texto(dados, "orgaoLicitante");
+  const modalidade = texto(dados, "modalidade");
+  const numeroCertame = texto(dados, "numeroCertame");
+  const objeto = texto(dados, "objeto");
+  const numeroControlePncp = texto(dados, "numeroControlePncp");
+  const linkPncp = texto(dados, "linkPncp");
+
+  if (!orgaoLicitante || !modalidade || !numeroCertame) {
+    return { erro: "Dados incompletos vindos do PNCP — tente buscar de novo." };
+  }
+
+  if (numeroControlePncp) {
+    const jaExiste = await prisma.editalInteresse.findFirst({
+      where: { licitacaoContaId: conta.id, numeroControlePncp },
+    });
+    if (jaExiste) return { erro: "Este edital já está na sua lista de interesse." };
+  }
+
+  await prisma.editalInteresse.create({
+    data: { licitacaoContaId: conta.id, orgaoLicitante, modalidade, numeroCertame, objeto, numeroControlePncp, linkPncp },
   });
 
   revalidatePath("/licitacoes/painel/licitantes");

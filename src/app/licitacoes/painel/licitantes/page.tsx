@@ -23,9 +23,14 @@ export default async function Licitantes() {
             O cadastro é próprio desta solução — preencha uma vez e reaproveite em qualquer certame.
           </p>
         </div>
-        <Link href="/licitacoes/painel/licitantes/nova" className="botao-principal">
-          Nova empresa
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/licitacoes/painel/licitantes/oportunidades" className="botao-secundario">
+            Buscar oportunidades no PNCP
+          </Link>
+          <Link href="/licitacoes/painel/licitantes/nova" className="botao-principal">
+            Nova empresa
+          </Link>
+        </div>
       </div>
 
       {licitantes.length === 0 ? (
