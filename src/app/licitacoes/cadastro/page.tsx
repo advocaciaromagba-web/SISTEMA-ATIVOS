@@ -24,6 +24,9 @@ export default function CadastroLicitacoes() {
           Já tem conta?{" "}
           <Link href="/licitacoes/entrar" className="font-medium underline">
             Entrar
+          </Link>{" "}
+          · <Link href="/licitacoes/planos" className="font-medium underline">
+            Ver planos e preços
           </Link>
         </p>
       </div>

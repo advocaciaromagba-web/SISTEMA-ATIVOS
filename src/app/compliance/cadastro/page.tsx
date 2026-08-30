@@ -24,6 +24,9 @@ export default function CadastroCompliance() {
           Já tem conta?{" "}
           <Link href="/compliance/entrar" className="font-medium underline">
             Entrar
+          </Link>{" "}
+          · <Link href="/compliance/planos" className="font-medium underline">
+            Ver planos e preços
           </Link>
         </p>
       </div>
