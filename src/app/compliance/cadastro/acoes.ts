@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { somenteAlfanumerico, validarDocumento, validarEmail } from "@/lib/validacao";
+import { DIAS_DE_TESTE } from "@/lib/planos";
 
 export type ResultadoCadastro = { erro?: string };
 
@@ -32,7 +33,7 @@ export async function criarContaCompliance(_anterior: ResultadoCadastro, dados: 
   if (jaExiste) return { erro: "Já existe uma conta com este e-mail nesta solução." };
 
   const passwordHash = await bcrypt.hash(senha, 10);
-  const testeExpiraEm = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+  const testeExpiraEm = new Date(Date.now() + DIAS_DE_TESTE * 24 * 60 * 60 * 1000);
 
   await prisma.complianceConta.create({
     data: {

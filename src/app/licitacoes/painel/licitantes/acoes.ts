@@ -10,8 +10,16 @@ import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import { auditarLicitante } from "@/lib/licitacoes/auditoria";
 import { contaComoOrganizacao, usuarioLicitacoesComoUsuario } from "@/lib/licitacoes/contexto";
 import { buscarOportunidadesPncp, type OportunidadePncp } from "@/lib/licitacoes/pncp";
+import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
+
+/** Teste grátis: só a cota de consultas definida em `planos.ts`, e nada além dela. */
+async function testeEsgotado(licitacaoContaId: string, statusAssinatura: string): Promise<boolean> {
+  if (statusAssinatura !== "TESTE") return false;
+  const total = await prisma.licitanteAuditoria.count({ where: { licitacaoContaId } });
+  return total >= CONSULTAS_GRATIS_TESTE;
+}
 
 const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() ?? "").trim() || null;
 
@@ -87,7 +95,7 @@ export async function salvarLicitante(_anterior: ResultadoAcao, dados: FormData)
   // impedir o cadastro de ficar salvo, então o erro é engolido e a empresa
   // fica marcada como ainda não auditada.
   const salva = await prisma.licitanteEmpresa.findUnique({ where: { id: licitanteId } });
-  if (salva?.documento) {
+  if (salva?.documento && !(await testeEsgotado(conta.id, conta.statusAssinatura))) {
     try {
       await auditarLicitante({ licitante: salva, usuario, licitacaoContaId: conta.id });
     } catch (erro) {

@@ -139,6 +139,17 @@ export async function gerarEsalvar(_anterior: ResultadoAcao, dados: FormData): P
   // justamente que a certidão falta.
   const ehRelatorio = tipo === "RELATORIO_DILIGENCIA";
 
+  // O teste grátis mostra a estrutura e o resultado das consultas, mas não
+  // entrega o relatório assinado — esse é o documento que carrega
+  // responsabilidade de quem assina, e não sai sem assinatura paga.
+  if (ehRelatorio && organizacao.statusAssinatura === "TESTE") {
+    return {
+      erro:
+        "O relatório de due diligence assinado não é gerado durante o período de teste. Assine um plano para " +
+        "emitir o relatório de verdade — o teste serve para conhecer a tela e o resultado das consultas.",
+    };
+  }
+
   // Trava de auditoria na saída: nenhum documento é gerado com parte bloqueada
   // ou sem auditoria. É o último ponto antes de o papel existir no mundo — e o
   // documento é justamente o que dá aparência de legitimidade à operação.

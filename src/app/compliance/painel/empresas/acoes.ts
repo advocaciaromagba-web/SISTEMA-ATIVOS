@@ -11,10 +11,18 @@ import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import { contaComplianceComoOrganizacao, usuarioComplianceComoUsuario } from "@/lib/compliance/contexto";
 import type { DadosDiligencia } from "@/lib/documentos/geradores/diligencia";
 import type { Apontamento } from "@/lib/auditoria/tipos";
+import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
 const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() ?? "").trim() || null;
+
+/** Teste grátis: só a cota de consultas definida em `planos.ts`, e nada além dela. */
+async function testeEsgotado(complianceContaId: string, statusAssinatura: string): Promise<boolean> {
+  if (statusAssinatura !== "TESTE") return false;
+  const total = await prisma.complianceAuditoria.count({ where: { complianceContaId } });
+  return total >= CONSULTAS_GRATIS_TESTE;
+}
 
 /**
  * Cria a empresa e roda a auditoria automática, na hora — o cadastro passa
@@ -57,7 +65,7 @@ export async function salvarEmpresa(_anterior: ResultadoAcao, dados: FormData): 
     },
   });
 
-  if (empresa.documento) {
+  if (empresa.documento && !(await testeEsgotado(conta.id, conta.statusAssinatura))) {
     try {
       await auditarEmpresaCompliance({ empresa, usuario, complianceContaId: conta.id });
     } catch (erro) {
@@ -132,6 +140,12 @@ export async function reauditarEmpresa(id: string): Promise<ResultadoAcao> {
 
   const empresa = await prisma.complianceEmpresa.findFirst({ where: { id, complianceContaId: conta.id } });
   if (!empresa) return { erro: "Empresa não encontrada." };
+
+  if (await testeEsgotado(conta.id, conta.statusAssinatura)) {
+    return {
+      erro: `Seu teste grátis já usou as ${CONSULTAS_GRATIS_TESTE} consultas incluídas. Assine um plano para continuar auditando.`,
+    };
+  }
 
   await auditarEmpresaCompliance({ empresa, usuario, complianceContaId: conta.id });
 
@@ -214,6 +228,16 @@ const ROTULO_FONTE: Record<string, string> = {
  */
 export async function gerarRelatorio(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
   const { usuario, conta } = await exigirEdicaoCompliance();
+
+  // O teste grátis mostra a estrutura e o resultado das consultas, mas não
+  // entrega o relatório de compliance assinado.
+  if (conta.statusAssinatura === "TESTE") {
+    return {
+      erro:
+        "O relatório de compliance assinado não é gerado durante o período de teste. Assine um plano para " +
+        "emitir o relatório de verdade.",
+    };
+  }
 
   const complianceEmpresaId = texto(dados, "complianceEmpresaId");
   if (!complianceEmpresaId) return { erro: "Empresa não informada." };

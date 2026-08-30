@@ -8,9 +8,11 @@
  * DataJud) são gratuitas, e o que custa é consumo — leitura de documento por
  * inteligência artificial, assinatura eletrônica e consulta a bureau.
  *
- * Mas o preço não sai do custo. Sai do valor de UMA operação: um precatório de
- * R$ 900 mil com 2% de comissão rende R$ 18 mil ao intermediário. Qualquer
- * plano abaixo de R$ 2 mil por mês se paga com menos de uma operação por ano.
+ * O preço não sai só do custo — também sai do valor de UMA operação: um
+ * precatório de R$ 900 mil a 2% de comissão rende R$ 18 mil, e qualquer um
+ * destes planos se paga com uma única operação no ano. Mas o valor em si foi
+ * pensado para ser popular, não para espremer o máximo por assinante — mais
+ * gente pagando um preço que não pesa vale mais que pouca gente pagando caro.
  *
  * Por isso os limites são generosos no que é barato (operações, partes,
  * auditoria) e contados no que tem custo por unidade (IA, assinatura, bureau).
@@ -46,8 +48,8 @@ export const PLANOS: Plano[] = [
     chave: "ESSENCIAL",
     nome: "Essencial",
     paraQuem: "Para quem trabalha sozinho e fecha poucas operações por ano.",
-    precoMensal: 297,
-    precoAnual: 2970,
+    precoMensal: 147,
+    precoAnual: 1470,
     limites: {
       usuarios: 1,
       operacoesAtivas: 5,
@@ -73,8 +75,8 @@ export const PLANOS: Plano[] = [
     chave: "PROFISSIONAL",
     nome: "Profissional",
     paraQuem: "Para quem tem operação rodando o mês inteiro e uma equipe pequena.",
-    precoMensal: 697,
-    precoAnual: 6970,
+    precoMensal: 347,
+    precoAnual: 3470,
     destaque: true,
     limites: {
       usuarios: 3,
@@ -101,8 +103,8 @@ export const PLANOS: Plano[] = [
     chave: "MESA",
     nome: "Mesa",
     paraQuem: "Para mesa de operação com volume, equipe e contraparte institucional.",
-    precoMensal: 1897,
-    precoAnual: 18970,
+    precoMensal: 897,
+    precoAnual: 8970,
     limites: {
       usuarios: 10,
       operacoesAtivas: null,
@@ -197,7 +199,18 @@ export const ADICIONAIS = [
   { chave: "USUARIO", nome: "Usuário adicional", preco: 97, unidade: "mês" },
 ];
 
-export const DIAS_DE_TESTE = 14;
+export const DIAS_DE_TESTE = 3;
+
+/**
+ * Quantas consultas/auditorias o teste grátis permite, em qualquer solução.
+ *
+ * O teste é para conhecer a estrutura e ver como sai um resultado — não para
+ * sair com um relatório de verdade sem pagar. Por isso soma-se a esta cota
+ * uma segunda trava, em código separado: nenhuma solução gera relatório
+ * assinado (compliance ou due diligence) enquanto a conta estiver em TESTE,
+ * não importa quantas consultas ainda restarem.
+ */
+export const CONSULTAS_GRATIS_TESTE = 3;
 
 export const PLANO_POR_CHAVE = Object.fromEntries(PLANOS.map((p) => [p.chave, p])) as Record<string, Plano>;
 
