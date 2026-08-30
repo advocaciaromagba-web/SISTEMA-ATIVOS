@@ -73,9 +73,9 @@ export default function Inicio() {
                 <path d="M3 12h18M12 3c2.5 2.6 3.8 5.8 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.8-3.8-9S9.5 5.6 12 3Z" />
               </svg>
               <span>
-                No ar em breve em{" "}
+                No ar em{" "}
                 <strong className="font-semibold text-white">{marca.site.replace(/^https?:\/\//, "")}</strong> —
-                CNPJ já em nome da Blackbird na Receita Federal, domínio próprio a caminho.
+                domínio próprio, CNPJ já em nome da Blackbird na Receita Federal.
               </span>
             </div>
           )}
