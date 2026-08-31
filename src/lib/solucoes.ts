@@ -123,19 +123,25 @@ export const SOLUCOES: Solucao[] = [
     paraQuem:
       "Empresa que recebeu documentação de um fornecedor, cliente ou contraparte e precisa saber se aquilo é " +
       "autêntico — em vez de arquivar um PDF e torcer.",
-    entrada: ["O documento recebido (PDF ou imagem)"],
+    entrada: ["O documento recebido (PDF ou imagem)", "Ou apenas o CPF ou CNPJ, para emitir do zero"],
     entrega: [
       "Impressão digital (hash) de cada arquivo, que prova depois que ele não foi alterado",
       "Controle de validade, com aviso antes de vencer",
       "Leitura por IA: tipo de documento, dados principais e validade extraídos automaticamente",
+      "Reemissão da mesma certidão direto no órgão, quando o órgão permite",
+      "Comparação automática entre o que foi apresentado e o que o órgão responde hoje",
       "Histórico com todos os documentos verificados pela conta",
     ],
-    fontes: ["O próprio documento enviado, lido por inteligência artificial"],
+    fontes: [
+      "O próprio documento enviado, lido por inteligência artificial",
+      "Polícia Federal, CNJ, tribunais e demais órgãos com emissão automática via Infosimples",
+    ],
     estado: "PARCIAL",
     limite:
-      "A impressão digital e o controle de validade funcionam sempre. A leitura automática dos dados depende de " +
-      "chave de IA configurada — sem ela, o documento é salvo do mesmo jeito, sem o resumo automático. Ainda não " +
-      "incluído: reemitir a mesma certidão direto no órgão e comparar automaticamente com o que foi apresentado.",
+      "A impressão digital, o controle de validade e a comparação já funcionam sempre. A leitura automática por " +
+      "IA depende de chave configurada; a reemissão automática depende de contrato com o Infosimples e cobre só " +
+      "as certidões e estados listados no catálogo — sem isso, o documento continua sendo aceito por upload " +
+      "manual, sem o resumo ou a reemissão.",
     avulso: "LEITURA_DOCUMENTOS",
   },
 

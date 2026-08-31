@@ -1759,10 +1759,16 @@ model VerificacaoDocumento {
 
   titulo      String
   tipo        String // CERTIDAO | CONTRATO_SOCIAL | RG | CPF | OUTRO
-  nomeArquivo String
-  arquivo     Bytes
+  /// APRESENTADA (enviada pelo usuário) | EMITIDA (emitida agora, direto no órgão).
+  origem      String  @default("APRESENTADA")
+  /// CPF ou CNPJ a que este documento se refere — é o que permite comparar
+  /// uma emissão de hoje com uma certidão apresentada antes, mesma pessoa,
+  /// mesmo tipo.
+  documento   String?
+  nomeArquivo String?
+  arquivo     Bytes?
   arquivoTipo String?
-  hashSha256  String
+  hashSha256  String?
 
   validaAte DateTime?
 
@@ -1770,9 +1776,26 @@ model VerificacaoDocumento {
   /// configurada, sem que isso impeça o resto de funcionar.
   leituraIa Json?
 
+  /// Preenchidos só quando origem = EMITIDA.
+  numero         String?
+  orgaoEmissor   String?
+  /// NADA_CONSTA | CONSTA | PENDENTE
+  resultado      String?
+  apontamento    String?
+  natureza       String?
+  comprovanteUrl String?
+  dadosConsulta  Json?
+
+  /// Documento apresentado que esta emissão confere — preenchido só quando
+  /// existe um documento do mesmo tipo e do mesmo CPF/CNPJ já apresentado.
+  compararComId String?
+  /// O que a comparação encontrou. Nulo quando não há o que comparar.
+  divergencia    String?
+
   solicitadoPorId String?
   criadoEm        DateTime @default(now())
   atualizadoEm    DateTime @updatedAt
 
   @@index([verificacaoContaId])
+  @@index([verificacaoContaId, documento, tipo])
 }

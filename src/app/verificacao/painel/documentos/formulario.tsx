@@ -43,6 +43,14 @@ export function FormularioDocumento() {
       </div>
 
       <div>
+        <label className="rotulo" htmlFor="documento">
+          CPF ou CNPJ (opcional)
+        </label>
+        <input id="documento" name="documento" className="campo" placeholder="A quem este documento se refere" />
+        <p className="ajuda">Preenchendo, dá para comparar depois com uma emissão feita direto no órgão.</p>
+      </div>
+
+      <div>
         <label className="rotulo" htmlFor="arquivo">
           Arquivo
         </label>
