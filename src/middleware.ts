@@ -13,7 +13,7 @@ export default withAuth({
  *
  * Ficam de fora:
  * - /login, /cadastro ... senão não haveria como entrar nem como assinar
- * - /licitacoes, /compliance, /serasa ... soluções com login PRÓPRIO —
+ * - /licitacoes, /compliance, /serasa, /diligencia, /verificacao ... soluções com login PRÓPRIO —
  *                    cada uma confere a própria sessão em cada página
  *                    (exigirSessaoX()), e nunca deve passar pelo middleware
  *                    da Gestão de Ativos. Bug real encontrado em produção:
@@ -28,6 +28,6 @@ export const config = {
   matcher: [
     // O `.+` no fim (em vez de `.*`) deixa a raiz "/" de fora: ela é a página
     // pública de apresentação. As demais páginas públicas estão nomeadas.
-    "/((?!login|cadastro|licitacoes|compliance|serasa|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
+    "/((?!login|cadastro|licitacoes|compliance|serasa|diligencia|verificacao|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
   ],
 };

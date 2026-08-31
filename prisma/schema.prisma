@@ -1506,3 +1506,273 @@ model SerasaConsulta {
   @@index([serasaContaId])
   @@index([serasaContaId, documento])
 }
+
+// ---------------------------------------------------------------------
+// DUE DILIGENCE DE PESSOAS — setima solucao, isolada das demais. Mesmo
+// molde de Compliance de Empresas, mas para pessoa fisica: motor puro em
+// `src/lib/auditoria/motor-pessoa.ts`, dados proprios desta conta.
+// ---------------------------------------------------------------------
+
+model DiligenciaConta {
+  id String @id @default(cuid())
+
+  tipo        String // PF | PJ
+  nome        String
+  razaoSocial String?
+  documento   String?
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  formaCobranca    String    @default("ASSINATURA") // AVULSO | CREDITO | ASSINATURA
+  plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
+  statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
+  testeExpiraEm    DateTime?
+  assinaturaAte    DateTime?
+  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuarios  DiligenciaUsuario[]
+  pessoas   DiligenciaPessoa[]
+  auditorias DiligenciaAuditoria[]
+
+  @@index([statusAssinatura])
+}
+
+model DiligenciaUsuario {
+  id              String          @id @default(cuid())
+  diligenciaContaId String
+  diligenciaConta DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  ativo        Boolean @default(true)
+
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
+  totpRecuperacao String?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([diligenciaContaId])
+}
+
+model DiligenciaTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
+
+/// Cadastro da pessoa física verificada — próprio desta solução, sem
+/// nenhuma ligação com `Pessoa` (Gestão de Ativos).
+model DiligenciaPessoa {
+  id                String          @id @default(cuid())
+  diligenciaContaId String
+  diligenciaConta   DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
+
+  nome          String
+  documento     String // CPF
+  nomeMae       String?
+  dataNascimento DateTime?
+  uf            String?
+
+  emailContato String?
+  telefone     String?
+
+  /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
+  situacaoCompliance  String?
+  complianceEm        DateTime?
+  /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
+  capacidadePagamento String?
+  pontuacao           Int?
+  bloqueada           Boolean @default(false)
+  /// Liberacao manual da restricao — so sai do bloqueio com confirmacao
+  /// humana registrada, nunca automaticamente.
+  liberadaPorNome        String?
+  liberadaEm             DateTime?
+  justificativaLiberacao String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  auditorias DiligenciaAuditoria[]
+
+  @@index([diligenciaContaId])
+  @@index([diligenciaContaId, documento])
+}
+
+model DiligenciaAuditoria {
+  id                String          @id @default(cuid())
+  diligenciaContaId String
+  diligenciaConta   DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
+  diligenciaPessoaId String
+  diligenciaPessoa  DiligenciaPessoa @relation(fields: [diligenciaPessoaId], references: [id], onDelete: Cascade)
+
+  situacao String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+
+  idoneidade   String?
+  capacidade   String?
+  pontuacao    Int?
+  parecer      String?
+  apontamentos Json?
+
+  fontesIndisponiveis Json?
+
+  solicitadoPorId String?
+  criadoEm        DateTime  @default(now())
+  concluidaEm     DateTime?
+
+  consultas DiligenciaConsulta[]
+
+  @@index([diligenciaContaId])
+  @@index([diligenciaPessoaId])
+}
+
+model DiligenciaConsulta {
+  id                  String               @id @default(cuid())
+  diligenciaPessoaId  String
+  diligenciaAuditoriaId String?
+  diligenciaAuditoria DiligenciaAuditoria? @relation(fields: [diligenciaAuditoriaId], references: [id], onDelete: Cascade)
+
+  fonte     String
+  parametro String
+
+  status    String  @default("PENDENTE")
+  resultado Json?
+  resumo    String?
+  erro      String?
+
+  criadoEm    DateTime  @default(now())
+  concluidaEm DateTime?
+
+  @@index([diligenciaPessoaId])
+}
+
+// ---------------------------------------------------------------------
+// VERIFICACAO DE DOCUMENTOS — oitava solucao, isolada das demais. Recebe
+// um documento, tira a impressao digital (hash) e, quando a IA estiver
+// configurada, le e extrai os dados — sem tocar em nenhuma tabela de
+// nenhuma outra solucao.
+// ---------------------------------------------------------------------
+
+model VerificacaoConta {
+  id String @id @default(cuid())
+
+  tipo        String // PF | PJ
+  nome        String
+  razaoSocial String?
+  documento   String?
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  formaCobranca    String    @default("ASSINATURA") // AVULSO | CREDITO | ASSINATURA
+  plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
+  statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
+  testeExpiraEm    DateTime?
+  assinaturaAte    DateTime?
+  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuarios   VerificacaoUsuario[]
+  documentos VerificacaoDocumento[]
+
+  @@index([statusAssinatura])
+}
+
+model VerificacaoUsuario {
+  id                 String           @id @default(cuid())
+  verificacaoContaId String
+  verificacaoConta   VerificacaoConta @relation(fields: [verificacaoContaId], references: [id], onDelete: Cascade)
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  ativo        Boolean @default(true)
+
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
+  totpRecuperacao String?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([verificacaoContaId])
+}
+
+model VerificacaoTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
+
+/// Cada documento verificado — o arquivo, a impressão digital, e a leitura
+/// por IA quando configurada. Guardado mesmo quando a IA não está ligada:
+/// a impressão digital e o controle de validade não dependem dela.
+model VerificacaoDocumento {
+  id                 String           @id @default(cuid())
+  verificacaoContaId String
+  verificacaoConta   VerificacaoConta @relation(fields: [verificacaoContaId], references: [id], onDelete: Cascade)
+
+  titulo      String
+  tipo        String // CERTIDAO | CONTRATO_SOCIAL | RG | CPF | OUTRO
+  nomeArquivo String
+  arquivo     Bytes
+  arquivoTipo String?
+  hashSha256  String
+
+  validaAte DateTime?
+
+  /// Resultado da leitura por IA — nulo quando ANTHROPIC_API_KEY não está
+  /// configurada, sem que isso impeça o resto de funcionar.
+  leituraIa Json?
+
+  solicitadoPorId String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([verificacaoContaId])
+}

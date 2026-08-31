@@ -91,29 +91,28 @@ export const SOLUCOES: Solucao[] = [
     paraQuem:
       "Quem precisa conhecer sócios, administradores, procuradores, cedentes e garantidores antes de fechar. " +
       "É a verificação que mais falta e a que mais custa caro quando falha.",
-    entrada: ["CPF e data de nascimento", "Opcionalmente, os documentos pessoais apresentados"],
+    entrada: ["CPF, nome da mãe e data de nascimento", "Opcionalmente, os documentos pessoais apresentados"],
     entrega: [
-      "Situação do CPF na Receita Federal",
-      "Certidão de antecedentes criminais da Polícia Federal",
+      "Sanções internacionais e dívida ativa da União",
       "Consulta ao banco nacional de mandados de prisão",
       "Consulta ao cadastro de condenações por improbidade administrativa",
-      "Processos judiciais em que a pessoa figura, com análise de cada um",
-      "Certidões cível e criminal, estadual e federal, emitidas e arquivadas",
+      "Bureau de crédito: protesto, negativação, recuperação judicial",
       "Parecer final, com a distinção entre processo em curso e condenação",
+      "Histórico salvo, consultável a qualquer momento",
     ],
     fontes: [
-      "Receita Federal",
-      "Polícia Federal",
+      "OFAC — Departamento do Tesouro dos Estados Unidos",
+      "Procuradoria-Geral da Fazenda Nacional",
       "Conselho Nacional de Justiça",
-      "Tribunais de Justiça estaduais",
-      "Tribunais Regionais Federais",
-      "Superior Tribunal de Justiça",
+      "Bureau de crédito, quando contratado",
     ],
-    estado: "DISPONIVEL",
+    estado: "PARCIAL",
     limite:
       "Processo em curso não é condenação (Constituição, art. 5º, LVII, e Súmula 444 do STJ), e o parecer diz " +
-      "isso com todas as letras. Algumas certidões dependem de captcha e são obtidas com um clique do operador, " +
-      "não sozinhas — o relatório informa quais foram assim.",
+      "isso com todas as letras. Mandado de prisão e improbidade exigem nome da mãe e data de nascimento — sem " +
+      "eles, a consulta é recusada com aviso. Ainda não incluído: situação do CPF na Receita (não existe hoje " +
+      "uma fonte pronta para isso) e emissão de certidão cível/criminal — para esse último, use a solução " +
+      "Verificação de Documentos.",
     avulso: "DILIGENCIA_BASICA",
   },
 
@@ -124,24 +123,19 @@ export const SOLUCOES: Solucao[] = [
     paraQuem:
       "Empresa que recebeu documentação de um fornecedor, cliente ou contraparte e precisa saber se aquilo é " +
       "autêntico — em vez de arquivar um PDF e torcer.",
-    entrada: ["O documento ou a certidão recebida", "Ou apenas o CPF ou CNPJ, para emitir do zero"],
+    entrada: ["O documento recebido (PDF ou imagem)"],
     entrega: [
-      "Leitura do documento e extração dos dados, com cada campo indicando de onde saiu",
-      "Reemissão da mesma certidão direto no órgão, quando o órgão permite",
-      "Comparação entre o que foi apresentado e o que o órgão responde hoje",
+      "Impressão digital (hash) de cada arquivo, que prova depois que ele não foi alterado",
       "Controle de validade, com aviso antes de vencer",
-      "Impressão digital de cada arquivo, que prova depois que ele não foi alterado",
+      "Leitura por IA: tipo de documento, dados principais e validade extraídos automaticamente",
+      "Histórico com todos os documentos verificados pela conta",
     ],
-    fontes: [
-      "O próprio órgão emissor de cada documento",
-      "Receita Federal",
-      "Tribunais estaduais e federais",
-    ],
+    fontes: ["O próprio documento enviado, lido por inteligência artificial"],
     estado: "PARCIAL",
     limite:
-      "A leitura, a emissão e o controle de validade já funcionam. A comparação automática entre o documento " +
-      "apresentado e a reemissão está sendo construída — hoje o sistema entrega os dois lado a lado para " +
-      "conferência humana.",
+      "A impressão digital e o controle de validade funcionam sempre. A leitura automática dos dados depende de " +
+      "chave de IA configurada — sem ela, o documento é salvo do mesmo jeito, sem o resumo automático. Ainda não " +
+      "incluído: reemitir a mesma certidão direto no órgão e comparar automaticamente com o que foi apresentado.",
     avulso: "LEITURA_DOCUMENTOS",
   },
 
