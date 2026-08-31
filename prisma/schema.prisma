@@ -115,11 +115,14 @@ model Usuario {
   enderecoCep         String?
 
   /// Verificacao em duas etapas (Google Authenticator e semelhantes).
-  totpSegredo     String?
-  totpAtivado     Boolean   @default(false)
-  totpAtivadoEm   DateTime?
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
   /// Codigos de recuperacao embaralhados, um uso cada.
-  totpRecuperacao String?
+  totpRecuperacao    String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
 
   ultimoAcesso DateTime?
   criadoEm     DateTime  @default(now())
@@ -795,10 +798,13 @@ model LicitacaoUsuario {
 
   /// Verificação em duas etapas (aplicativo autenticador), própria desta
   /// solução — o segredo de um login não vale para o outro.
-  totpSegredo     String?
-  totpAtivado     Boolean   @default(false)
-  totpAtivadoEm   DateTime?
-  totpRecuperacao String?
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
+  totpRecuperacao    String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
 
   ultimoAcesso DateTime?
   criadoEm     DateTime  @default(now())
@@ -859,13 +865,13 @@ model LicitanteEmpresa {
   // que Pessoa guarda para a gestao de ativos — mas em coluna propria desta
   // tabela, nao na tabela da outra solucao.
   /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
-  situacaoCompliance  String?
-  complianceEm        DateTime?
+  situacaoCompliance     String?
+  complianceEm           DateTime?
   /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
-  capacidadePagamento String?
-  pontuacao           Int?
+  capacidadePagamento    String?
+  pontuacao              Int?
   /// Enquanto true, nao deveria gerar envelope novo sem revisao manual.
-  bloqueada           Boolean   @default(false)
+  bloqueada              Boolean   @default(false)
   /// Liberacao manual da restricao — so sai do bloqueio com confirmacao
   /// humana registrada, nunca automaticamente.
   liberadaPorNome        String?
@@ -1242,10 +1248,13 @@ model ComplianceUsuario {
   papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
   ativo        Boolean @default(true)
 
-  totpSegredo     String?
-  totpAtivado     Boolean   @default(false)
-  totpAtivadoEm   DateTime?
-  totpRecuperacao String?
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
+  totpRecuperacao    String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
 
   ultimoAcesso DateTime?
   criadoEm     DateTime  @default(now())
@@ -1287,12 +1296,12 @@ model ComplianceEmpresa {
 
   // ----- resultado da ultima auditoria -----
   /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
-  situacaoCompliance  String?
-  complianceEm        DateTime?
+  situacaoCompliance     String?
+  complianceEm           DateTime?
   /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
-  capacidadePagamento String?
-  pontuacao           Int?
-  bloqueada           Boolean   @default(false)
+  capacidadePagamento    String?
+  pontuacao              Int?
+  bloqueada              Boolean   @default(false)
   /// Liberacao manual da restricao — so sai do bloqueio com confirmacao
   /// humana registrada, nunca automaticamente.
   liberadaPorNome        String?
@@ -1459,10 +1468,13 @@ model SerasaUsuario {
   ativo        Boolean @default(true)
 
   /// Verificação em duas etapas, própria desta solução.
-  totpSegredo     String?
-  totpAtivado     Boolean   @default(false)
-  totpAtivadoEm   DateTime?
-  totpRecuperacao String?
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
+  totpRecuperacao    String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
 
   ultimoAcesso DateTime?
   criadoEm     DateTime  @default(now())
@@ -1546,17 +1558,17 @@ model DiligenciaConta {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  usuarios  DiligenciaUsuario[]
-  pessoas   DiligenciaPessoa[]
+  usuarios   DiligenciaUsuario[]
+  pessoas    DiligenciaPessoa[]
   auditorias DiligenciaAuditoria[]
 
   @@index([statusAssinatura])
 }
 
 model DiligenciaUsuario {
-  id              String          @id @default(cuid())
+  id                String          @id @default(cuid())
   diligenciaContaId String
-  diligenciaConta DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
+  diligenciaConta   DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
 
   nome         String
   email        String  @unique
@@ -1564,10 +1576,13 @@ model DiligenciaUsuario {
   papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
   ativo        Boolean @default(true)
 
-  totpSegredo     String?
-  totpAtivado     Boolean   @default(false)
-  totpAtivadoEm   DateTime?
-  totpRecuperacao String?
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
+  totpRecuperacao    String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
 
   ultimoAcesso DateTime?
   criadoEm     DateTime  @default(now())
@@ -1592,22 +1607,22 @@ model DiligenciaPessoa {
   diligenciaContaId String
   diligenciaConta   DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
 
-  nome          String
-  documento     String // CPF
-  nomeMae       String?
+  nome           String
+  documento      String // CPF
+  nomeMae        String?
   dataNascimento DateTime?
-  uf            String?
+  uf             String?
 
   emailContato String?
   telefone     String?
 
   /// SEM_APONTAMENTO | ATENCAO | RESTRICAO
-  situacaoCompliance  String?
-  complianceEm        DateTime?
+  situacaoCompliance     String?
+  complianceEm           DateTime?
   /// SUFICIENTE | LIMITADA | INSUFICIENTE | NAO_AVALIADA
-  capacidadePagamento String?
-  pontuacao           Int?
-  bloqueada           Boolean @default(false)
+  capacidadePagamento    String?
+  pontuacao              Int?
+  bloqueada              Boolean   @default(false)
   /// Liberacao manual da restricao — so sai do bloqueio com confirmacao
   /// humana registrada, nunca automaticamente.
   liberadaPorNome        String?
@@ -1625,11 +1640,11 @@ model DiligenciaPessoa {
 }
 
 model DiligenciaAuditoria {
-  id                String          @id @default(cuid())
-  diligenciaContaId String
-  diligenciaConta   DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
+  id                 String           @id @default(cuid())
+  diligenciaContaId  String
+  diligenciaConta    DiligenciaConta  @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
   diligenciaPessoaId String
-  diligenciaPessoa  DiligenciaPessoa @relation(fields: [diligenciaPessoaId], references: [id], onDelete: Cascade)
+  diligenciaPessoa   DiligenciaPessoa @relation(fields: [diligenciaPessoaId], references: [id], onDelete: Cascade)
 
   situacao String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
 
@@ -1652,10 +1667,10 @@ model DiligenciaAuditoria {
 }
 
 model DiligenciaConsulta {
-  id                  String               @id @default(cuid())
-  diligenciaPessoaId  String
+  id                    String               @id @default(cuid())
+  diligenciaPessoaId    String
   diligenciaAuditoriaId String?
-  diligenciaAuditoria DiligenciaAuditoria? @relation(fields: [diligenciaAuditoriaId], references: [id], onDelete: Cascade)
+  diligenciaAuditoria   DiligenciaAuditoria? @relation(fields: [diligenciaAuditoriaId], references: [id], onDelete: Cascade)
 
   fonte     String
   parametro String
@@ -1728,10 +1743,13 @@ model VerificacaoUsuario {
   papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
   ativo        Boolean @default(true)
 
-  totpSegredo     String?
-  totpAtivado     Boolean   @default(false)
-  totpAtivadoEm   DateTime?
-  totpRecuperacao String?
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
+  totpRecuperacao    String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
 
   ultimoAcesso DateTime?
   criadoEm     DateTime  @default(now())
@@ -1790,7 +1808,7 @@ model VerificacaoDocumento {
   /// existe um documento do mesmo tipo e do mesmo CPF/CNPJ já apresentado.
   compararComId String?
   /// O que a comparação encontrou. Nulo quando não há o que comparar.
-  divergencia    String?
+  divergencia   String?
 
   solicitadoPorId String?
   criadoEm        DateTime @default(now())
@@ -1798,4 +1816,68 @@ model VerificacaoDocumento {
 
   @@index([verificacaoContaId])
   @@index([verificacaoContaId, documento, tipo])
+}
+
+// ---------------------------------------------------------------------
+// CLIENTE — identidade única do assinante, para não precisar de um
+// cadastro por solução. Não guarda dado de nenhuma solução: só nome,
+// e-mail, senha e 2FA próprios, e quais soluções estão assinadas. Cada
+// solução continua com a própria Conta/Usuário isolados — o Cliente só
+// aponta para elas pelo e-mail, nunca compartilha tabela.
+// ---------------------------------------------------------------------
+
+model Cliente {
+  id String @id @default(cuid())
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  ativo        Boolean @default(true)
+
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
+  totpRecuperacao String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  assinaturas ClienteAssinatura[]
+
+  @@index([email])
+}
+
+model ClienteTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
+
+/// Uma linha por solução que o cliente já assinou — não guarda o dado da
+/// solução, só o vínculo. O cadastro de verdade (Conta/Usuário) continua
+/// isolado, na tabela própria de cada solução; esta tabela nunca é lida
+/// por nenhuma delas.
+model ClienteAssinatura {
+  id        String  @id @default(cuid())
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  /// COMPLIANCE_EMPRESA | DILIGENCIA_PESSOA | VERIFICACAO_DOCUMENTOS |
+  /// LICITACOES | GESTAO_ATIVOS | CONSULTA_CADASTRAL_SERASA
+  solucao String
+
+  status String @default("ATIVA") // ATIVA | CANCELADA
+
+  criadoEm    DateTime  @default(now())
+  canceladaEm DateTime?
+
+  @@unique([clienteId, solucao])
+  @@index([clienteId])
 }

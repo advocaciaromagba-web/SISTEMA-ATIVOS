@@ -12,7 +12,12 @@ export default withAuth({
  * protegida.
  *
  * Ficam de fora:
- * - /login, /cadastro ... senão não haveria como entrar nem como assinar
+ * - /entrar ........ tela de escolha de solução, antes de saber qual login usar
+ * - /login, /cadastro, /esqueci-senha, /redefinir-senha ... senão não haveria como entrar,
+ *                    assinar nem recuperar acesso à Gestão de Ativos
+ * - /cliente ....... conta única do assinante, login PRÓPRIO — escolhe e
+ *                    troca entre as seis soluções sem precisar de um
+ *                    cadastro por solução
  * - /licitacoes, /compliance, /serasa, /diligencia, /verificacao ... soluções com login PRÓPRIO —
  *                    cada uma confere a própria sessão em cada página
  *                    (exigirSessaoX()), e nunca deve passar pelo middleware
@@ -28,6 +33,6 @@ export const config = {
   matcher: [
     // O `.+` no fim (em vez de `.*`) deixa a raiz "/" de fora: ela é a página
     // pública de apresentação. As demais páginas públicas estão nomeadas.
-    "/((?!login|cadastro|licitacoes|compliance|serasa|diligencia|verificacao|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
+    "/((?!entrar|login|cadastro|esqueci-senha|redefinir-senha|cliente|licitacoes|compliance|serasa|diligencia|verificacao|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
   ],
 };
