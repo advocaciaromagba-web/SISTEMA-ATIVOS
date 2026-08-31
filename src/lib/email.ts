@@ -24,6 +24,22 @@ function remetente(): string {
   return `${marca.nome} <${email}>`;
 }
 
+/** Rodapé com identificação da empresa, repetido em todo e-mail transacional. */
+function assinatura(): string {
+  const contatos = [marca.telefone, marca.emailSuporte].filter(Boolean).join(" · ");
+  return `
+    <table role="presentation" width="100%" style="margin-top: 32px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+      <tr>
+        <td>
+          <p style="margin: 0; color: #1e293b; font-size: 13px; font-weight: 600;">${marca.nome}${marca.assinatura ? ` — ${marca.assinatura}` : ""}</p>
+          ${contatos ? `<p style="margin: 4px 0 0; color: #94a3b8; font-size: 12px;">${contatos}</p>` : ""}
+          ${marca.site ? `<p style="margin: 4px 0 0; color: #94a3b8; font-size: 12px;"><a href="${marca.site}" style="color:#94a3b8;">${marca.site.replace(/^https?:\/\//, "")}</a></p>` : ""}
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
 export async function enviarEmailRedefinicaoSenha(params: {
   destinatario: string;
   nomeSolucao: string;
@@ -37,6 +53,7 @@ export async function enviarEmailRedefinicaoSenha(params: {
     subject: `Redefinir senha — ${nomeSolucao}`,
     html: `
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #1e293b;">
+        <img src="${marca.site}/marca/horizontal.png" alt="${marca.nome}" width="160" style="display:block; margin: 0 0 24px;" />
         <p>Foi pedida a redefinição da senha da sua conta em <strong>${nomeSolucao}</strong>, na ${marca.nome}.</p>
         <p>Se foi você, clique no link abaixo para escolher uma nova senha. Ele vale por 1 hora.</p>
         <p style="margin: 24px 0;">
@@ -45,6 +62,7 @@ export async function enviarEmailRedefinicaoSenha(params: {
           </a>
         </p>
         <p style="color:#64748b;font-size:13px;">Se não foi você quem pediu, pode ignorar este e-mail — sua senha continua a mesma.</p>
+        ${assinatura()}
       </div>
     `,
   });
