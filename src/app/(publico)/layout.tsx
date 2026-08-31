@@ -38,7 +38,7 @@ export default function LayoutPublico({ children }: { children: React.ReactNode 
             ))}
           </nav>
 
-          <Link href="/login" className="botao-principal py-1.5 text-sm">
+          <Link href="/entrar" className="botao-principal py-1.5 text-sm">
             Entrar
           </Link>
         </div>

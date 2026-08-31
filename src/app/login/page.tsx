@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { marca } from "@/lib/marca";
 import { MarcaLogo } from "@/components/marca-logo";
@@ -20,10 +21,31 @@ export default function Login() {
               {marca.assinatura}
             </p>
           )}
-          <p className="serif mt-5 text-sm text-white/60">Acesso restrito a assinantes.</p>
+          <p className="mt-2 text-[11px] uppercase tracking-[0.3em] text-[color:var(--marca-destaque)]">
+            Gestão de Ativos e Operações
+          </p>
+          <p className="serif mt-5 text-sm text-white/60">
+            Acesso próprio desta solução — independente da sua conta de outras soluções da {marca.nome}.
+          </p>
         </div>
 
         <FormularioLogin />
+
+        <p className="mt-5 text-center text-sm text-white/60">
+          Ainda não tem conta?{" "}
+          <Link href="/cadastro" className="font-medium text-white underline">
+            Assine a solução
+          </Link>
+        </p>
+        <p className="mt-2 text-center text-xs text-white/40">
+          <Link href="/esqueci-senha" className="underline">
+            Esqueci minha senha
+          </Link>{" "}
+          ·{" "}
+          <Link href="/entrar" className="underline">
+            Ver todas as soluções
+          </Link>
+        </p>
       </div>
     </main>
   );

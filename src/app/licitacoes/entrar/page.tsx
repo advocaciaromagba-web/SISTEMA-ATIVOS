@@ -29,6 +29,15 @@ export default function EntrarLicitacoes() {
             Assine a solução
           </Link>
         </p>
+        <p className="mt-2 text-center text-xs text-white/40">
+          <Link href="/licitacoes/esqueci-senha" className="underline">
+            Esqueci minha senha
+          </Link>{" "}
+          ·{" "}
+          <Link href="/entrar" className="underline">
+            Ver todas as soluções
+          </Link>
+        </p>
       </div>
     </main>
   );

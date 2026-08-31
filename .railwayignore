@@ -1,0 +1,11 @@
+# Arquivos que não devem ser enviados no deploy.
+# Segredos locais. O servidor usa as variaveis do proprio Railway,
+# entao nao ha motivo para mandar o .env junto no deploy.
+.env
+.env.local
+
+node_modules/
+.next/
+.git/
+tsconfig.tsbuildinfo
+*.log
