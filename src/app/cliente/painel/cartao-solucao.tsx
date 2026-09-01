@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
 import { assinarSolucao, cancelarSolucao, acessarSolucao } from "./acoes";
+
+/** Só o Serasa não tem plano por mensalidade — o resto passa pelo seletor de planos. */
+const SOLUCOES_SEM_PLANO = new Set(["CONSULTA_CADASTRAL_SERASA"]);
 
 export function CartaoSolucao({
   chave,
@@ -18,6 +22,7 @@ export function CartaoSolucao({
 }) {
   const [rodando, iniciar] = useTransition();
   const [erro, setErro] = useState("");
+  const temPlano = !SOLUCOES_SEM_PLANO.has(chave);
 
   function assinar() {
     setErro("");
@@ -70,6 +75,10 @@ export function CartaoSolucao({
             Cancelar
           </button>
         </div>
+      ) : temPlano ? (
+        <Link href={`/cliente/painel/assinar/${chave}`} className="botao-secundario mt-auto py-1.5 text-center text-sm">
+          Assinar
+        </Link>
       ) : (
         <button onClick={assinar} disabled={rodando} className="botao-secundario mt-auto py-1.5 text-sm">
           {rodando ? "Assinando..." : "Assinar"}

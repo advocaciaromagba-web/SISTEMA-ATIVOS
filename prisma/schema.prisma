@@ -1834,6 +1834,12 @@ model Cliente {
   passwordHash String
   ativo        Boolean @default(true)
 
+  /// CPF ou CNPJ — só é pedido na hora de assinar a primeira solução paga,
+  /// nunca no cadastro (que continua so nome/e-mail/senha). E exigencia do
+  /// Asaas para criar o cliente de cobranca la.
+  documento       String?
+  asaasCustomerId String? @unique
+
   totpSegredo     String?
   totpAtivado     Boolean   @default(false)
   totpAtivadoEm   DateTime?
@@ -1874,6 +1880,15 @@ model ClienteAssinatura {
   solucao String
 
   status String @default("ATIVA") // ATIVA | CANCELADA
+
+  /// ESSENCIAL | PROFISSIONAL | MESA — o que foi assinado. Quem manda no
+  /// acesso de verdade continua sendo o Conta.statusAssinatura da propria
+  /// solucao; isto aqui e so o que foi comprado.
+  plano  String?
+  ciclo  String? // MENSAL | ANUAL
+  /// Id da assinatura recorrente no Asaas — nulo enquanto so no teste, sem
+  /// cobranca configurada ainda.
+  asaasSubscriptionId String? @unique
 
   criadoEm    DateTime  @default(now())
   canceladaEm DateTime?

@@ -7,6 +7,7 @@ import { exigirSessaoCliente } from "@/lib/cliente/sessao";
 import { emitirSessaoSolucao, solucaoTemSso } from "@/lib/cliente/sso";
 import { DIAS_DE_TESTE } from "@/lib/planos";
 import { PRECO_CONSULTA } from "@/lib/serasa/fonte";
+import { cancelarAssinaturaAsaas } from "@/lib/asaas/cliente";
 import { PAINEL_DA_SOLUCAO, type ResultadoAcao } from "./constantes";
 
 const SOLUCOES_VALIDAS = Object.keys(PAINEL_DA_SOLUCAO);
@@ -22,7 +23,7 @@ const SOLUCOES_VALIDAS = Object.keys(PAINEL_DA_SOLUCAO);
  * entre uma e outra, e só por fora, aqui, nunca dentro do dado de cada
  * solução.
  */
-async function criarOuReativarContaDaSolucao(
+export async function criarOuReativarContaDaSolucao(
   solucao: string,
   cliente: { nome: string; email: string; passwordHash: string }
 ): Promise<void> {
@@ -154,7 +155,7 @@ async function criarOuReativarContaDaSolucao(
   }
 }
 
-async function desativarContaDaSolucao(solucao: string, email: string): Promise<void> {
+export async function desativarContaDaSolucao(solucao: string, email: string): Promise<void> {
   switch (solucao) {
     case "GESTAO_ATIVOS":
       await prisma.usuario.updateMany({ where: { email }, data: { ativo: false } });
@@ -174,6 +175,74 @@ async function desativarContaDaSolucao(solucao: string, email: string): Promise<
     case "CONSULTA_CADASTRAL_SERASA":
       await prisma.serasaUsuario.updateMany({ where: { email }, data: { ativo: false } });
       return;
+  }
+}
+
+/**
+ * Vira o status "de verdade" da conta na solução, de TESTE para ATIVA no
+ * plano pago — chamado só pelo webhook do Asaas, quando a primeira cobrança
+ * é confirmada. Nunca chamado a partir de uma ação do próprio cliente: quem
+ * libera o plano pago é a confirmação do pagamento, não um clique.
+ */
+export async function ativarPlanoPagoDaSolucao(solucao: string, email: string, plano: string): Promise<void> {
+  const dados = { statusAssinatura: "ATIVA", plano };
+  switch (solucao) {
+    case "GESTAO_ATIVOS": {
+      const usuario = await prisma.usuario.findUnique({ where: { email } });
+      if (usuario) await prisma.organizacao.update({ where: { id: usuario.organizacaoId }, data: dados });
+      return;
+    }
+    case "LICITACOES": {
+      const usuario = await prisma.licitacaoUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.licitacaoConta.update({ where: { id: usuario.licitacaoContaId }, data: dados });
+      return;
+    }
+    case "COMPLIANCE_EMPRESA": {
+      const usuario = await prisma.complianceUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.complianceConta.update({ where: { id: usuario.complianceContaId }, data: dados });
+      return;
+    }
+    case "DILIGENCIA_PESSOA": {
+      const usuario = await prisma.diligenciaUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.diligenciaConta.update({ where: { id: usuario.diligenciaContaId }, data: dados });
+      return;
+    }
+    case "VERIFICACAO_DOCUMENTOS": {
+      const usuario = await prisma.verificacaoUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.verificacaoConta.update({ where: { id: usuario.verificacaoContaId }, data: dados });
+      return;
+    }
+  }
+}
+
+/** Cobrança vencida sem pagar — trava o acesso sem apagar nada, até regularizar. */
+export async function marcarInadimplenteDaSolucao(solucao: string, email: string): Promise<void> {
+  switch (solucao) {
+    case "GESTAO_ATIVOS": {
+      const usuario = await prisma.usuario.findUnique({ where: { email } });
+      if (usuario) await prisma.organizacao.update({ where: { id: usuario.organizacaoId }, data: { statusAssinatura: "INADIMPLENTE" } });
+      return;
+    }
+    case "LICITACOES": {
+      const usuario = await prisma.licitacaoUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.licitacaoConta.update({ where: { id: usuario.licitacaoContaId }, data: { statusAssinatura: "INADIMPLENTE" } });
+      return;
+    }
+    case "COMPLIANCE_EMPRESA": {
+      const usuario = await prisma.complianceUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.complianceConta.update({ where: { id: usuario.complianceContaId }, data: { statusAssinatura: "INADIMPLENTE" } });
+      return;
+    }
+    case "DILIGENCIA_PESSOA": {
+      const usuario = await prisma.diligenciaUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.diligenciaConta.update({ where: { id: usuario.diligenciaContaId }, data: { statusAssinatura: "INADIMPLENTE" } });
+      return;
+    }
+    case "VERIFICACAO_DOCUMENTOS": {
+      const usuario = await prisma.verificacaoUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.verificacaoConta.update({ where: { id: usuario.verificacaoContaId }, data: { statusAssinatura: "INADIMPLENTE" } });
+      return;
+    }
   }
 }
 
@@ -227,9 +296,16 @@ export async function cancelarSolucao(solucao: string): Promise<ResultadoAcao> {
   });
   if (!assinatura || assinatura.status !== "ATIVA") return { erro: "Você não assina esta solução." };
 
+  // Cancela a cobrança recorrente primeiro — se isto falhar, é melhor parar
+  // aqui do que desativar o acesso e o Asaas continuar cobrando por trás.
+  if (assinatura.asaasSubscriptionId) {
+    const resultado = await cancelarAssinaturaAsaas(assinatura.asaasSubscriptionId);
+    if (!resultado.ok) return { erro: `Não foi possível cancelar a cobrança: ${resultado.erro}` };
+  }
+
   await prisma.clienteAssinatura.update({
     where: { id: assinatura.id },
-    data: { status: "CANCELADA", canceladaEm: new Date() },
+    data: { status: "CANCELADA", canceladaEm: new Date(), asaasSubscriptionId: null },
   });
 
   // Não apaga nada — só desativa o acesso. Os dados continuam guardados.
