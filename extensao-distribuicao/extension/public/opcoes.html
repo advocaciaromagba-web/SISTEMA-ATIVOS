@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Opções — Distribuição Processual</title>
+    <style>
+      body {
+        max-width: 480px;
+        margin: 24px auto;
+        font: 14px/1.5 system-ui, sans-serif;
+        color: #1f2937;
+        padding: 0 16px;
+      }
+      label {
+        display: block;
+        margin: 12px 0;
+      }
+      input[type="text"],
+      input[type="url"] {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font: inherit;
+        box-sizing: border-box;
+      }
+      .caixa {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .ajuda {
+        font-size: 12px;
+        color: #6b7280;
+        margin: 2px 0 0;
+      }
+      button {
+        margin-top: 16px;
+        padding: 8px 14px;
+        border: none;
+        border-radius: 4px;
+        background: #2563eb;
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      #confirmacao {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #16a34a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Opções</h1>
+
+    <label class="caixa">
+      <input id="ia-ligada" type="checkbox" />
+      Ligar extração assistida por IA para campos que o OCR não encontrou
+    </label>
+    <p class="ajuda">
+      Sem custo por padrão: a leitura já roda com pdf.js e tesseract.js, dentro do navegador. Ligue isto só se quiser uma
+      segunda tentativa por IA nos campos que ficaram em branco — nesse caso, a extensão chama o seu próprio servidor
+      (pasta <code>server/</code> deste projeto), que usa a sua própria chave de API.
+    </p>
+
+    <label>
+      Endereço do servidor de extração
+      <input id="servidor-url" type="url" placeholder="http://localhost:8787" />
+    </label>
+    <p class="ajuda">Só é usado quando a extração assistida por IA está ligada acima.</p>
+
+    <button id="salvar">Salvar</button>
+    <p id="confirmacao"></p>
+
+    <script src="opcoes.js"></script>
+  </body>
+</html>

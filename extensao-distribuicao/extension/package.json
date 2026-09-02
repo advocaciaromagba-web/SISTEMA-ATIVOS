@@ -1,0 +1,22 @@
+{
+  "name": "extensao-distribuicao",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Extensão de navegador (Chrome/Edge, Manifest V3) para OCR de petição inicial, organização de documentos e apoio à distribuição processual no PJe, e-SAJ e eproc.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.6.82",
+    "tesseract.js": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.278",
+    "esbuild": "^0.23.1",
+    "typescript": "^5.5.3"
+  }
+}

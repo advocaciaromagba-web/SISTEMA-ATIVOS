@@ -1,0 +1,21 @@
+{
+  "name": "extensao-distribuicao-servidor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Proxy stateless e opcional: recebe o PDF em base64 da extensão, chama a API de IA com a chave do próprio usuário e devolve os campos extraídos. Só é usado quando a extração assistida por IA está ligada nas opções da extensão.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch servidor.ts",
+    "start": "tsx servidor.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}
