@@ -9,12 +9,17 @@ import {
   definirValorPorRotulo,
   marcarCaixaPorRotulo,
   registrarAdaptador,
+  selecionarOpcaoPorTexto,
   type AdaptadorTribunal,
 } from "./adaptador-base";
+import { RÓTULOS_TIPO_ANEXO } from "../tipos";
 
 const adaptador: AdaptadorTribunal = {
   id: "esaj",
   nome: "e-SAJ",
+  // Confirmado por print real (TJSP): o título da tela é "Peticionamento
+  // Eletrônico", com passos "Informações do processo >> Assuntos >> Partes
+  // Autoras >> Informações Adicionais".
   detectar: () =>
     /\.tjsp\.jus\.br$/i.test(location.hostname) &&
     /peticionamento|peticao\s*inicial|nova\s*peticao/i.test(document.body.innerText.slice(0, 4000)),
@@ -58,13 +63,16 @@ const adaptador: AdaptadorTribunal = {
       // Justiça gratuita" | "Guia de custas emitida"), que é um grupo de
       // opções, não um checkbox. Se a tentativa abaixo não encontrar nada,
       // é sinal de calibrar contra esse campo em vez de "gratuidade".
-      // Também: algumas classes processuais já vêm com sigilo
-      // pré-configurado pelo sistema (não editável) — não é bug se não
-      // marcar nesse caso. Não achei campo confirmado de "prioridade de
-      // tramitação" para o e-SAJ nesta pesquisa.
+      // Confirmado por print real: "Sigilo" é um menu (nível 0 a N, ex.:
+      // "Sem Sigilo (Nível 0)"), igual ao eproc — não uma caixinha. Não
+      // achei campo confirmado de "prioridade de tramitação" para o
+      // e-SAJ.
       async executar(checklist) {
         marcarCaixaPorRotulo(["gratuidade", "justica gratuita"], checklist.gratuidadeJustica);
-        marcarCaixaPorRotulo(["segredo de justica", "sigilo"], checklist.segredoJustica);
+        if (checklist.segredoJustica) {
+          const selecionou = selecionarOpcaoPorTexto(["sigilo"], "sigiloso");
+          if (!selecionou) marcarCaixaPorRotulo(["segredo de justica", "sigilo"], true);
+        }
       },
     },
     {
@@ -98,10 +106,18 @@ const adaptador: AdaptadorTribunal = {
     {
       id: "anexos",
       rotulo: "Anexando documentos",
+      // Confirmado por print real: o primeiro documento já vem com um
+      // bloco pronto ("Documento 1"), com campos "Arquivo", "Tipo" e
+      // "Sigilo". Documentos extras exigem clicar em "Adicionar mais
+      // Documentos" antes de aparecer um bloco novo — esse fluxo ainda não
+      // foi calibrado (falta ver como o bloco novo aparece no DOM), então
+      // por enquanto só o primeiro anexo é enviado automaticamente; os
+      // demais precisam ser adicionados à mão nesta tela.
       async executar(checklist) {
-        for (const anexo of checklist.anexos) {
-          anexarArquivoPorRotulo(["arquivo", "documento", "anexo"], anexo.arquivo);
-        }
+        const primeiro = checklist.anexos[0];
+        if (!primeiro) return;
+        anexarArquivoPorRotulo(["arquivo", "documento", "anexo"], primeiro.arquivo);
+        definirValorPorRotulo(["tipo"], RÓTULOS_TIPO_ANEXO[primeiro.tipo]);
       },
     },
   ],
