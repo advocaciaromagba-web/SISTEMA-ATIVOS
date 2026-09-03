@@ -87,6 +87,40 @@ não encontrar, adicione o texto exato do rótulo à lista de sinônimos no
 adaptador daquele tribunal. Não precisa reescrever a lógica, só ajustar a
 lista de nomes.
 
+### Fontes usadas para confirmar os rótulos
+
+Os rótulos abaixo foram confirmados contra manual oficial (CNJ ou o
+próprio tribunal, via busca — não foi possível abrir todos os PDFs por
+completo neste ambiente, então vale conferir contra a tela real):
+
+- **PJe**: Classe Judicial, Assunto/Assunto Principal, Valor da Causa,
+  Justiça Gratuita, Segredo de Justiça, Prioridade de Tramitação/Prioridade
+  de Processo — todos na aba "Características". Partes: botão "+ Parte",
+  busca por CPF/CNPJ. Anexos: aba "Anexar Petição/Documentos", campo "Tipo
+  de Documento" (ex.: "Petição inicial", "Procuração", "Documento de
+  Identificação"). Fontes: docs.pje.jus.br (Manual do Advogado), TRF1, TRT2,
+  TJRJ, TJMG, JFPB, TRF3. **Não confirmado com segurança**: o par
+  foro+vara — o PJe pode resolver isso por um único campo "Órgão Julgador"
+  dependendo do tribunal.
+- **e-SAJ** (referência: TJSP, o mais documentado — cada TJ customiza a
+  própria instância): campos "Classe", "Assunto", "Valor da Ação", "Foro" e
+  "Competência" (dois campos distintos), seção "Polo Ativo"/"Polo Passivo"
+  com botão "Adicionar Parte". Anexo classificado **depois** de enviar o
+  arquivo, campo "Tipo de documento". Gratuidade pode estar embutida no
+  campo "Despesas Processuais" (grupo de opções, não checkbox) em vez de
+  uma caixinha isolada — não confirmado. Fontes: tjsp.jus.br
+  (PeticionamentoInicial.pdf, PeticionamentoSigiloso.pdf, apostila Dados das
+  Partes), sajajuda.esaj.softplan.com.br.
+- **eproc**: fluxo de 5 etapas — (1) Classe Processual + Valor da Causa +
+  Localidade, (2) Assuntos, (3) Partes (Autores), (4) Partes (Réus), (5)
+  anexos. **Confirmado**: sigilo não é uma caixinha sim/não, é o campo
+  "Nível de Sigilo do Processo" (0 a 5 níveis) — por isso o adaptador usa
+  `selecionarOpcaoPorTexto` para ele, não `marcarCaixaPorRotulo`. Anexos:
+  botão "Anexar", cada arquivo recebe um "Tipo de Documento" que geralmente
+  tem o mesmo nome do evento processual ("Petição Inicial", "Procuração").
+  Fontes: tjsp.jus.br (manuais eproc para advogado externo), TJPR, TJRJ,
+  TJSC.
+
 ## Domínios habilitados
 
 `extension/public/manifest.json` já habilita os domínios mais comuns

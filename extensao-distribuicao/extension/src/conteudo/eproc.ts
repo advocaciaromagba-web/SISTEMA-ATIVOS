@@ -7,6 +7,7 @@ import {
   definirValorPorRotulo,
   marcarCaixaPorRotulo,
   registrarAdaptador,
+  selecionarOpcaoPorTexto,
   type AdaptadorTribunal,
 } from "./adaptador-base";
 
@@ -45,9 +46,19 @@ const adaptador: AdaptadorTribunal = {
     {
       id: "sinalizadores",
       rotulo: "Marcando gratuidade e sigilo",
+      // Confirmado (manual oficial): "sigilo" no eproc NÃO é uma caixinha
+      // sim/não — é o campo "Nível de Sigilo do Processo", de 0 (público)
+      // a 5 (mais restrito); selecionar sigilo total é o que o sistema
+      // trata como "Segredo de Justiça". Por isso usa selecionarOpcaoPorTexto
+      // aqui, não marcarCaixaPorRotulo. Gratuidade também pode ser um
+      // Sim/Não por parte (não confirmado se checkbox ou grupo de opção) —
+      // mantém a tentativa por caixinha, mas pode precisar calibrar.
       async executar(checklist) {
         marcarCaixaPorRotulo(["gratuidade", "assistencia judiciaria"], checklist.gratuidadeJustica);
-        marcarCaixaPorRotulo(["sigilo", "segredo de justica"], checklist.segredoJustica);
+        if (checklist.segredoJustica) {
+          const selecionou = selecionarOpcaoPorTexto(["nivel de sigilo", "sigilo do processo"], "sigiloso");
+          if (!selecionou) marcarCaixaPorRotulo(["sigilo", "segredo de justica"], true);
+        }
       },
     },
     {

@@ -32,10 +32,13 @@ const adaptador: AdaptadorTribunal = {
       id: "foro",
       rotulo: "Preenchendo o foro",
       aplicavel: (checklist) => !checklist.competencia.valor.distribuicaoAutomatica,
+      // Confirmado (manual oficial TJSP): "Foro" e "Competência" são dois
+      // campos distintos na seção "Dados para o processo" — "competencia"
+      // era o rótulo que faltava aqui (só tentava "vara"/"unidade").
       async executar(checklist) {
         const { comarca, vara } = checklist.competencia.valor;
         definirValorPorRotulo(["foro"], comarca);
-        definirValorPorRotulo(["vara", "unidade"], vara);
+        definirValorPorRotulo(["competencia", "vara", "unidade"], vara);
       },
     },
     {
@@ -49,6 +52,16 @@ const adaptador: AdaptadorTribunal = {
     {
       id: "sinalizadores",
       rotulo: "Marcando gratuidade e sigilo",
+      // Confirmado (manual TJSP): gratuidade pode não ser uma caixinha
+      // isolada — às vezes está embutida no campo "Despesas Processuais"
+      // (opções "Não há recolhimento/Dispensa legal" | "Há pedido de
+      // Justiça gratuita" | "Guia de custas emitida"), que é um grupo de
+      // opções, não um checkbox. Se a tentativa abaixo não encontrar nada,
+      // é sinal de calibrar contra esse campo em vez de "gratuidade".
+      // Também: algumas classes processuais já vêm com sigilo
+      // pré-configurado pelo sistema (não editável) — não é bug se não
+      // marcar nesse caso. Não achei campo confirmado de "prioridade de
+      // tramitação" para o e-SAJ nesta pesquisa.
       async executar(checklist) {
         marcarCaixaPorRotulo(["gratuidade", "justica gratuita"], checklist.gratuidadeJustica);
         marcarCaixaPorRotulo(["segredo de justica", "sigilo"], checklist.segredoJustica);

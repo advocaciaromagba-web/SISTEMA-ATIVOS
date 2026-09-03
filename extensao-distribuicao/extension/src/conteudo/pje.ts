@@ -56,10 +56,18 @@ const adaptador: AdaptadorTribunal = {
     {
       id: "sinalizadores",
       rotulo: "Marcando gratuidade, segredo de justiça e prioridade",
+      // Confirmado (manuais oficiais TJRJ/TJMG): esses três ficam na aba
+      // "Características", junto com o valor da causa. Não confirmado: se
+      // são caixinhas de marcar ou um Sim/Não em botão de opção (radio) —
+      // isso muda por tribunal. `marcarCaixaPorRotulo` só entende
+      // <input type="checkbox">; se aqui for radio, precisa calibrar.
       async executar(checklist) {
         marcarCaixaPorRotulo(["justica gratuita", "gratuidade da justica", "gratuidade de justica"], checklist.gratuidadeJustica);
         marcarCaixaPorRotulo(["segredo de justica", "sigilo"], checklist.segredoJustica);
-        marcarCaixaPorRotulo(["prioridade de tramitacao", "prioridade na tramitacao"], checklist.prioridadeTramitacao);
+        marcarCaixaPorRotulo(
+          ["prioridade de tramitacao", "prioridade na tramitacao", "prioridade de processo"],
+          checklist.prioridadeTramitacao
+        );
       },
     },
     {

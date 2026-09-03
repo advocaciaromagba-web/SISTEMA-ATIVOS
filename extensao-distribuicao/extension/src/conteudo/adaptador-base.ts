@@ -122,6 +122,26 @@ export function marcarCaixaPorRotulo(rotulos: string[], marcado: boolean, raiz?:
   return true;
 }
 
+function buscarSelectPorRotulo(rotulos: string[], raiz: ParentNode = document): HTMLSelectElement | null {
+  const campo = buscarCampoPorRotulo(rotulos, raiz);
+  return campo instanceof HTMLSelectElement ? campo : null;
+}
+
+/** Para campo de <select> onde a opção certa depende do TEXTO dela, não de
+ * um "value" interno que muda de sistema pra sistema (ex.: "Nível de
+ * Sigilo do Processo" do eproc, que vai de 0 a 5 em vez de ser uma
+ * caixinha simples de sim/não). */
+export function selecionarOpcaoPorTexto(rotulos: string[], textoOpcao: string, raiz?: ParentNode): boolean {
+  const select = buscarSelectPorRotulo(rotulos, raiz);
+  if (!select) return false;
+  const alvo = normalizarTexto(textoOpcao);
+  const opcao = Array.from(select.options).find((candidata) => normalizarTexto(candidata.textContent ?? "").includes(alvo));
+  if (!opcao) return false;
+  select.value = opcao.value;
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
 function buscarInputArquivoPorRotulo(rotulos: string[], raiz: ParentNode = document): HTMLInputElement | null {
   const alvo = rotulos.map(normalizarTexto);
   for (const label of Array.from(raiz.querySelectorAll("label"))) {
