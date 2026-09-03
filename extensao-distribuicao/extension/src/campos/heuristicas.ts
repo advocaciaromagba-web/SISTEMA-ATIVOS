@@ -102,7 +102,11 @@ function extrairNomesPorRotulo(texto: string, rotulos: string[]): string[] {
   const nomes: string[] = [];
   const alternativas = rotulos.join("|");
   const regex = new RegExp(
-    `\\b(?:${alternativas})\\b\\s*[:,\\-]?\\s*([A-ZÀ-Ú][^,.\\n]{2,80}?)(?=,\\s*(?:CPF|CNPJ|RG|brasileir|portador))`,
+    // Ponto não é mais um caractere de parada aqui: nome de empresa como
+    // "BANCO EXEMPLO S.A." tem ponto no meio, e quem realmente delimita o
+    // fim do nome é a vírgula seguida da prova (CPF/CNPJ/RG/portador) —
+    // exigida logo abaixo — não qualquer ponto.
+    `\\b(?:${alternativas})\\b\\s*[:,\\-]?\\s*([A-ZÀ-Ú][^,\\n]{2,80}?)(?=,\\s*(?:CPF|CNPJ|RG|brasileir|portador))`,
     "gi"
   );
   let correspondencia: RegExpExecArray | null;
@@ -113,10 +117,36 @@ function extrairNomesPorRotulo(texto: string, rotulos: string[]): string[] {
   return dedupe(nomes);
 }
 
+// Numa petição inicial, autor e requerido só aparecem de forma confiável
+// no início do documento — no endereçamento e na qualificação das partes,
+// antes de "DOS FATOS". Depois disso, as mesmas palavras voltam o tempo
+// todo em frases comuns ("os autores demonstraram...", "cabe ao
+// requerido..."), que não são qualificação nenhuma. Então CPF/CNPJ e nome
+// das partes são procurados só nessa zona inicial — o resto do documento
+// (valor da causa, OAB, CEP, número de processo referido) continua sendo
+// procurado no texto inteiro, porque pode aparecer em qualquer parte.
+const MARCADORES_FIM_QUALIFICACAO = [
+  "dos?\\s+fatos",
+  "s[ií]ntese\\s+f[áa]tica",
+  "breve\\s+relat[óo]",
+  "do\\s+relat[óo]rio",
+  "dos\\s+antecedentes",
+  "do\\s+direito",
+  "da\\s+fundamenta[çc][ãa]o",
+];
+
+function zonaDeQualificacao(texto: string): string {
+  const LIMITE_SEM_MARCADOR = 6000;
+  const regex = new RegExp(`\\b(?:i\\s*[-.]?\\s*)?(?:${MARCADORES_FIM_QUALIFICACAO.join("|")})\\b`, "i");
+  const indice = texto.search(regex);
+  return indice === -1 ? texto.slice(0, LIMITE_SEM_MARCADOR) : texto.slice(0, indice);
+}
+
 export function extrairCandidatos(texto: string): CandidatosExtraidos {
+  const zona = zonaDeQualificacao(texto);
   return {
-    cpfs: extrairCpfs(texto),
-    cnpjs: extrairCnpjs(texto),
+    cpfs: extrairCpfs(zona),
+    cnpjs: extrairCnpjs(zona),
     ceps: extrairCeps(texto),
     oabs: extrairOabs(texto),
     numeroProcessoCnj: extrairNumeroProcessoCnj(texto),
@@ -126,8 +156,8 @@ export function extrairCandidatos(texto: string): CandidatosExtraidos {
     // REQUERENTES" ou "O REQUERENTE"), e os termos próprios de mandado de
     // segurança/ação mandamental (impetrante/impetrado/autoridade coatora),
     // bem comuns e diferentes de "requerente/requerido".
-    nomesRequerente: extrairNomesPorRotulo(texto, ["requerentes?", "autor(?:a|as|es)?", "exequentes?", "reclamantes?", "impetrantes?"]),
-    nomesRequerido: extrairNomesPorRotulo(texto, [
+    nomesRequerente: extrairNomesPorRotulo(zona, ["requerentes?", "autor(?:a|as|es)?", "exequentes?", "reclamantes?", "impetrantes?"]),
+    nomesRequerido: extrairNomesPorRotulo(zona, [
       "requerid[oa]s?",
       "r[eé]us?",
       "executados?",
