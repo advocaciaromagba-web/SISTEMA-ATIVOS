@@ -9,6 +9,7 @@ import { arquivoParaBase64, extrairComIA } from "../ocr/extrair-com-ia";
 import { serializarChecklist, type MensagemDoConteudo, type MensagemParaConteudo } from "../mensagens";
 
 const elementoStatus = document.getElementById("status") as HTMLDivElement;
+const elementoTextoLido = document.getElementById("texto-lido") as HTMLTextAreaElement;
 const elementoPendencias = document.getElementById("pendencias") as HTMLDivElement;
 const elementoChecklist = document.getElementById("checklist") as HTMLDivElement;
 const botaoPreencher = document.getElementById("botao-preencher") as HTMLButtonElement;
@@ -80,6 +81,7 @@ inputPeticao.addEventListener("change", async () => {
   try {
     const resultado = await lerPeticaoInicial(arquivo, definirStatus);
     checklistAtual = resultado.checklist;
+    elementoTextoLido.value = resultado.textoCompleto;
 
     definirStatus("Organizando a petição inicial em PDF...");
     const pdfOrganizado = await prepararDocumento(arquivo);
