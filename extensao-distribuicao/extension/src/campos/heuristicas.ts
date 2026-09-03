@@ -96,7 +96,9 @@ function extrairCompetencia(texto: string): CampoExtraido<Competencia> | null {
 function extrairNomesPorRotulo(texto: string, rotulos: string[]): string[] {
   const nomes: string[] = [];
   const alternativas = rotulos.join("|");
-  const regex = new RegExp(`\\b(?:${alternativas})\\s*[:\\-]?\\s*([A-ZÀ-Ú][^,.\\n]{2,80}?)(?=,\\s*(?:CPF|CNPJ|RG|brasileir|portador)|\\n|\\.)`, "gi");
+  // O \b depois do grupo é essencial: sem ele, "autor" também "casa" dentro
+  // de "autores" ou "autoriza" (a parte de trás vira "nome" por engano).
+  const regex = new RegExp(`\\b(?:${alternativas})\\b\\s*[:,\\-]?\\s*([A-ZÀ-Ú][^,.\\n]{2,80}?)(?=,\\s*(?:CPF|CNPJ|RG|brasileir|portador)|\\n|\\.)`, "gi");
   let correspondencia: RegExpExecArray | null;
   while ((correspondencia = regex.exec(texto)) !== null) {
     const nome = normalizarEspacos(correspondencia[1] ?? "");
@@ -114,7 +116,18 @@ export function extrairCandidatos(texto: string): CandidatosExtraidos {
     numeroProcessoCnj: extrairNumeroProcessoCnj(texto),
     valorCausa: extrairValorCausa(texto),
     competencia: extrairCompetencia(texto),
-    nomesRequerente: extrairNomesPorRotulo(texto, ["requerente", "autor", "autora", "exequente", "reclamante"]),
-    nomesRequerido: extrairNomesPorRotulo(texto, ["requerido", "requerida", "r[eé]u", "executado", "reclamado"]),
+    // Formas no singular e no plural (a petição pode escrever "OS
+    // REQUERENTES" ou "O REQUERENTE"), e os termos próprios de mandado de
+    // segurança/ação mandamental (impetrante/impetrado/autoridade coatora),
+    // bem comuns e diferentes de "requerente/requerido".
+    nomesRequerente: extrairNomesPorRotulo(texto, ["requerentes?", "autor(?:a|as|es)?", "exequentes?", "reclamantes?", "impetrantes?"]),
+    nomesRequerido: extrairNomesPorRotulo(texto, [
+      "requerid[oa]s?",
+      "r[eé]us?",
+      "executados?",
+      "reclamados?",
+      "impetrados?",
+      "autoridade\\s+coatora",
+    ]),
   };
 }
