@@ -236,6 +236,66 @@ export async function pesquisarEAdicionarPorTexto(
   return true;
 }
 
+function buscarTituloDeSecao(titulo: string): HTMLElement | null {
+  const alvo = normalizarTexto(titulo);
+  const candidatos = document.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6,strong,b,div,span,p,legend");
+  for (const candidato of Array.from(candidatos)) {
+    if (candidato.children.length > 0) continue; // só folha: o título é texto puro, não um contêiner
+    if (candidato.offsetParent === null) continue;
+    if (normalizarTexto(candidato.textContent ?? "") === alvo) return candidato;
+  }
+  return null;
+}
+
+/** Clica no primeiro elemento clicável tipo "ícone" (sem texto — botão de
+ * "+" colorido, por exemplo) dentro da seção cujo título bate com
+ * `tituloSecao` (ex.: "Polo ativo"). Sobe pelos ancestrais do título até
+ * achar um, porque não dá pra confiar no nome/classe do ícone em si (varia
+ * por tribunal, e no PJe costuma nem ter texto/aria-label). */
+export function clicarIconeAdicionarNaSecao(tituloSecao: string, maxNiveis = 4): boolean {
+  const titulo = buscarTituloDeSecao(tituloSecao);
+  if (!titulo) return false;
+  let container: HTMLElement | null = titulo.parentElement;
+  for (let nivel = 0; nivel < maxNiveis && container; nivel += 1) {
+    const icone = container.querySelector<HTMLElement>("button, a, svg, [role='button'], i[class*='icon'], mat-icon");
+    if (icone) {
+      icone.click();
+      return true;
+    }
+    container = container.parentElement;
+  }
+  return false;
+}
+
+/** Fluxo confirmado por print real (PJe, aba Partes): clicar no ícone de
+ * "+" da seção, digitar o CPF, apertar Enter (o sistema busca na Receita
+ * e preenche o Nome sozinho), esperar o Nome aparecer, e clicar em
+ * "Confirmar". Só cobre o caminho "pessoa física com CPF conhecido" —
+ * parte sem CPF ou pessoa jurídica ficam para o advogado completar à
+ * mão, propositalmente, até esses fluxos serem conferidos também. */
+export async function adicionarParteFisicaPorCpf(tituloSecao: string, cpf: string, tempoLimiteMs = 10000): Promise<boolean> {
+  if (!cpf) return false;
+  if (!clicarIconeAdicionarNaSecao(tituloSecao)) return false;
+
+  const campoCpf = await aguardarAte(() => {
+    const campo = buscarCampoPorRotulo(["cpf"]);
+    return campo instanceof HTMLInputElement ? campo : null;
+  }, tempoLimiteMs);
+  if (!campoCpf) return false;
+
+  definirValorCampo(campoCpf, cpf);
+  campoCpf.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  campoCpf.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+
+  const nomePreenchido = await aguardarAte(() => {
+    const campo = buscarCampoPorRotulo(["nome"]);
+    return campo instanceof HTMLInputElement && campo.value.trim() ? campo : null;
+  }, tempoLimiteMs);
+  if (!nomePreenchido) return false;
+
+  return clicarElementoPorTexto("Confirmar");
+}
+
 function buscarCaixaPorRotulo(rotulos: string[], raiz: ParentNode = document): HTMLInputElement | null {
   const campo = buscarCampoPorRotulo(rotulos, raiz);
   return campo instanceof HTMLInputElement && campo.type === "checkbox" ? campo : null;

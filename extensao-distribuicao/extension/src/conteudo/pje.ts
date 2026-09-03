@@ -10,6 +10,7 @@
 // navega para outra URL, só troca o conteúdo — por isso quase toda etapa
 // abaixo clica na aba certa antes de procurar o campo.
 import {
+  adicionarParteFisicaPorCpf,
   anexarArquivoPorRotulo,
   clicarElementoPorTexto,
   definirValorPorRotulo,
@@ -74,17 +75,26 @@ const adaptador: AdaptadorTribunal = {
     },
     {
       id: "partes",
-      rotulo: "Indo para a aba de partes",
-      // NÃO calibrado ainda: os botões de adicionar parte (polo ativo,
-      // polo passivo, outros participantes) são só ícones coloridos, sem
-      // texto — abrem um formulário "Associar parte ao processo" com
-      // abas (Pessoa física / Pessoa jurídica / Ministério Público) e um
-      // campo "CPF". Falta confirmar o que aparece depois de digitar o
-      // CPF (busca automática? botão de confirmar?) antes de automatizar
-      // isso com segurança. Por enquanto só troca para a aba certa, para
-      // o advogado continuar à mão a partir daqui.
-      async executar() {
+      rotulo: "Adicionando as partes (polo ativo e passivo)",
+      // Confirmado por print real: clicar no ícone de "+" da seção (achado
+      // por texto do título — "Polo ativo"/"Polo passivo" — e ícone mais
+      // próximo, já que o botão em si não tem texto), digitar o CPF,
+      // Enter (o sistema busca na Receita e preenche o Nome sozinho),
+      // esperar o Nome aparecer, clicar em "Confirmar" (esse tem texto).
+      // Só cobre pessoa física com CPF conhecido — pessoa jurídica e
+      // parte sem CPF ficam para completar à mão, ainda não calibrados.
+      async executar(checklist) {
         clicarElementoPorTexto("Partes");
+
+        const autor = checklist.poloAtivo[0];
+        if (autor?.tipoPessoa === "PF" && autor.documento) {
+          await adicionarParteFisicaPorCpf("Polo ativo", autor.documento);
+        }
+
+        const reu = checklist.poloPassivo[0];
+        if (reu?.tipoPessoa === "PF" && reu.documento) {
+          await adicionarParteFisicaPorCpf("Polo passivo", reu.documento);
+        }
       },
     },
     {
