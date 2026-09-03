@@ -23,12 +23,19 @@ const adaptador: AdaptadorTribunal = {
     // "pje" e terminar em .jus.br, então é isso que conferimos.
     /^pje/i.test(location.hostname.split(".")[0] ?? "") &&
     /\.jus\.br$/i.test(location.hostname) &&
-    /peticionamento|processonovo|petição\s*inicial/i.test(document.body.innerText.slice(0, 4000)),
+    // Confirmado por print real (TRT): a tela de abertura de processo se
+    // chama "Autuação de processo", aba "Dados Iniciais" — não
+    // "Petição Inicial"/"Processo Novo" como eu tinha suposto antes.
+    /peticionamento|processonovo|petição\s*inicial|autuação\s*de\s*processo|dados\s*iniciais/i.test(
+      document.body.innerText.slice(0, 4000)
+    ),
 
   etapas: [
     {
       id: "classe-e-assunto",
       rotulo: "Preenchendo classe processual e assunto",
+      // "Classe judicial" confirmado por print real (bate com o que já
+      // estava aqui).
       async executar(checklist) {
         definirValorPorRotulo(["classe judicial", "classe processual", "classe"], checklist.classeProcessual.valor);
         definirValorPorRotulo(["assunto", "assunto principal"], checklist.assuntoPrincipal.valor);
@@ -36,11 +43,14 @@ const adaptador: AdaptadorTribunal = {
     },
     {
       id: "competencia",
-      rotulo: "Preenchendo comarca/foro e vara",
+      rotulo: "Preenchendo jurisdição/comarca e vara",
       aplicavel: (checklist) => !checklist.competencia.valor.distribuicaoAutomatica,
+      // Confirmado por print real: o campo de comarca/foro na aba "Dados
+      // Iniciais" se chama "Jurisdição", não "Foro"/"Comarca" (que ficam
+      // como sinônimo de reserva, caso outro tribunal use outro nome).
       async executar(checklist) {
         const { comarca, uf, vara } = checklist.competencia.valor;
-        definirValorPorRotulo(["foro", "comarca"], comarca);
+        definirValorPorRotulo(["jurisdicao", "jurisdição", "foro", "comarca"], comarca);
         definirValorPorRotulo(["uf", "estado"], uf);
         definirValorPorRotulo(["vara", "orgao julgador", "órgão julgador"], vara);
       },
