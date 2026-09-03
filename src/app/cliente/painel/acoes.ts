@@ -7,7 +7,7 @@ import { exigirSessaoCliente } from "@/lib/cliente/sessao";
 import { emitirSessaoSolucao, solucaoTemSso } from "@/lib/cliente/sso";
 import { DIAS_DE_TESTE } from "@/lib/planos";
 import { PRECO_CONSULTA } from "@/lib/serasa/fonte";
-import { cancelarAssinaturaAsaas } from "@/lib/asaas/cliente";
+import { cancelarAssinaturaAsaas, buscarCobrancasDaAssinatura } from "@/lib/asaas/cliente";
 import { PAINEL_DA_SOLUCAO, type ResultadoAcao } from "./constantes";
 
 const SOLUCOES_VALIDAS = Object.keys(PAINEL_DA_SOLUCAO);
@@ -329,4 +329,27 @@ export async function acessarSolucao(solucao: string): Promise<ResultadoAcao> {
 
   await emitirSessaoSolucao(solucao, usuario);
   redirect(PAINEL_DA_SOLUCAO[solucao]);
+}
+
+/**
+ * Busca ao vivo no Asaas a fatura mais recente da assinatura, pra abrir a
+ * página de pagamento (PIX ou cartão) — nunca guardamos esse link, porque
+ * ele muda a cada ciclo de cobrança.
+ */
+export async function obterLinkPagamento(solucao: string): Promise<ResultadoAcao & { url?: string }> {
+  const cliente = await exigirSessaoCliente();
+
+  const assinatura = await prisma.clienteAssinatura.findUnique({
+    where: { clienteId_solucao: { clienteId: cliente.id, solucao } },
+  });
+  if (!assinatura || assinatura.status !== "ATIVA") return { erro: "Você não assina esta solução." };
+  if (!assinatura.asaasSubscriptionId) return { erro: "Esta assinatura não tem cobrança configurada." };
+
+  const cobrancas = await buscarCobrancasDaAssinatura(assinatura.asaasSubscriptionId);
+  if (!cobrancas.ok) return { erro: `Não foi possível buscar a cobrança: ${cobrancas.erro}` };
+
+  const cobranca = cobrancas.dados.data[0];
+  if (!cobranca) return { erro: "Nenhuma cobrança encontrada ainda — tente novamente em instantes." };
+
+  return { ok: true, url: cobranca.invoiceUrl };
 }

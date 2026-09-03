@@ -11,9 +11,10 @@ export default async function PainelCliente() {
 
   const assinaturas = await prisma.clienteAssinatura.findMany({
     where: { clienteId: cliente.id, status: "ATIVA" },
-    select: { solucao: true },
+    select: { solucao: true, asaasSubscriptionId: true },
   });
   const assinadas = new Set(assinaturas.map((a) => a.solucao));
+  const comCobranca = new Set(assinaturas.filter((a) => a.asaasSubscriptionId).map((a) => a.solucao));
 
   return (
     <div className="space-y-6">
@@ -36,6 +37,7 @@ export default async function PainelCliente() {
               resumo={s.resumo}
               icone={<Icone className="h-5 w-5 text-[color:var(--marca)]" />}
               assinada={assinadas.has(s.chave)}
+              temCobranca={comCobranca.has(s.chave)}
             />
           );
         })}
