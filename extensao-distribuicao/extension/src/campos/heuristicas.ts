@@ -44,11 +44,28 @@ function extrairCeps(texto: string): string[] {
 
 function extrairOabs(texto: string): { numero: string; uf: string }[] {
   const resultado: { numero: string; uf: string }[] = [];
-  const regex = /OAB[\s./]*[:\-]?\s*(?:n[ºo°.]?\s*)?(\d{1,3}(?:\.\d{3})?)\s*[\/\-]\s*([A-Z]{2})\b/gi;
+  const vistos = new Set<string>();
+  const adicionar = (numero: string, uf: string): void => {
+    const chave = `${numero}/${uf}`;
+    if (vistos.has(chave)) return;
+    vistos.add(chave);
+    resultado.push({ numero, uf });
+  };
+
+  // Formato mais comum: "OAB/SP 278.877" (UF logo depois de OAB, número
+  // depois da UF).
+  const regexUfPrimeiro = /OAB[\s./]*([A-Z]{2})\s*[:\-]?\s*(?:n[ºo°.]?\s*)?(\d{1,3}(?:\.\d{3})?)/gi;
   let correspondencia: RegExpExecArray | null;
-  while ((correspondencia = regex.exec(texto)) !== null) {
-    resultado.push({ numero: (correspondencia[1] ?? "").replace(/\./g, ""), uf: (correspondencia[2] ?? "").toUpperCase() });
+  while ((correspondencia = regexUfPrimeiro.exec(texto)) !== null) {
+    adicionar((correspondencia[2] ?? "").replace(/\./g, ""), (correspondencia[1] ?? "").toUpperCase());
   }
+
+  // Também aparece na ordem contrária: "OAB 278.877/SP".
+  const regexNumeroPrimeiro = /OAB[\s./]*[:\-]?\s*(?:n[ºo°.]?\s*)?(\d{1,3}(?:\.\d{3})?)\s*[\/\-]\s*([A-Z]{2})\b/gi;
+  while ((correspondencia = regexNumeroPrimeiro.exec(texto)) !== null) {
+    adicionar((correspondencia[1] ?? "").replace(/\./g, ""), (correspondencia[2] ?? "").toUpperCase());
+  }
+
   return resultado;
 }
 
@@ -62,15 +79,26 @@ function extrairNumeroProcessoCnj(texto: string): CampoExtraido<string> | null {
   return null;
 }
 
+/** "Valor da causa" nem sempre vem nessa ordem — muita petição escreve
+ * "Dá-se à causa... o valor de R$ X" (causa ANTES de valor). Em vez de
+ * fixar uma frase, procura todo "R$ número" do texto e aceita o primeiro
+ * que tiver a palavra "causa" a até 150 caracteres antes dele — funciona
+ * nas duas ordens sem precisar prever cada jeito de escrever a frase. */
 function extrairValorCausa(texto: string): CampoExtraido<number | null> | null {
-  const regex = /valor\s+d[ae]\s+causa[^\d]{0,60}R\$\s*([\d.,]+)/i;
-  const correspondencia = regex.exec(texto);
-  if (!correspondencia) return null;
-  const bruto = (correspondencia[1] ?? "").trim();
-  // formato brasileiro: ponto separa milhar, vírgula separa decimal
-  const numero = Number(bruto.replace(/\./g, "").replace(",", "."));
-  if (!Number.isFinite(numero) || numero <= 0) return null;
-  return { valor: numero, confianca: "media", origem: "texto-pdf" };
+  const regexValor = /R\$\s*([\d.,]+)/g;
+  const JANELA_CONTEXTO = 150;
+  let correspondencia: RegExpExecArray | null;
+  while ((correspondencia = regexValor.exec(texto)) !== null) {
+    const contexto = texto.slice(Math.max(0, correspondencia.index - JANELA_CONTEXTO), correspondencia.index);
+    if (!/causa/i.test(contexto)) continue;
+    const bruto = (correspondencia[1] ?? "").trim();
+    // formato brasileiro: ponto separa milhar, vírgula separa decimal
+    const numero = Number(bruto.replace(/\./g, "").replace(",", "."));
+    if (Number.isFinite(numero) && numero > 0) {
+      return { valor: numero, confianca: "media", origem: "texto-pdf" };
+    }
+  }
+  return null;
 }
 
 function extrairCompetencia(texto: string): CampoExtraido<Competencia> | null {
@@ -91,22 +119,43 @@ function extrairCompetencia(texto: string): CampoExtraido<Competencia> | null {
   };
 }
 
+// O que costuma vir logo depois do nome, na qualificação de uma parte —
+// pessoa física ("brasileiro", "inscrito no CPF", "residente e
+// domiciliado") ou jurídica ("pessoa jurídica de direito privado/público",
+// "inscrita no CNPJ", "com sede/estabelecimento em"). Quanto mais desses
+// termos, menos qualificação "foge" da extração por não bater com um
+// molde único de frase.
+const PROVAS_DE_QUALIFICACAO = [
+  "CPF",
+  "CNPJ",
+  "RG",
+  "brasileir",
+  "portador",
+  "inscrit[oa]",
+  "pessoa\\s+jur[ií]dica",
+  "pessoa\\s+f[íi]sica",
+  "residente",
+  "domiciliad[oa]",
+  "estabelecimento",
+  "com\\s+sede",
+];
+
 /** Procura o bloco de nome que segue um rótulo de parte (ex.: "REQUERENTE:")
  * até a prova de que é mesmo a qualificação da parte — uma vírgula seguida
- * de CPF/CNPJ/RG/"portador". Essas mesmas palavras (autor, requerente...)
- * também aparecem várias vezes no meio do texto da petição, fora da
- * qualificação (ex.: "os autores relataram os fatos..."), então SEM essa
- * prova por perto, não devolve nada — um campo vazio é revisado; um nome
- * errado, não. */
+ * de um dos termos de PROVAS_DE_QUALIFICACAO. Essas mesmas palavras (autor,
+ * requerente...) também aparecem várias vezes no meio do texto da petição,
+ * fora da qualificação (ex.: "os autores relataram os fatos..."), então
+ * SEM essa prova por perto, não devolve nada — um campo vazio é revisado;
+ * um nome errado, não. */
 function extrairNomesPorRotulo(texto: string, rotulos: string[]): string[] {
   const nomes: string[] = [];
   const alternativas = rotulos.join("|");
   const regex = new RegExp(
     // Ponto não é mais um caractere de parada aqui: nome de empresa como
     // "BANCO EXEMPLO S.A." tem ponto no meio, e quem realmente delimita o
-    // fim do nome é a vírgula seguida da prova (CPF/CNPJ/RG/portador) —
-    // exigida logo abaixo — não qualquer ponto.
-    `\\b(?:${alternativas})\\b\\s*[:,\\-]?\\s*([A-ZÀ-Ú][^,\\n]{2,80}?)(?=,\\s*(?:CPF|CNPJ|RG|brasileir|portador))`,
+    // fim do nome é a vírgula seguida da prova de qualificação — exigida
+    // logo abaixo — não qualquer ponto.
+    `\\b(?:${alternativas})\\b\\s*[:,\\-]?\\s*([A-ZÀ-Ú][^,\\n]{2,80}?)(?=,\\s*(?:${PROVAS_DE_QUALIFICACAO.join("|")}))`,
     "gi"
   );
   let correspondencia: RegExpExecArray | null;
