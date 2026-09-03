@@ -1,14 +1,20 @@
 // Adaptador do PJe (Processo Judicial Eletrônico, definido pela Resolução
-// CNJ 185/2013). É o mais padronizado dos três, mas cada tribunal ainda
-// costuma vestir o mesmo formulário com um layout próprio — os rótulos
-// abaixo são o que aparece com mais frequência nas telas de "Petição
-// Inicial" / "Processo Novo" do PJe de primeiro grau, mas PRECISAM ser
-// conferidos contra a instância real do tribunal antes de confiar neles em
-// caso de verdade (ver README do projeto).
+// CNJ 185/2013), calibrado com foco em primeiro grau da Justiça do
+// Trabalho (TRTs) — combinado com o usuário concentrar esforço aqui antes
+// de espalhar para e-SAJ/eproc.
+//
+// Estrutura real confirmada por print (tela "Autuação de processo"):
+// abas Dados Iniciais -> Assuntos -> Partes -> Características ->
+// Prioridades -> Anexar petições e documentos -> Informações da Justiça
+// do Trabalho. É uma aplicação de aba única (SPA): trocar de aba não
+// navega para outra URL, só troca o conteúdo — por isso quase toda etapa
+// abaixo clica na aba certa antes de procurar o campo.
 import {
   anexarArquivoPorRotulo,
+  clicarElementoPorTexto,
   definirValorPorRotulo,
   marcarCaixaPorRotulo,
+  pesquisarEAdicionarPorTexto,
   preencherAutocompletePorRotulo,
   registrarAdaptador,
   type AdaptadorTribunal,
@@ -33,65 +39,82 @@ const adaptador: AdaptadorTribunal = {
 
   etapas: [
     {
-      id: "classe-e-assunto",
-      rotulo: "Preenchendo classe processual e assunto",
-      // Confirmado por print real: "Classe judicial" é campo de
-      // autocomplete (PrimeFaces) — digita e precisa clicar na opção da
-      // lista, só colocar o valor no campo não basta. "Assunto" quase
-      // certamente segue o mesmo padrão (mesmo framework), mas ainda não
-      // vi a tela para confirmar.
+      id: "dados-iniciais",
+      rotulo: "Preenchendo jurisdição e classe judicial",
+      // Confirmado por print real: "Jurisdição" e "Classe judicial" são
+      // campos de autocomplete (PrimeFaces) na aba "Dados Iniciais", a
+      // primeira que abre — digitar sozinho não basta, precisa clicar na
+      // opção que aparece na lista.
       async executar(checklist) {
+        const { comarca } = checklist.competencia.valor;
+        if (!checklist.competencia.valor.distribuicaoAutomatica) {
+          const achouJurisdicao = await preencherAutocompletePorRotulo(["jurisdicao", "jurisdição"], comarca, comarca);
+          if (!achouJurisdicao) definirValorPorRotulo(["foro", "comarca"], comarca);
+        }
         await preencherAutocompletePorRotulo(
           ["classe judicial", "classe processual", "classe"],
           checklist.classeProcessual.valor,
           checklist.classeProcessual.valor
         );
-        await preencherAutocompletePorRotulo(
-          ["assunto", "assunto principal"],
-          checklist.assuntoPrincipal.valor,
-          checklist.assuntoPrincipal.valor
-        );
       },
     },
     {
-      id: "competencia",
-      rotulo: "Preenchendo jurisdição/comarca e vara",
-      aplicavel: (checklist) => !checklist.competencia.valor.distribuicaoAutomatica,
-      // Confirmado por print real: o campo de comarca/foro na aba "Dados
-      // Iniciais" se chama "Jurisdição" (também autocomplete — mesma
-      // mecânica da classe judicial); "Foro"/"Comarca" ficam de reserva
-      // para outro tribunal que use outro nome.
+      id: "assuntos",
+      rotulo: "Pesquisando e adicionando o assunto",
+      // Confirmado por print real: aba "Assuntos" tem um padrão diferente
+      // de autocomplete — campo de busca "Descrição", resultado numa
+      // tabela paginada, e um botão "+" (só ícone, sem texto) em cada
+      // linha para adicionar. `pesquisarEAdicionarPorTexto` dispara Enter
+      // no campo de busca (mais confiável que adivinhar qual elemento é o
+      // ícone de lupa) e clica no primeiro botão da linha que bater.
       async executar(checklist) {
-        const { comarca, uf, vara } = checklist.competencia.valor;
-        const achouJurisdicao = await preencherAutocompletePorRotulo(["jurisdicao", "jurisdição"], comarca, comarca);
-        if (!achouJurisdicao) definirValorPorRotulo(["foro", "comarca"], comarca);
-        definirValorPorRotulo(["uf", "estado"], uf);
-        definirValorPorRotulo(["vara", "orgao julgador", "órgão julgador"], vara);
+        clicarElementoPorTexto("Assuntos");
+        await pesquisarEAdicionarPorTexto(["descricao", "descrição"], checklist.assuntoPrincipal.valor, checklist.assuntoPrincipal.valor);
       },
     },
     {
-      id: "valor-causa",
-      rotulo: "Preenchendo valor da causa",
-      async executar(checklist) {
-        if (checklist.valorCausa.valor === null) return;
-        definirValorPorRotulo(["valor da causa"], checklist.valorCausa.valor.toFixed(2).replace(".", ","));
+      id: "partes",
+      rotulo: "Indo para a aba de partes",
+      // NÃO calibrado ainda: os botões de adicionar parte (polo ativo,
+      // polo passivo, outros participantes) são só ícones coloridos, sem
+      // texto — abrem um formulário "Associar parte ao processo" com
+      // abas (Pessoa física / Pessoa jurídica / Ministério Público) e um
+      // campo "CPF". Falta confirmar o que aparece depois de digitar o
+      // CPF (busca automática? botão de confirmar?) antes de automatizar
+      // isso com segurança. Por enquanto só troca para a aba certa, para
+      // o advogado continuar à mão a partir daqui.
+      async executar() {
+        clicarElementoPorTexto("Partes");
       },
     },
     {
-      id: "sinalizadores",
-      rotulo: "Marcando gratuidade, segredo de justiça e prioridade",
-      // Confirmado (manuais oficiais TJRJ/TJMG): esses três ficam na aba
-      // "Características", junto com o valor da causa. Não confirmado: se
-      // são caixinhas de marcar ou um Sim/Não em botão de opção (radio) —
-      // isso muda por tribunal. `marcarCaixaPorRotulo` só entende
-      // <input type="checkbox">; se aqui for radio, precisa calibrar.
+      id: "caracteristicas",
+      rotulo: "Preenchendo valor da causa, gratuidade e segredo de justiça",
+      // Confirmado por print real: existe uma aba própria
+      // "Características" (valor da causa e as caixinhas de gratuidade e
+      // segredo de justiça devem morar aqui, conforme os manuais oficiais
+      // do PJe usados como referência — o texto exato de cada campo
+      // ainda não foi conferido nesta instância).
       async executar(checklist) {
+        clicarElementoPorTexto("Características");
+        if (checklist.valorCausa.valor !== null) {
+          definirValorPorRotulo(["valor da causa"], checklist.valorCausa.valor.toFixed(2).replace(".", ","));
+        }
         marcarCaixaPorRotulo(["justica gratuita", "gratuidade da justica", "gratuidade de justica"], checklist.gratuidadeJustica);
         marcarCaixaPorRotulo(["segredo de justica", "sigilo"], checklist.segredoJustica);
-        marcarCaixaPorRotulo(
-          ["prioridade de tramitacao", "prioridade na tramitacao", "prioridade de processo"],
-          checklist.prioridadeTramitacao
-        );
+      },
+    },
+    {
+      id: "prioridades",
+      rotulo: "Marcando prioridade de tramitação",
+      // Confirmado por print real: "Prioridades" é uma aba própria,
+      // separada de "Características" — diferente do que os manuais de
+      // outros tribunais sugeriam (lá, tudo junto). Só entra nessa aba se
+      // houver prioridade a marcar, pra não mexer em nada à toa.
+      aplicavel: (checklist) => checklist.prioridadeTramitacao,
+      async executar() {
+        clicarElementoPorTexto("Prioridades");
+        marcarCaixaPorRotulo(["prioridade de tramitacao", "prioridade na tramitacao", "prioridade de processo"], true);
       },
     },
     {
@@ -106,28 +129,12 @@ const adaptador: AdaptadorTribunal = {
       },
     },
     {
-      id: "polo-ativo",
-      rotulo: "Preenchendo o polo ativo",
-      async executar(checklist) {
-        const parte = checklist.poloAtivo[0];
-        if (!parte) return;
-        definirValorPorRotulo(["nome da parte", "nome do requerente", "nome do autor"], parte.nome);
-        definirValorPorRotulo(["cpf/cnpj", "cpf", "cnpj"], parte.documento);
-      },
-    },
-    {
-      id: "polo-passivo",
-      rotulo: "Preenchendo o polo passivo",
-      async executar(checklist) {
-        const parte = checklist.poloPassivo[0];
-        if (!parte) return;
-        definirValorPorRotulo(["nome da parte contraria", "nome do requerido", "nome do reu"], parte.nome);
-        if (parte.documento) definirValorPorRotulo(["cpf/cnpj", "cpf", "cnpj"], parte.documento);
-      },
-    },
-    {
       id: "advogado",
       rotulo: "Conferindo OAB do advogado",
+      // Não calibrado ainda nesta instância — pode ser que o advogado
+      // logado já apareça vinculado automaticamente (comum no PJe) e
+      // esse campo só exista ao incluir um advogado extra. Fica como
+      // tentativa de reserva, sem trocar de aba.
       async executar(checklist) {
         const advogado = checklist.advogados[0];
         if (!advogado) return;
@@ -137,8 +144,13 @@ const adaptador: AdaptadorTribunal = {
     },
     {
       id: "anexos",
-      rotulo: "Anexando documentos",
+      rotulo: "Indo para anexar documentos",
+      // Confirmado por print real: existe uma aba própria "Anexar
+      // petições e documentos" — mas o padrão exato de anexar (um bloco
+      // por arquivo? aparece um "+" depois de cada envio?) ainda não foi
+      // visto nesta instância, então por enquanto só troca de aba.
       async executar(checklist) {
+        clicarElementoPorTexto("Anexar petições e documentos");
         for (const anexo of checklist.anexos) {
           anexarArquivoPorRotulo(["arquivo", "documento", "anexar peca", "selecionar arquivo"], anexo.arquivo);
         }

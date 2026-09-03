@@ -110,6 +110,29 @@ export function definirValorPorRotulo(rotulos: string[], valor: string, raiz?: P
   return true;
 }
 
+/** Espera até `obter()` devolver algo diferente de null, observando
+ * mudanças no DOM (sem `sleep` fixo) — usado por tudo que precisa de um
+ * elemento que só aparece depois de uma ação assíncrona (autocomplete,
+ * busca em tabela, aba nova). */
+async function aguardarAte<T>(obter: () => T | null, tempoLimiteMs = 8000): Promise<T | null> {
+  const existente = obter();
+  if (existente) return existente;
+  return new Promise<T | null>((resolve) => {
+    const observador = new MutationObserver(() => {
+      const achado = obter();
+      if (achado) {
+        observador.disconnect();
+        resolve(achado);
+      }
+    });
+    observador.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => {
+      observador.disconnect();
+      resolve(obter());
+    }, tempoLimiteMs);
+  });
+}
+
 function buscarItemDropdownPorTexto(alvo: string): HTMLElement | null {
   const candidatos = document.querySelectorAll<HTMLElement>(
     ".ui-autocomplete-panel li, .ui-autocomplete-items li, [role='option'], [role='listbox'] li, li"
@@ -143,28 +166,73 @@ export async function preencherAutocompletePorRotulo(
   campo.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
 
   const alvo = normalizarTexto(textoOpcaoDesejada);
-  const opcao = await new Promise<HTMLElement | null>((resolve) => {
-    const existente = buscarItemDropdownPorTexto(alvo);
-    if (existente) {
-      resolve(existente);
-      return;
-    }
-    const observador = new MutationObserver(() => {
-      const achado = buscarItemDropdownPorTexto(alvo);
-      if (achado) {
-        observador.disconnect();
-        resolve(achado);
-      }
-    });
-    observador.observe(document.body, { childList: true, subtree: true });
-    setTimeout(() => {
-      observador.disconnect();
-      resolve(null);
-    }, tempoLimiteMs);
-  });
-
+  const opcao = await aguardarAte(() => buscarItemDropdownPorTexto(alvo), tempoLimiteMs);
   if (!opcao) return false;
   opcao.click();
+  return true;
+}
+
+/** Clica num elemento "folha" (sem filhos) cujo texto bate exatamente com
+ * `texto` — pensado pra abas de formulário tipo "Assuntos"/"Partes", que
+ * mudam o conteúdo da tela sem trocar de URL. */
+export function clicarElementoPorTexto(texto: string, raiz: ParentNode = document): boolean {
+  const alvo = normalizarTexto(texto);
+  const candidatos = raiz.querySelectorAll<HTMLElement>("a, button, li, [role='tab'], div, span");
+  for (const candidato of Array.from(candidatos)) {
+    if (candidato.children.length > 0) continue; // só folha: evita clicar num contêiner gigante
+    if (normalizarTexto(candidato.textContent ?? "") === alvo) {
+      candidato.click();
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Vai para uma aba do formulário (PJe costuma usar abas tipo
+ * "Dados Iniciais"/"Assuntos"/"Partes" que trocam o conteúdo sem navegar
+ * pra outra URL) e espera algum campo da aba nova aparecer antes de
+ * seguir, checando por `rotuloConfirmacao`. */
+export async function irParaAba(nomeAba: string, rotuloConfirmacao: string, tempoLimiteMs = 8000): Promise<boolean> {
+  if (!clicarElementoPorTexto(nomeAba)) return false;
+  const campo = await aguardarAte(() => buscarCampoPorRotulo([rotuloConfirmacao]), tempoLimiteMs);
+  return campo !== null;
+}
+
+function buscarLinhaComTexto(alvo: string): HTMLElement | null {
+  const linhas = document.querySelectorAll<HTMLElement>("tr, [role='row']");
+  for (const linha of Array.from(linhas)) {
+    if (linha.offsetParent === null) continue;
+    if (normalizarTexto(linha.textContent ?? "").includes(alvo)) return linha;
+  }
+  return null;
+}
+
+/** Padrão "pesquisar e adicionar" (ex.: aba Assuntos do PJe: campo
+ * "Descrição" + resultado em tabela, cada linha com um botão de adicionar
+ * sem texto — só ícone). Preenche o campo de busca, dispara Enter (mais
+ * seguro que adivinhar qual elemento é o botão de lupa), espera uma linha
+ * de resultado cujo texto contenha `textoLinhaAlvo` e clica no primeiro
+ * elemento clicável dela. */
+export async function pesquisarEAdicionarPorTexto(
+  rotulosCampoBusca: string[],
+  textoBusca: string,
+  textoLinhaAlvo: string,
+  tempoLimiteMs = 8000
+): Promise<boolean> {
+  if (!textoBusca) return false;
+  const campo = buscarCampoPorRotulo(rotulosCampoBusca);
+  if (!campo || !(campo instanceof HTMLInputElement)) return false;
+
+  definirValorCampo(campo, textoBusca);
+  campo.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  campo.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true }));
+
+  const alvo = normalizarTexto(textoLinhaAlvo);
+  const linha = await aguardarAte(() => buscarLinhaComTexto(alvo), tempoLimiteMs);
+  if (!linha) return false;
+  const botao = linha.querySelector<HTMLElement>("button, a, [role='button']");
+  if (!botao) return false;
+  botao.click();
   return true;
 }
 
