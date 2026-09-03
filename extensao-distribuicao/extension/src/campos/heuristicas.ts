@@ -92,13 +92,19 @@ function extrairCompetencia(texto: string): CampoExtraido<Competencia> | null {
 }
 
 /** Procura o bloco de nome que segue um rótulo de parte (ex.: "REQUERENTE:")
- * até o próximo rótulo em maiúsculas, ", CPF", ", CNPJ" ou fim de linha. */
+ * até a prova de que é mesmo a qualificação da parte — uma vírgula seguida
+ * de CPF/CNPJ/RG/"portador". Essas mesmas palavras (autor, requerente...)
+ * também aparecem várias vezes no meio do texto da petição, fora da
+ * qualificação (ex.: "os autores relataram os fatos..."), então SEM essa
+ * prova por perto, não devolve nada — um campo vazio é revisado; um nome
+ * errado, não. */
 function extrairNomesPorRotulo(texto: string, rotulos: string[]): string[] {
   const nomes: string[] = [];
   const alternativas = rotulos.join("|");
-  // O \b depois do grupo é essencial: sem ele, "autor" também "casa" dentro
-  // de "autores" ou "autoriza" (a parte de trás vira "nome" por engano).
-  const regex = new RegExp(`\\b(?:${alternativas})\\b\\s*[:,\\-]?\\s*([A-ZÀ-Ú][^,.\\n]{2,80}?)(?=,\\s*(?:CPF|CNPJ|RG|brasileir|portador)|\\n|\\.)`, "gi");
+  const regex = new RegExp(
+    `\\b(?:${alternativas})\\b\\s*[:,\\-]?\\s*([A-ZÀ-Ú][^,.\\n]{2,80}?)(?=,\\s*(?:CPF|CNPJ|RG|brasileir|portador))`,
+    "gi"
+  );
   let correspondencia: RegExpExecArray | null;
   while ((correspondencia = regex.exec(texto)) !== null) {
     const nome = normalizarEspacos(correspondencia[1] ?? "");
