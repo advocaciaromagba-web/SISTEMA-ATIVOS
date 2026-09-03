@@ -3,7 +3,6 @@
   "name": "Distribuição Processual — OCR",
   "version": "0.1.0",
   "description": "Lê a petição inicial por OCR, organiza os anexos e ajuda a preencher a distribuição processual no PJe, e-SAJ e eproc. Você sempre confirma os dados e clica no protocolo final.",
-  "default_locale": "pt_BR",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Distribuição Processual"
@@ -13,17 +12,10 @@
     "service_worker": "background.js"
   },
   "permissions": ["storage", "scripting", "activeTab", "downloads"],
-  "host_permissions": [
-    "*://*.pje.jus.br/*",
-    "*://pje.*.jus.br/*",
-    "*://*.tjsp.jus.br/*",
-    "*://*.eproc.jus.br/*",
-    "*://eproc.*.jus.br/*"
-  ],
-  "optional_host_permissions": ["*://*.jus.br/*"],
+  "host_permissions": ["*://*.jus.br/*"],
   "content_scripts": [
     {
-      "matches": ["*://*.pje.jus.br/*", "*://pje.*.jus.br/*"],
+      "matches": ["*://*.jus.br/*"],
       "js": ["conteudo/pje.js"],
       "run_at": "document_idle"
     },
@@ -33,7 +25,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["*://*.eproc.jus.br/*", "*://eproc.*.jus.br/*"],
+      "matches": ["*://*.jus.br/*"],
       "js": ["conteudo/eproc.js"],
       "run_at": "document_idle"
     }

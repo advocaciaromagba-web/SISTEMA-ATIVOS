@@ -18,7 +18,11 @@ const adaptador: AdaptadorTribunal = {
   id: "pje",
   nome: "PJe",
   detectar: () =>
-    /\.pje\.jus\.br$/i.test(location.hostname) &&
+    // O domínio do PJe varia por tribunal (pje.trf1.jus.br, pje1g.trf3.jus.br,
+    // pje.tjba.jus.br...) — o que é fixo é o primeiro rótulo começar com
+    // "pje" e terminar em .jus.br, então é isso que conferimos.
+    /^pje/i.test(location.hostname.split(".")[0] ?? "") &&
+    /\.jus\.br$/i.test(location.hostname) &&
     /peticionamento|processonovo|petição\s*inicial/i.test(document.body.innerText.slice(0, 4000)),
 
   etapas: [
