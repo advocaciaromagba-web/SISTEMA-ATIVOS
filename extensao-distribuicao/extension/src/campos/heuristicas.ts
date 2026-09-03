@@ -27,18 +27,31 @@ function dedupe(valores: string[]): string[] {
   return Array.from(new Set(valores));
 }
 
+// A extração de texto do PDF às vezes deixa um espaço em volta do ponto ou
+// do hífen de um número (ex.: "461.809.008 - 17" em vez de
+// "461.809.008-17") — efeito colateral de como a fonte/layout original
+// espaça esses caracteres. Todo regex de número de documento abaixo
+// tolera esse espaço opcional em cada separador, e a validação por dígito
+// verificador (validarCpf/validarCnpj/validarCep) já ignora espaço mesmo,
+// então aceitar a variação aqui não abre brecha para lixo passar.
+function semEspacosInternos(valor: string): string {
+  return valor.replace(/\s+/g, "");
+}
+
 function extrairCpfs(texto: string): string[] {
-  const candidatos = texto.match(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g) ?? [];
+  const candidatos = (texto.match(/\b\d{3}\s*\.\s*\d{3}\s*\.\s*\d{3}\s*-\s*\d{2}\b/g) ?? []).map(semEspacosInternos);
   return dedupe(candidatos.filter((cpf) => validarCpf(cpf)));
 }
 
 function extrairCnpjs(texto: string): string[] {
-  const candidatos = texto.match(/\b[0-9A-Z]{2}\.[0-9A-Z]{3}\.[0-9A-Z]{3}\/[0-9A-Z]{4}-\d{2}\b/g) ?? [];
+  const candidatos = (
+    texto.match(/\b[0-9A-Z]{2}\s*\.\s*[0-9A-Z]{3}\s*\.\s*[0-9A-Z]{3}\s*\/\s*[0-9A-Z]{4}\s*-\s*\d{2}\b/g) ?? []
+  ).map(semEspacosInternos);
   return dedupe(candidatos.filter((cnpj) => validarCnpj(cnpj)));
 }
 
 function extrairCeps(texto: string): string[] {
-  const candidatos = texto.match(/\b\d{5}-\d{3}\b/g) ?? [];
+  const candidatos = (texto.match(/\b\d{5}\s*-\s*\d{3}\b/g) ?? []).map(semEspacosInternos);
   return dedupe(candidatos.filter((cep) => validarCep(cep)));
 }
 
@@ -54,23 +67,25 @@ function extrairOabs(texto: string): { numero: string; uf: string }[] {
 
   // Formato mais comum: "OAB/SP 278.877" (UF logo depois de OAB, número
   // depois da UF).
-  const regexUfPrimeiro = /OAB[\s./]*([A-Z]{2})\s*[:\-]?\s*(?:n[ºo°.]?\s*)?(\d{1,3}(?:\.\d{3})?)/gi;
+  const regexUfPrimeiro = /OAB[\s./]*([A-Z]{2})\s*[:\-]?\s*(?:n[ºo°.]?\s*)?(\d{1,3}(?:\s*\.\s*\d{3})?)/gi;
   let correspondencia: RegExpExecArray | null;
   while ((correspondencia = regexUfPrimeiro.exec(texto)) !== null) {
-    adicionar((correspondencia[2] ?? "").replace(/\./g, ""), (correspondencia[1] ?? "").toUpperCase());
+    adicionar(semEspacosInternos(correspondencia[2] ?? "").replace(/\./g, ""), (correspondencia[1] ?? "").toUpperCase());
   }
 
   // Também aparece na ordem contrária: "OAB 278.877/SP".
-  const regexNumeroPrimeiro = /OAB[\s./]*[:\-]?\s*(?:n[ºo°.]?\s*)?(\d{1,3}(?:\.\d{3})?)\s*[\/\-]\s*([A-Z]{2})\b/gi;
+  const regexNumeroPrimeiro = /OAB[\s./]*[:\-]?\s*(?:n[ºo°.]?\s*)?(\d{1,3}(?:\s*\.\s*\d{3})?)\s*[\/\-]\s*([A-Z]{2})\b/gi;
   while ((correspondencia = regexNumeroPrimeiro.exec(texto)) !== null) {
-    adicionar((correspondencia[1] ?? "").replace(/\./g, ""), (correspondencia[2] ?? "").toUpperCase());
+    adicionar(semEspacosInternos(correspondencia[1] ?? "").replace(/\./g, ""), (correspondencia[2] ?? "").toUpperCase());
   }
 
   return resultado;
 }
 
 function extrairNumeroProcessoCnj(texto: string): CampoExtraido<string> | null {
-  const candidatos = texto.match(/\b\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}\b/g) ?? [];
+  const candidatos = (
+    texto.match(/\b\d{7}\s*-?\s*\d{2}\s*\.?\s*\d{4}\s*\.?\s*\d\s*\.?\s*\d{2}\s*\.?\s*\d{4}\b/g) ?? []
+  ).map(semEspacosInternos);
   for (const candidato of candidatos) {
     if (validarNumeroProcessoCnj(candidato)) {
       return { valor: candidato.replace(/\D/g, ""), confianca: "alta", origem: "texto-pdf" };
