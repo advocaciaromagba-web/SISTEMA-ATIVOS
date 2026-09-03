@@ -9,6 +9,7 @@ import {
   anexarArquivoPorRotulo,
   definirValorPorRotulo,
   marcarCaixaPorRotulo,
+  preencherAutocompletePorRotulo,
   registrarAdaptador,
   type AdaptadorTribunal,
 } from "./adaptador-base";
@@ -34,11 +35,22 @@ const adaptador: AdaptadorTribunal = {
     {
       id: "classe-e-assunto",
       rotulo: "Preenchendo classe processual e assunto",
-      // "Classe judicial" confirmado por print real (bate com o que já
-      // estava aqui).
+      // Confirmado por print real: "Classe judicial" é campo de
+      // autocomplete (PrimeFaces) — digita e precisa clicar na opção da
+      // lista, só colocar o valor no campo não basta. "Assunto" quase
+      // certamente segue o mesmo padrão (mesmo framework), mas ainda não
+      // vi a tela para confirmar.
       async executar(checklist) {
-        definirValorPorRotulo(["classe judicial", "classe processual", "classe"], checklist.classeProcessual.valor);
-        definirValorPorRotulo(["assunto", "assunto principal"], checklist.assuntoPrincipal.valor);
+        await preencherAutocompletePorRotulo(
+          ["classe judicial", "classe processual", "classe"],
+          checklist.classeProcessual.valor,
+          checklist.classeProcessual.valor
+        );
+        await preencherAutocompletePorRotulo(
+          ["assunto", "assunto principal"],
+          checklist.assuntoPrincipal.valor,
+          checklist.assuntoPrincipal.valor
+        );
       },
     },
     {
@@ -46,11 +58,13 @@ const adaptador: AdaptadorTribunal = {
       rotulo: "Preenchendo jurisdição/comarca e vara",
       aplicavel: (checklist) => !checklist.competencia.valor.distribuicaoAutomatica,
       // Confirmado por print real: o campo de comarca/foro na aba "Dados
-      // Iniciais" se chama "Jurisdição", não "Foro"/"Comarca" (que ficam
-      // como sinônimo de reserva, caso outro tribunal use outro nome).
+      // Iniciais" se chama "Jurisdição" (também autocomplete — mesma
+      // mecânica da classe judicial); "Foro"/"Comarca" ficam de reserva
+      // para outro tribunal que use outro nome.
       async executar(checklist) {
         const { comarca, uf, vara } = checklist.competencia.valor;
-        definirValorPorRotulo(["jurisdicao", "jurisdição", "foro", "comarca"], comarca);
+        const achouJurisdicao = await preencherAutocompletePorRotulo(["jurisdicao", "jurisdição"], comarca, comarca);
+        if (!achouJurisdicao) definirValorPorRotulo(["foro", "comarca"], comarca);
         definirValorPorRotulo(["uf", "estado"], uf);
         definirValorPorRotulo(["vara", "orgao julgador", "órgão julgador"], vara);
       },

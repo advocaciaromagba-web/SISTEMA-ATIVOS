@@ -110,6 +110,64 @@ export function definirValorPorRotulo(rotulos: string[], valor: string, raiz?: P
   return true;
 }
 
+function buscarItemDropdownPorTexto(alvo: string): HTMLElement | null {
+  const candidatos = document.querySelectorAll<HTMLElement>(
+    ".ui-autocomplete-panel li, .ui-autocomplete-items li, [role='option'], [role='listbox'] li, li"
+  );
+  for (const candidato of Array.from(candidatos)) {
+    // só considera item visível: o painel de sugestões some quando não há
+    // busca ativa, mas o <li> pode continuar no DOM escondido.
+    if (candidato.offsetParent === null) continue;
+    if (normalizarTexto(candidato.textContent ?? "").includes(alvo)) return candidato;
+  }
+  return null;
+}
+
+/** Campo de autocomplete (comum no PJe/PrimeFaces: "Jurisdição", "Classe
+ * judicial", "Assunto"...) — digitar sozinho não basta, porque o valor só
+ * "gruda" de verdade quando você clica na opção da lista que abre. Digita
+ * o texto de busca, espera a lista de sugestões aparecer e clica na opção
+ * cujo texto contém `textoOpcaoDesejada`. */
+export async function preencherAutocompletePorRotulo(
+  rotulos: string[],
+  textoBusca: string,
+  textoOpcaoDesejada: string,
+  raiz?: ParentNode,
+  tempoLimiteMs = 8000
+): Promise<boolean> {
+  if (!textoBusca) return false;
+  const campo = buscarCampoPorRotulo(rotulos, raiz);
+  if (!campo || !(campo instanceof HTMLInputElement)) return false;
+
+  definirValorCampo(campo, textoBusca);
+  campo.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+
+  const alvo = normalizarTexto(textoOpcaoDesejada);
+  const opcao = await new Promise<HTMLElement | null>((resolve) => {
+    const existente = buscarItemDropdownPorTexto(alvo);
+    if (existente) {
+      resolve(existente);
+      return;
+    }
+    const observador = new MutationObserver(() => {
+      const achado = buscarItemDropdownPorTexto(alvo);
+      if (achado) {
+        observador.disconnect();
+        resolve(achado);
+      }
+    });
+    observador.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => {
+      observador.disconnect();
+      resolve(null);
+    }, tempoLimiteMs);
+  });
+
+  if (!opcao) return false;
+  opcao.click();
+  return true;
+}
+
 function buscarCaixaPorRotulo(rotulos: string[], raiz: ParentNode = document): HTMLInputElement | null {
   const campo = buscarCampoPorRotulo(rotulos, raiz);
   return campo instanceof HTMLInputElement && campo.type === "checkbox" ? campo : null;
