@@ -67,6 +67,12 @@ export const authOptionsCompliance: NextAuthOptions = {
           throw new Error("Esta conta está suspensa. Fale com o suporte.");
         }
 
+        // Bloqueio posto pela administracao da Blackbird — diferente de
+        // assinatura suspensa, e o motivo fica registrado na auditoria.
+        if (usuario.complianceConta.bloqueadoEm) {
+          throw new Error("Esta conta está bloqueada pela administração. Fale com o suporte.");
+        }
+
         if (usuario.totpAtivado && usuario.totpSegredo) {
           const codigo = (credentials.codigo ?? "").trim().replace(/\s/g, "");
 

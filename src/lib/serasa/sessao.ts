@@ -25,7 +25,7 @@ export async function exigirSessaoSerasa(): Promise<SessaoSerasa> {
     include: { serasaConta: true },
   });
 
-  if (!usuario || !usuario.ativo || !usuario.serasaConta.ativa) redirect("/serasa/entrar");
+  if (!usuario || !usuario.ativo || !usuario.serasaConta.ativa || usuario.serasaConta.bloqueadoEm) redirect("/serasa/entrar");
 
   const { serasaConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as SerasaUsuario, conta: serasaConta };

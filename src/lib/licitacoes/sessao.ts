@@ -29,7 +29,7 @@ export async function exigirSessaoLicitacoes(): Promise<SessaoLicitacoes> {
     include: { licitacaoConta: true },
   });
 
-  if (!usuario || !usuario.ativo || !usuario.licitacaoConta.ativa) redirect("/licitacoes/entrar");
+  if (!usuario || !usuario.ativo || !usuario.licitacaoConta.ativa || usuario.licitacaoConta.bloqueadoEm) redirect("/licitacoes/entrar");
 
   const { licitacaoConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as LicitacaoUsuario, conta: licitacaoConta };
@@ -41,7 +41,7 @@ export async function sessaoAtualLicitacoes(): Promise<SessaoLicitacoes | null> 
   if (!id) return null;
 
   const usuario = await prisma.licitacaoUsuario.findUnique({ where: { id }, include: { licitacaoConta: true } });
-  if (!usuario || !usuario.ativo || !usuario.licitacaoConta.ativa) return null;
+  if (!usuario || !usuario.ativo || !usuario.licitacaoConta.ativa || usuario.licitacaoConta.bloqueadoEm) return null;
 
   const { licitacaoConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as LicitacaoUsuario, conta: licitacaoConta };

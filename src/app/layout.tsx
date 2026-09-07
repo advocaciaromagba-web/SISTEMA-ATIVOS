@@ -3,6 +3,7 @@ import "./globals.css";
 import { marca, variaveisDeCor } from "@/lib/marca";
 import { classesDeFonte } from "@/lib/fontes";
 import { Sessao } from "@/components/sessao";
+import { TarjaAcessoAdmin } from "@/components/tarja-acesso-admin";
 
 export const metadata: Metadata = {
   title: {
@@ -32,6 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content={marca.cores.principal} />
       </head>
       <body>
+        {/* Enquanto um administrador estiver dentro da conta de um cliente,
+            isto aparece em cima de qualquer tela do site. */}
+        <TarjaAcessoAdmin />
         <Sessao>{children}</Sessao>
       </body>
     </html>

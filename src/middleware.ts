@@ -25,6 +25,11 @@ export default withAuth({
  *                    sem esta exclusão, TODA página dessas soluções
  *                    (entrar, cadastro, painel) redirecionava para o login
  *                    da Gestão de Ativos, deixando as duas inacessíveis.
+ * - /admin ......... administração da Blackbird, login PRÓPRIO e cookie
+ *                    próprio (`exigirSessaoAdmin()` em cada página). Não é
+ *                    conta de cliente nem de solução, e não pode passar pelo
+ *                    middleware da Gestão de Ativos pelo mesmo motivo das
+ *                    soluções acima.
  * - /api ........... cada rota confere a sessão por conta própria, e os
  *                    webhooks de pagamento são chamados de fora, sem sessão
  * - estáticos ...... arquivos da própria página
@@ -33,6 +38,6 @@ export const config = {
   matcher: [
     // O `.+` no fim (em vez de `.*`) deixa a raiz "/" de fora: ela é a página
     // pública de apresentação. As demais páginas públicas estão nomeadas.
-    "/((?!entrar|login|cadastro|esqueci-senha|redefinir-senha|cliente|licitacoes|compliance|serasa|diligencia|verificacao|agrojud|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
+    "/((?!entrar|login|cadastro|esqueci-senha|redefinir-senha|cliente|licitacoes|compliance|serasa|diligencia|verificacao|agrojud|admin|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
   ],
 };

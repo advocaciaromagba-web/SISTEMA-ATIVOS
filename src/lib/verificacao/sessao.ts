@@ -26,7 +26,7 @@ export async function exigirSessaoVerificacao(): Promise<SessaoVerificacao> {
     include: { verificacaoConta: true },
   });
 
-  if (!usuario || !usuario.ativo || !usuario.verificacaoConta.ativa) redirect("/verificacao/entrar");
+  if (!usuario || !usuario.ativo || !usuario.verificacaoConta.ativa || usuario.verificacaoConta.bloqueadoEm) redirect("/verificacao/entrar");
 
   const { verificacaoConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as VerificacaoUsuario, conta: verificacaoConta };

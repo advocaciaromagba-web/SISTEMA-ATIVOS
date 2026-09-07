@@ -28,7 +28,7 @@ export async function exigirSessao(): Promise<SessaoAtual> {
     include: { organizacao: true },
   });
 
-  if (!usuario || !usuario.ativo || !usuario.organizacao.ativa) redirect("/login");
+  if (!usuario || !usuario.ativo || !usuario.organizacao.ativa || usuario.organizacao.bloqueadoEm) redirect("/login");
 
   const { organizacao, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as Usuario, organizacao };
@@ -41,7 +41,7 @@ export async function sessaoAtual(): Promise<SessaoAtual | null> {
   if (!id) return null;
 
   const usuario = await prisma.usuario.findUnique({ where: { id }, include: { organizacao: true } });
-  if (!usuario || !usuario.ativo || !usuario.organizacao.ativa) return null;
+  if (!usuario || !usuario.ativo || !usuario.organizacao.ativa || usuario.organizacao.bloqueadoEm) return null;
 
   const { organizacao, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as Usuario, organizacao };

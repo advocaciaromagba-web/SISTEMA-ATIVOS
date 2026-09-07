@@ -26,7 +26,7 @@ export async function exigirSessaoCompliance(): Promise<SessaoCompliance> {
     include: { complianceConta: true },
   });
 
-  if (!usuario || !usuario.ativo || !usuario.complianceConta.ativa) redirect("/compliance/entrar");
+  if (!usuario || !usuario.ativo || !usuario.complianceConta.ativa || usuario.complianceConta.bloqueadoEm) redirect("/compliance/entrar");
 
   const { complianceConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as ComplianceUsuario, conta: complianceConta };
@@ -38,7 +38,7 @@ export async function sessaoAtualCompliance(): Promise<SessaoCompliance | null> 
   if (!id) return null;
 
   const usuario = await prisma.complianceUsuario.findUnique({ where: { id }, include: { complianceConta: true } });
-  if (!usuario || !usuario.ativo || !usuario.complianceConta.ativa) return null;
+  if (!usuario || !usuario.ativo || !usuario.complianceConta.ativa || usuario.complianceConta.bloqueadoEm) return null;
 
   const { complianceConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as ComplianceUsuario, conta: complianceConta };

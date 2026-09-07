@@ -26,7 +26,7 @@ export async function exigirSessaoDiligencia(): Promise<SessaoDiligencia> {
     include: { diligenciaConta: true },
   });
 
-  if (!usuario || !usuario.ativo || !usuario.diligenciaConta.ativa) redirect("/diligencia/entrar");
+  if (!usuario || !usuario.ativo || !usuario.diligenciaConta.ativa || usuario.diligenciaConta.bloqueadoEm) redirect("/diligencia/entrar");
 
   const { diligenciaConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as DiligenciaUsuario, conta: diligenciaConta };

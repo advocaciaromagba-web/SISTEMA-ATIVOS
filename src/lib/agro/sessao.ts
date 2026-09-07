@@ -25,7 +25,7 @@ export async function exigirSessaoAgro(): Promise<SessaoAgro> {
     include: { agroConta: true },
   });
 
-  if (!usuario || !usuario.ativo || !usuario.agroConta.ativa) redirect("/agrojud/entrar");
+  if (!usuario || !usuario.ativo || !usuario.agroConta.ativa || usuario.agroConta.bloqueadoEm) redirect("/agrojud/entrar");
 
   const { agroConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as AgroUsuario, conta: agroConta };
@@ -42,7 +42,7 @@ export async function sessaoAgroAtual(): Promise<SessaoAgro | null> {
   if (!id) return null;
 
   const usuario = await prisma.agroUsuario.findUnique({ where: { id }, include: { agroConta: true } });
-  if (!usuario || !usuario.ativo || !usuario.agroConta.ativa) return null;
+  if (!usuario || !usuario.ativo || !usuario.agroConta.ativa || usuario.agroConta.bloqueadoEm) return null;
 
   const { agroConta, ...dadosUsuario } = usuario;
   return { usuario: dadosUsuario as AgroUsuario, conta: agroConta };

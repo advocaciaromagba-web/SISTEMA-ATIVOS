@@ -52,7 +52,12 @@ model Organizacao {
   plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
   statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
   testeExpiraEm    DateTime?
-  assinaturaAte    DateTime?
+
+  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
+  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
+  bloqueadoEm     DateTime?
+  bloqueadoMotivo String?
+  assinaturaAte   DateTime?
 
   asaasCustomerId     String?
   asaasSubscriptionId String?
@@ -761,9 +766,14 @@ model LicitacaoConta {
   plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
   statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
   testeExpiraEm    DateTime?
-  assinaturaAte    DateTime?
+
+  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
+  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
+  bloqueadoEm     DateTime?
+  bloqueadoMotivo String?
+  assinaturaAte   DateTime?
   /// Saldo do crédito pré-pago, quando formaCobranca = CREDITO.
-  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+  saldoCredito    Decimal   @default(0) @db.Decimal(12, 2)
 
   asaasCustomerId     String?
   asaasSubscriptionId String?
@@ -1219,8 +1229,13 @@ model ComplianceConta {
   plano            String    @default("TESTE")
   statusAssinatura String    @default("TESTE")
   testeExpiraEm    DateTime?
-  assinaturaAte    DateTime?
-  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
+  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
+  bloqueadoEm     DateTime?
+  bloqueadoMotivo String?
+  assinaturaAte   DateTime?
+  saldoCredito    Decimal   @default(0) @db.Decimal(12, 2)
 
   asaasCustomerId     String?
   asaasSubscriptionId String?
@@ -1444,6 +1459,11 @@ model SerasaConta {
   statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
   testeExpiraEm    DateTime?
 
+  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
+  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
+  bloqueadoEm     DateTime?
+  bloqueadoMotivo String?
+
   asaasCustomerId String?
 
   ativa        Boolean  @default(true)
@@ -1548,8 +1568,13 @@ model DiligenciaConta {
   plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
   statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
   testeExpiraEm    DateTime?
-  assinaturaAte    DateTime?
-  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
+  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
+  bloqueadoEm     DateTime?
+  bloqueadoMotivo String?
+  assinaturaAte   DateTime?
+  saldoCredito    Decimal   @default(0) @db.Decimal(12, 2)
 
   asaasCustomerId     String?
   asaasSubscriptionId String?
@@ -1716,8 +1741,13 @@ model VerificacaoConta {
   plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
   statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
   testeExpiraEm    DateTime?
-  assinaturaAte    DateTime?
-  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
+  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
+  bloqueadoEm     DateTime?
+  bloqueadoMotivo String?
+  assinaturaAte   DateTime?
+  saldoCredito    Decimal   @default(0) @db.Decimal(12, 2)
 
   asaasCustomerId     String?
   asaasSubscriptionId String?
@@ -1854,8 +1884,13 @@ model AgroConta {
   plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
   statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
   testeExpiraEm    DateTime?
-  assinaturaAte    DateTime?
-  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
+  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
+  bloqueadoEm     DateTime?
+  bloqueadoMotivo String?
+  assinaturaAte   DateTime?
+  saldoCredito    Decimal   @default(0) @db.Decimal(12, 2)
 
   asaasCustomerId     String?
   asaasSubscriptionId String?
@@ -1920,8 +1955,8 @@ model AgroVigenciaNorma {
   retrato Json?
 
   /// Quando a consulta foi feita, e quando o estado de fato mudou.
-  conferidoEm DateTime @default(now())
-  alteradoEm  DateTime @default(now())
+  conferidoEm      DateTime @default(now())
+  alteradoEm       DateTime @default(now())
   /// Situação anterior, guardada para o aviso de mudança no painel.
   situacaoAnterior String?
 
@@ -2125,4 +2160,106 @@ model ClienteAssinatura {
 
   @@unique([clienteId, solucao])
   @@index([clienteId])
+}
+
+// =====================================================================
+// Administração da Blackbird
+//
+// Conta de dentro de casa, separada de tudo: não é cliente, não é conta
+// de solução. Tem poder total sobre o sistema — e por isso tudo o que ela
+// faz fica registrado numa tabela que o sistema nunca edita nem apaga.
+// =====================================================================
+
+model Administrador {
+  id String @id @default(cuid())
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  ativo        Boolean @default(true)
+
+  /// Segundo fator. Conta com acesso irrestrito sem 2FA é uma senha entre
+  /// o mundo e todos os dados de todos os clientes.
+  totpSegredo     String?
+  totpAtivado     Boolean   @default(false)
+  totpAtivadoEm   DateTime?
+  totpRecuperacao String?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  auditorias AdminAuditoria[]
+  acessos    AdminAcesso[]
+
+  @@index([email])
+}
+
+model AdminTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
+
+/// Tudo o que o administrador faz. Append-only: o sistema só escreve aqui,
+/// nunca edita nem apaga. Guarda nome e e-mail em cópia porque, se a conta
+/// do admin for removida um dia, o registro do que ele fez tem que continuar
+/// legível.
+model AdminAuditoria {
+  id              String         @id @default(cuid())
+  administradorId String?
+  administrador   Administrador? @relation(fields: [administradorId], references: [id], onDelete: SetNull)
+
+  administradorNome  String
+  administradorEmail String
+
+  /// LOGIN | LOGIN_FALHA | SAIR | VER | CRIAR | EDITAR | BLOQUEAR | DESBLOQUEAR |
+  /// EXCLUIR_DEFINITIVO | EXPORTAR | ACESSAR_COMO | ENCERRAR_ACESSO | CONFIGURAR
+  acao String
+
+  /// Em que solução a ação aconteceu, quando aplicável.
+  solucao  String?
+  alvoTipo String?
+  alvoId   String?
+  /// Frase pronta, em português, do que aconteceu — para a tela não precisar
+  /// remontar sentido a partir de códigos.
+  resumo   String
+
+  detalhe Json?
+  ip      String?
+  agente  String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([criadoEm])
+  @@index([administradorId, criadoEm])
+  @@index([solucao, criadoEm])
+  @@index([alvoTipo, alvoId])
+}
+
+/// Uma sessão de "entrar como o cliente". Existe para que esse poder nunca
+/// seja invisível: fica registrado quem entrou, em qual conta, quando entrou
+/// e quando saiu.
+model AdminAcesso {
+  id              String        @id @default(cuid())
+  administradorId String
+  administrador   Administrador @relation(fields: [administradorId], references: [id], onDelete: Cascade)
+
+  solucao      String
+  contaId      String
+  contaNome    String
+  usuarioId    String?
+  usuarioEmail String?
+
+  motivo String?
+
+  iniciadoEm  DateTime  @default(now())
+  encerradoEm DateTime?
+  ip          String?
+
+  @@index([administradorId, iniciadoEm])
+  @@index([solucao, contaId])
 }
