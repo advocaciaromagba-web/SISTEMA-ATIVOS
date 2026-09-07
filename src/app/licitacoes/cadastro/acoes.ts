@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { somenteAlfanumerico, validarDocumento, validarEmail } from "@/lib/validacao";
 import { configuracaoDaSolucao } from "@/lib/planos-solucao";
+import { registrarAceite } from "@/lib/contratos-solucao";
 
 export type ResultadoCadastro = { erro?: string };
 
@@ -44,7 +45,7 @@ export async function criarContaLicitacoes(_anterior: ResultadoCadastro, dados: 
   const { diasDeTeste } = await configuracaoDaSolucao("LICITACOES");
   const testeExpiraEm = new Date(Date.now() + diasDeTeste * 24 * 60 * 60 * 1000);
 
-  await prisma.licitacaoConta.create({
+  const contaCriada = await prisma.licitacaoConta.create({
     data: {
       tipo,
       nome,
@@ -59,6 +60,18 @@ export async function criarContaLicitacoes(_anterior: ResultadoCadastro, dados: 
       },
     },
   });
+
+  // Aceite do contrato DESTA solução, com a versão e a impressão digital do
+  // texto que estava publicado agora. Se ainda não houver contrato publicado,
+  // não registra nada — e o cadastro segue, porque a pendência é nossa.
+  await registrarAceite({
+    solucao: "LICITACOES",
+    contaId: contaCriada.id,
+    nome: nomeUsuario ?? nome,
+    email,
+    documento: documento || null,
+  });
+
 
   redirect("/licitacoes/entrar?cadastro=ok");
 }

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { somenteAlfanumerico, validarDocumento, validarEmail } from "@/lib/validacao";
 import { PRECO_CONSULTA } from "@/lib/serasa/fonte";
 import { configuracaoDaSolucao } from "@/lib/planos-solucao";
+import { registrarAceite } from "@/lib/contratos-solucao";
 
 export type ResultadoCadastro = { erro?: string };
 
@@ -43,7 +44,7 @@ export async function criarContaSerasa(_anterior: ResultadoCadastro, dados: Form
   const creditoDeTeste = PRECO_CONSULTA * consultasGratisTeste;
   const testeExpiraEm = new Date(Date.now() + diasDeTeste * 24 * 60 * 60 * 1000);
 
-  await prisma.serasaConta.create({
+  const contaCriada = await prisma.serasaConta.create({
     data: {
       tipo,
       nome,
@@ -57,6 +58,18 @@ export async function criarContaSerasa(_anterior: ResultadoCadastro, dados: Form
       },
     },
   });
+
+  // Aceite do contrato DESTA solução, com a versão e a impressão digital do
+  // texto que estava publicado agora. Se ainda não houver contrato publicado,
+  // não registra nada — e o cadastro segue, porque a pendência é nossa.
+  await registrarAceite({
+    solucao: "CONSULTA_CADASTRAL_SERASA",
+    contaId: contaCriada.id,
+    nome: nomeUsuario ?? nome,
+    email,
+    documento: documento || null,
+  });
+
 
   redirect("/serasa/entrar?cadastro=ok");
 }

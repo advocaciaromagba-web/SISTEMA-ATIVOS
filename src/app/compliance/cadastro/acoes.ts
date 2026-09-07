@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { somenteAlfanumerico, validarDocumento, validarEmail } from "@/lib/validacao";
 import { configuracaoDaSolucao } from "@/lib/planos-solucao";
+import { registrarAceite } from "@/lib/contratos-solucao";
 
 export type ResultadoCadastro = { erro?: string };
 
@@ -37,7 +38,7 @@ export async function criarContaCompliance(_anterior: ResultadoCadastro, dados: 
   const { diasDeTeste } = await configuracaoDaSolucao("COMPLIANCE_EMPRESA");
   const testeExpiraEm = new Date(Date.now() + diasDeTeste * 24 * 60 * 60 * 1000);
 
-  await prisma.complianceConta.create({
+  const contaCriada = await prisma.complianceConta.create({
     data: {
       tipo,
       nome,
@@ -52,6 +53,18 @@ export async function criarContaCompliance(_anterior: ResultadoCadastro, dados: 
       },
     },
   });
+
+  // Aceite do contrato DESTA solução, com a versão e a impressão digital do
+  // texto que estava publicado agora. Se ainda não houver contrato publicado,
+  // não registra nada — e o cadastro segue, porque a pendência é nossa.
+  await registrarAceite({
+    solucao: "COMPLIANCE_EMPRESA",
+    contaId: contaCriada.id,
+    nome: nomeUsuario ?? nome,
+    email,
+    documento: documento || null,
+  });
+
 
   redirect("/compliance/entrar?cadastro=ok");
 }

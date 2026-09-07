@@ -2415,3 +2415,78 @@ model ConfiguracaoSolucao {
   atualizadoEm  DateTime @updatedAt
   criadoEm      DateTime @default(now())
 }
+
+// =====================================================================
+// Contrato de cada solução
+//
+// Cada solução tem o seu, com versões. O texto de uma NÃO vale para outra:
+// quem assina o Agrojud não pode estar aceitando cláusulas sobre precatórios.
+// =====================================================================
+
+/// Uma versão do contrato de uma solução.
+///
+/// Versão publicada NÃO se edita — cria-se outra. Alterar o texto de algo que
+/// alguém já aceitou apaga a prova do que foi aceito, e é justamente essa
+/// prova que dá valor ao aceite.
+model ContratoSolucao {
+  id String @id @default(cuid())
+
+  solucao String
+  versao  Int
+
+  titulo   String
+  /// Texto integral. Uma linha em branco separa parágrafos; linhas iniciadas
+  /// por "## " viram títulos de seção.
+  conteudo String @db.Text
+
+  /// SHA-256 do conteúdo, calculado na publicação. É o que permite provar,
+  /// anos depois, que o texto aceito é este e não outro.
+  hashConteudo String?
+
+  publicado    Boolean   @default(false)
+  publicadoEm  DateTime?
+  publicadoPor String?
+
+  criadoPor String?
+  criadoEm  DateTime @default(now())
+  editadoEm DateTime @updatedAt
+
+  aceites AceiteContrato[]
+
+  @@unique([solucao, versao])
+  @@index([solucao, publicado])
+}
+
+/// Registro de que alguém aceitou uma versão específica do contrato.
+///
+/// Guarda cópia do nome, e-mail e documento porque o registro precisa
+/// continuar legível mesmo que a conta seja apagada depois — e guarda o hash
+/// do texto para o aceite não depender de a linha do contrato continuar
+/// existindo intacta.
+model AceiteContrato {
+  id String @id @default(cuid())
+
+  contratoId String
+  contrato   ContratoSolucao @relation(fields: [contratoId], references: [id], onDelete: Restrict)
+
+  solucao String
+  versao  Int
+
+  /// Conta da própria solução — não existe aceite "da plataforma".
+  contaId   String
+  usuarioId String?
+
+  nome      String
+  email     String
+  documento String?
+
+  hashConteudo String
+
+  ip     String?
+  agente String?
+
+  aceitoEm DateTime @default(now())
+
+  @@index([solucao, contaId])
+  @@index([contratoId])
+}
