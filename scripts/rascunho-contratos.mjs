@@ -38,9 +38,7 @@ ${objeto}`;
  * cláusula que mais protege a BLACKBIRD nessas soluções: quem escolhe consultar
  * e para quê é o contratante, e a base legal do tratamento é dele.
  */
-const DADOS_DE_TERCEIROS = `## 4. Consulta a dados de terceiros
-
-Nesta solução o CONTRATANTE consulta informações sobre pessoas e empresas que não são ele. Quem decide consultar, sobre quem e para qual finalidade é o CONTRATANTE.
+const DADOS_DE_TERCEIROS = `Nesta solução o CONTRATANTE consulta informações sobre pessoas e empresas que não são ele. Quem decide consultar, sobre quem e para qual finalidade é o CONTRATANTE.
 
 O CONTRATANTE declara que possui base legal para o tratamento desses dados (Lei nº 13.709/2018, arts. 7º e 11), responde pela finalidade da consulta e se obriga a não usar o resultado para fim discriminatório, vexatório ou ilícito.
 
@@ -48,75 +46,177 @@ A BLACKBIRD apenas executa a consulta às fontes e organiza o resultado. Não av
 
 Toda consulta fica registrada, com autor, data e alvo — inclusive para que o CONTRATANTE possa demonstrar, se questionado, o que consultou e quando.`;
 
-function corpoComum({ nome, numeroInicial = 4, comDadosDeTerceiros = false }) {
-  let n = numeroInicial;
-  const proximo = () => n++;
+/**
+ * Corpo comum a todos os contratos, na estrutura padrão de um contrato de
+ * SaaS: definições, licença, uso aceitável, conta, preço, prazo, garantias,
+ * dados e sigilo (com os operadores REAIS que o sistema usa, nomeados — não
+ * um "terceiros" genérico), disponibilidade, responsabilidade e indenização,
+ * propriedade intelectual, força maior, cessão, comunicações, disposições
+ * gerais, alterações e lei aplicável/foro.
+ *
+ * Cada solução entra só com a cláusula 1 (partes/objeto), 2 (o que entrega) e
+ * 3 (o que não faz) — que são as que de fato mudam de uma para outra. Daqui
+ * para baixo é a mesma base jurídica para todas, com o nome da solução
+ * interpolado onde precisa.
+ */
+/**
+ * Lista de operadores REAL de cada solução — conferida no código, não
+ * suposta. Cada linha só entra na cláusula de dados da solução que
+ * efetivamente usa aquele operador:
+ *
+ * - Anthropic (leitura por IA): Agrojud, Gestão de ativos, Verificação.
+ *   Não usado por Compliance, Licitações, Due diligence, Consulta cadastral.
+ * - Infosimples (mandado/improbidade, emissão de certidão): Gestão de ativos,
+ *   Due diligence (via motor-pessoa.ts, compartilhado), Verificação.
+ *   Não usado por Compliance/Licitações (motor-empresa.ts não o chama) nem
+ *   por Agrojud/Consulta cadastral.
+ * - SERASA (bureau direto): só a própria solução de Consulta cadastral.
+ */
+function listaDeOperadores({ usaIA = false, usaInfosimples = false, usaSerasa = false }) {
+  const linhas = [
+    "Railway, para hospedagem da aplicação e do banco de dados",
+    "Asaas Gestão Financeira S.A., para processamento de pagamento",
+    "Resend, para envio de e-mail transacional",
+  ];
+  if (usaInfosimples) linhas.push("Infosimples, para consulta a mandado de prisão, improbidade administrativa e emissão de certidão junto ao órgão emissor, quando aplicável");
+  if (usaSerasa) linhas.push("Serasa Experian, provedora do bureau de dados consultado");
+  if (usaIA) linhas.push("Anthropic, para leitura assistida por inteligência artificial dos documentos que o CONTRATANTE envia — o conteúdo enviado é processado por esse operador e não é usado para treinar modelo de terceiro");
 
-  const blocoTerceiros = comDadosDeTerceiros
-    ? DADOS_DE_TERCEIROS.replace("## 4.", `## ${proximo()}.`) + "\n\n"
-    : "";
+  const ultima = linhas.pop();
+  return linhas.length > 0 ? `${linhas.join("; ")}; e ${ultima}` : ultima;
+}
 
-  return `${blocoTerceiros}## ${proximo()}. Conta, acesso e uso
+/**
+ * Monta o corpo comum em DUAS passadas, para as referências cruzadas entre
+ * cláusulas ("na forma da cláusula X") apontarem para o número certo mesmo
+ * quando a cláusula de dados de terceiros desloca a numeração — o que
+ * acontece em 4 das 7 soluções. Referência cruzada escrita como número fixo
+ * foi tentada primeiro e ficava errada nessas 4; por isso a chave simbólica.
+ *
+ * 1ª passada: monta a lista de cláusulas (só as que entram, conforme as
+ * flags) e atribui o número de cada uma pela posição.
+ * 2ª passada: gera o texto de cada corpo, já podendo citar `numero.CHAVE`
+ * de qualquer outra cláusula da lista — inclusive uma que vem depois dela.
+ */
+function corpoComum({ nome, comDadosDeTerceiros = false, usaIA = false, usaInfosimples = false, usaSerasa = false }) {
+  const definicoes = [
+    { chave: "DEFINICOES", titulo: "Definições" },
+    { chave: "LICENCA", titulo: "Licença de uso" },
+    { chave: "USO_ACEITAVEL", titulo: "Uso aceitável" },
+    ...(comDadosDeTerceiros ? [{ chave: "TERCEIROS", titulo: "Consulta a dados de terceiros" }] : []),
+    { chave: "CONTA", titulo: "Conta, acesso e uso" },
+    { chave: "PRECO", titulo: "Preço, cobrança, reajuste e inadimplência" },
+    { chave: "PRAZO", titulo: "Prazo, cancelamento e efeitos" },
+    { chave: "GARANTIAS", titulo: "Garantias e isenção de garantias" },
+    { chave: "DADOS", titulo: "Dados pessoais, sigilo e operadores" },
+    { chave: "DISPONIBILIDADE", titulo: "Disponibilidade e suporte" },
+    { chave: "RESPONSABILIDADE", titulo: "Responsabilidade e indenização" },
+    { chave: "PROPRIEDADE", titulo: "Propriedade intelectual" },
+    { chave: "FORCA_MAIOR", titulo: "Força maior" },
+    { chave: "CESSAO", titulo: "Cessão" },
+    { chave: "COMUNICACOES", titulo: "Comunicações" },
+    { chave: "GERAIS", titulo: "Disposições gerais" },
+    { chave: "ALTERACOES", titulo: "Alterações deste contrato" },
+    { chave: "FORO", titulo: "Lei aplicável e foro" },
+  ];
 
-O acesso é pessoal e a senha é intransferível. O CONTRATANTE responde pelo uso feito com suas credenciais e deve comunicar imediatamente qualquer suspeita de acesso indevido.
+  // Cláusulas 1-3 (partes/objeto, entrega, o que não faz) já foram escritas
+  // fora desta função — a numeração daqui continua a partir da 4.
+  const numero = {};
+  definicoes.forEach((d, i) => (numero[d.chave] = i + 4));
 
-Esta conta é exclusiva da solução ${nome}. Outras soluções da BLACKBIRD, se contratadas, têm cadastro, preço e contrato próprios, sem qualquer vínculo com este.
+  const CORPOS = {
+    DEFINICOES: `Para este contrato: "BLACKBIRD" é a prestadora identificada no preâmbulo; "CONTRATANTE" é a pessoa física ou jurídica identificada no cadastro; "Serviço" é o acesso à solução ${nome}; "Conta" é o cadastro do CONTRATANTE na solução; "Plano" é o conjunto de recursos e o preço contratados, conforme a página de planos vigente na contratação; "Dados do Cliente" são as informações e os documentos que o CONTRATANTE insere no Serviço.`,
 
-## ${proximo()}. Preço, cobrança e reajuste
+    LICENCA: `A BLACKBIRD concede ao CONTRATANTE licença limitada, não exclusiva, intransferível e revogável para usar o Serviço durante a vigência da Conta, para as finalidades descritas na cláusula 2, nos termos da Lei nº 9.609/1998 (Lei do Software). Esta licença não inclui o código-fonte, e nenhuma outra forma de uso é autorizada além do acesso ao Serviço pela interface disponibilizada.`,
 
-O valor e a periodicidade são os informados na página de planos no momento da contratação, e ficam registrados no aceite.
+    USO_ACEITAVEL: `O CONTRATANTE não pode: fazer engenharia reversa, descompilar ou tentar extrair o código-fonte do Serviço; revender, sublicenciar ou ceder o acesso a terceiros; compartilhar credenciais entre pessoas ou contas; usar o Serviço para fim ilícito, discriminatório ou que viole direito de terceiro; tentar burlar limite técnico, de uso ou de segurança; ou extrair dados do Serviço em volume ou frequência incompatível com o uso individual normal (raspagem automatizada). O descumprimento autoriza a suspensão do acesso, na forma da cláusula ${numero.PRECO}.`,
 
-A cobrança é processada por instituição de pagamento contratada pela BLACKBIRD. A primeira cobrança ocorre ao fim do período de teste, quando houver.
+    TERCEIROS: DADOS_DE_TERCEIROS,
+
+    CONTA: `O acesso é pessoal e a senha é intransferível. O CONTRATANTE responde pelo uso feito com suas credenciais e deve comunicar imediatamente qualquer suspeita de acesso indevido.
+
+Esta Conta é exclusiva da solução ${nome}. Outras soluções da BLACKBIRD, se contratadas, têm cadastro, preço e contrato próprios, sem qualquer vínculo com este.`,
+
+    PRECO: `O valor e a periodicidade são os informados na página de planos no momento da contratação, e ficam registrados no aceite.
+
+A cobrança é processada pela Asaas Gestão Financeira S.A., instituição de pagamento contratada pela BLACKBIRD. A primeira cobrança ocorre ao fim do período de teste, quando houver.
 
 [DECIDIR: regra de reajuste — sugestão: anual, pelo IPCA ou índice que o substitua, com aviso prévio de 30 dias. Alteração de preço não atinge assinatura em curso.]
 
-## ${proximo()}. Prazo, cancelamento e efeitos
+O não pagamento na data de vencimento sujeita a Conta à suspensão do acesso após [DECIDIR: prazo de tolerância — sugestão: 5 dias] de atraso, mediante aviso prévio. Os Dados do Cliente são preservados durante a suspensão e pelo prazo da cláusula ${numero.DADOS}, mesmo com o acesso bloqueado.`,
 
-A contratação vigora por prazo indeterminado e pode ser cancelada a qualquer tempo pelo CONTRATANTE, pela própria plataforma, sem multa.
+    PRAZO: `A contratação vigora por prazo indeterminado e pode ser cancelada a qualquer tempo pelo CONTRATANTE, pela própria plataforma, sem multa.
 
 O cancelamento produz efeito ao fim do período já pago, e não gera devolução proporcional, salvo nas hipóteses legais.
 
-A BLACKBIRD pode encerrar a prestação em caso de descumprimento deste contrato ou de uso que viole a lei, mediante aviso e com prazo para regularização, exceto quando a gravidade exigir suspensão imediata.
+A BLACKBIRD pode encerrar a prestação em caso de descumprimento deste contrato ou de uso que viole a lei, mediante aviso e com prazo para regularização, exceto quando a gravidade exigir suspensão imediata.`,
 
-## ${proximo()}. Dados e sigilo
+    GARANTIAS: `A BLACKBIRD garante que o Serviço será prestado com a diligência normal da atividade e conforme descrito na cláusula 2.
 
-Os documentos e informações enviados pelo CONTRATANTE são tratados exclusivamente para executar o serviço contratado, nos termos da Lei nº 13.709/2018 (LGPD).
+Fora essa garantia, o Serviço é fornecido "no estado em que se encontra" ("as is"). A BLACKBIRD não garante que o Serviço atenderá a necessidade específica não descrita na cláusula 2, nem que resultado produzido por fonte externa consultada estará sempre correto ou atualizado — a responsabilidade por essas fontes é delas, conforme identificado em cada consulta.`,
 
-A BLACKBIRD atua como operadora quanto aos dados que o CONTRATANTE insere, e como controladora quanto aos dados cadastrais da própria conta.
+    DADOS: `Os Dados do Cliente são tratados exclusivamente para executar o Serviço, nos termos da Lei nº 13.709/2018 (LGPD). A BLACKBIRD atua como operadora quanto aos Dados do Cliente, e como controladora quanto aos dados cadastrais da própria Conta.
 
-Os dados não são vendidos nem compartilhados com terceiros, ressalvados: os operadores necessários à prestação (hospedagem, pagamento e, quando aplicável, leitura assistida por inteligência artificial) e as hipóteses de obrigação legal ou ordem judicial.
+Cada parte se obriga a manter sigilo sobre informação confidencial da outra de que tenha conhecimento em razão deste contrato, e a usá-la apenas para a execução dele. Esta obrigação sobrevive ao término do contrato pelo prazo de 2 (dois) anos.
+
+Os Dados do Cliente não são vendidos. Para executar o Serviço, a BLACKBIRD utiliza os seguintes operadores: ${listaDeOperadores({ usaIA, usaInfosimples, usaSerasa })}.
+
+${
+  usaIA || usaSerasa
+    ? "Railway" +
+      (usaIA ? " e Anthropic" : "") +
+      (usaSerasa ? ", e eventualmente o bureau consultado," : "") +
+      " processam dados em servidores que podem estar localizados fora do Brasil. Essa transferência internacional observa as garantias do art. 33 da LGPD, e a BLACKBIRD permanece responsável pelo tratamento perante o CONTRATANTE."
+    : "Railway processa dados em servidores que podem estar localizados fora do Brasil. Essa transferência internacional observa as garantias do art. 33 da LGPD, e a BLACKBIRD permanece responsável pelo tratamento perante o CONTRATANTE."
+}
 
 Registros de acesso são mantidos pelo prazo do art. 15 da Lei nº 12.965/2014 (Marco Civil da Internet).
 
-Encerrado o contrato, o CONTRATANTE pode solicitar a exportação dos seus dados. [DECIDIR: prazo de guarda após o encerramento — sugestão: 90 dias para exportação, depois eliminação, ressalvado o que a lei obrigue a manter.]
+Encerrado o contrato, o CONTRATANTE pode solicitar a exportação dos seus dados. [DECIDIR: prazo de guarda após o encerramento — sugestão: 90 dias para exportação, depois eliminação, ressalvado o que a lei obrigue a manter.]`,
 
-## ${proximo()}. Disponibilidade
+    DISPONIBILIDADE: `A BLACKBIRD empenha-se em manter o Serviço disponível, mas não garante funcionamento ininterrupto nem firma, neste contrato, compromisso formal de nível de serviço (SLA). Manutenções programadas serão avisadas com antecedência sempre que possível.
 
-A BLACKBIRD empenha-se em manter o serviço disponível, mas não garante funcionamento ininterrupto. Manutenções programadas serão avisadas com antecedência sempre que possível.
+Indisponibilidade de fonte externa consultada pelo Serviço não é falha da BLACKBIRD, e o sistema informa quando isso ocorre em vez de devolver resultado incompleto sem aviso.
 
-Indisponibilidade de fonte externa consultada pelo serviço não é falha da BLACKBIRD, e o sistema informa quando isso ocorre em vez de devolver resultado incompleto sem aviso.
+O suporte é prestado pelos canais indicados na plataforma, em dias úteis. [DECIDIR: se a BLACKBIRD quiser se comprometer com prazo de resposta, informe aqui — por exemplo, "resposta em até 2 dias úteis".]`,
 
-## ${proximo()}. Responsabilidade
+    RESPONSABILIDADE: `A BLACKBIRD responde pelos danos diretos comprovadamente causados por falha do Serviço.
 
-A BLACKBIRD responde pelos danos diretos comprovadamente causados por falha do serviço.
+[DECIDIR: limitação de responsabilidade. Sugestão comum em SaaS: limite ao valor pago nos 12 meses anteriores ao evento, excluídos lucros cessantes e danos indiretos. ATENÇÃO: se a relação for de consumo, cláusula que exonere ou atenue responsabilidade é nula (CDC, art. 51, I) — e parte dos assinantes pode ser profissional autônomo. Convém decidir se o contrato assume relação empresarial, de consumo, ou traz redação que funcione nos dois casos.]
 
-[DECIDIR: limitação de responsabilidade. Sugestão comum em SaaS: limite ao valor pago nos 12 meses anteriores ao evento. ATENÇÃO: se a relação for de consumo, cláusula que exonere ou atenue responsabilidade é nula (CDC, art. 51, I) — e parte dos assinantes pode ser profissional autônomo. Convém decidir se o contrato assume relação empresarial, de consumo, ou traz redação que funcione nos dois casos.]
+A BLACKBIRD não responde por decisão tomada pelo CONTRATANTE com base no material produzido pelo Serviço, cuja conferência é obrigação dele, conforme a cláusula 3.
 
-A BLACKBIRD não responde por decisão tomada pelo CONTRATANTE com base no material produzido pela ferramenta, cuja conferência é obrigação dele, conforme a cláusula 3.
+O CONTRATANTE se obriga a indenizar a BLACKBIRD por perdas decorrentes de uso do Serviço em violação a este contrato ou à lei, inclusive por reclamação de terceiro motivada por dado que o próprio CONTRATANTE inseriu ou por consulta que ele decidiu fazer.`,
 
-## ${proximo()}. Propriedade intelectual
+    PROPRIEDADE: `O software, a marca e a estrutura da plataforma pertencem à BLACKBIRD. O conteúdo enviado pelo CONTRATANTE continua sendo dele, e o material produzido a partir dele é dele.`,
 
-O software, a marca e a estrutura da plataforma pertencem à BLACKBIRD. O conteúdo enviado pelo CONTRATANTE continua sendo dele, e o material produzido a partir dele é dele.
+    FORCA_MAIOR: `Nenhuma das partes responde por atraso ou falha decorrente de evento alheio à sua vontade e que não poderia razoavelmente evitar, incluindo falha de infraestrutura de internet, de energia elétrica, de fornecedor de hospedagem ou de pagamento, determinação governamental, e caso fortuito ou força maior (Código Civil, art. 393).`,
 
-## ${proximo()}. Alterações deste contrato
+    CESSAO: `Nenhuma das partes pode ceder este contrato a terceiro sem o consentimento da outra, exceto a BLACKBIRD em caso de reorganização societária, fusão, cisão ou incorporação, mediante aviso prévio ao CONTRATANTE.`,
 
-Alterações valem para o futuro e são publicadas como nova versão, identificada por número e impressão digital do texto. O CONTRATANTE é avisado e, se não concordar, pode cancelar sem ônus antes do início da vigência.
+    COMUNICACOES: `As comunicações entre as partes são válidas quando feitas para o e-mail cadastrado na Conta ou pelos canais indicados na plataforma. Cabe ao CONTRATANTE manter seu e-mail de cadastro atualizado.`,
 
-Este contrato não é alterado por acordo verbal.
+    GERAIS: `Este contrato, junto com a página de planos vigente e a política de privacidade da plataforma, constitui o acordo integral entre as partes sobre o Serviço, substituindo entendimentos anteriores sobre o mesmo objeto.
 
-## ${proximo()}. Foro
+A tolerância de uma parte quanto ao descumprimento da outra não implica renúncia ao direito de exigi-lo depois.
 
-[DECIDIR: foro. Sugestão: comarca de Guariba/SP, sede da BLACKBIRD, ressalvado o direito do consumidor de demandar no foro do seu domicílio (CDC, art. 101, I), quando a relação for de consumo.]`;
+Se alguma cláusula deste contrato for considerada inválida, as demais permanecem em vigor.
+
+Nenhuma disposição deste contrato cria entre as partes relação de sociedade, mandato, emprego ou representação — cada uma responde por seus próprios atos e obrigações.
+
+As cláusulas sobre propriedade intelectual (cláusula ${numero.PROPRIEDADE}), sigilo (cláusula ${numero.DADOS}) e responsabilidade (cláusula ${numero.RESPONSABILIDADE}) sobrevivem ao término deste contrato.`,
+
+    ALTERACOES: `Alterações valem para o futuro e são publicadas como nova versão, identificada por número e impressão digital do texto. O CONTRATANTE é avisado e, se não concordar, pode cancelar sem ônus antes do início da vigência.
+
+Este contrato não é alterado por acordo verbal.`,
+
+    FORO: `Este contrato é regido pela lei brasileira.
+
+[DECIDIR: foro. Sugestão: comarca de Guariba/SP, sede da BLACKBIRD, ressalvado o direito do consumidor de demandar no foro do seu domicílio (CDC, art. 101, I), quando a relação for de consumo.]`,
+  };
+
+  return definicoes.map((d) => `## ${numero[d.chave]}. ${d.titulo}\n\n${CORPOS[d.chave]}`).join("\n\n");
 }
 
 const CONTRATOS = {
@@ -144,7 +244,7 @@ A BLACKBIRD não garante resultado administrativo ou judicial, não representa o
 
 A Medida Provisória nº 1.376/2026 tem prazo de vigência e pode ser convertida em lei com texto alterado, prorrogada ou perder eficácia. O sistema acompanha essa situação em fonte oficial e a exibe, mas cabe ao CONTRATANTE conferir a norma vigente na data de uso.
 
-${corpoComum({ nome: "Agrojud" })}`,
+${corpoComum({ nome: "Agrojud", usaIA: true })}`,
   },
 
   COMPLIANCE_EMPRESA: {
@@ -196,7 +296,7 @@ O resultado retrata o que as fontes registravam na data da consulta. Não é ate
 
 A BLACKBIRD não é escritório de advocacia e não presta consultoria jurídica (Lei nº 8.906/1994).
 
-${corpoComum({ nome: "Due diligence de pessoas", comDadosDeTerceiros: true })}`,
+${corpoComum({ nome: "Due diligence de pessoas", comDadosDeTerceiros: true, usaInfosimples: true })}`,
   },
 
   VERIFICACAO_DOCUMENTOS: {
@@ -221,7 +321,7 @@ A leitura por inteligência artificial é auxiliar: extrai um rascunho dos dados
 
 A reemissão automática cobre apenas as certidões e os órgãos listados no catálogo vigente, e depende de contrato de integração em vigor.
 
-${corpoComum({ nome: "Verificação de documentos" })}`,
+${corpoComum({ nome: "Verificação de documentos", usaIA: true, usaInfosimples: true })}`,
   },
 
   LICITACOES: {
@@ -275,7 +375,7 @@ A BLACKBIRD não intermedeia a compra, a venda ou a cessão de ativos, não aval
 
 A decisão de contratar, ceder, adquirir ou pagar é exclusivamente do CONTRATANTE.
 
-${corpoComum({ nome: "Gestão de ativos e operações" })}`,
+${corpoComum({ nome: "Gestão de ativos e operações", usaIA: true, usaInfosimples: true })}`,
   },
 
   CONSULTA_CADASTRAL_SERASA: {
@@ -304,11 +404,11 @@ O resultado não é atestado de idoneidade nem previsão de comportamento futuro
 
 A BLACKBIRD não é escritório de advocacia e não presta consultoria jurídica (Lei nº 8.906/1994).
 
-${corpoComum({ nome: "Consulta cadastral", comDadosDeTerceiros: true })}`,
+${corpoComum({ nome: "Consulta cadastral", comDadosDeTerceiros: true, usaSerasa: true })}`,
   },
 };
 
-async function criarRascunho(chave) {
+async function criarRascunho(chave, { substituir }) {
   const modelo = CONTRATOS[chave];
   if (!modelo) {
     console.log(`  ${chave}: sem rascunho pronto`);
@@ -316,8 +416,20 @@ async function criarRascunho(chave) {
   }
 
   const rascunho = await prisma.contratoSolucao.findFirst({ where: { solucao: chave, publicado: false } });
+  const decidir = (modelo.conteudo.match(/\[DECIDIR/g) || []).length;
+
   if (rascunho) {
-    console.log(`  ${chave}: já existe rascunho (versão ${rascunho.versao}) — nada alterado`);
+    if (!substituir) {
+      console.log(`  ${chave}: já existe rascunho (versão ${rascunho.versao}) — nada alterado (use --substituir para atualizar o texto)`);
+      return;
+    }
+    // Atualiza o rascunho no lugar, mesma versão: como nada foi publicado
+    // ainda, não existe aceite vinculado a ele, então não há prova a preservar.
+    await prisma.contratoSolucao.update({
+      where: { id: rascunho.id },
+      data: { titulo: modelo.titulo, conteudo: modelo.conteudo.trim() },
+    });
+    console.log(`  ${chave}: rascunho da versão ${rascunho.versao} SUBSTITUÍDO · ${decidir} ponto(s) marcado(s) com [DECIDIR:]`);
     return;
   }
 
@@ -328,14 +440,16 @@ async function criarRascunho(chave) {
     data: { solucao: chave, versao, titulo: modelo.titulo, conteudo: modelo.conteudo.trim(), criadoPor: "rascunho-contratos" },
   });
 
-  const decidir = (modelo.conteudo.match(/\[DECIDIR/g) || []).length;
   console.log(`  ${chave}: rascunho da versão ${versao} criado · ${decidir} ponto(s) marcado(s) com [DECIDIR:]`);
 }
 
 async function principal() {
   const argumentos = process.argv.slice(2);
   const todas = argumentos.includes("--todas");
-  const alvos = todas ? Object.keys(CONTRATOS) : argumentos.map((a) => a.toUpperCase()).filter((a) => a !== "--TODAS");
+  const substituir = argumentos.includes("--substituir");
+  const alvos = todas
+    ? Object.keys(CONTRATOS)
+    : argumentos.map((a) => a.toUpperCase()).filter((a) => a !== "--TODAS" && a !== "--SUBSTITUIR");
 
   if (alvos.length === 0) {
     console.error(`\nInforme a solução, ou use --todas.\nDisponíveis: ${Object.keys(CONTRATOS).join(", ")}\n`);
@@ -344,7 +458,7 @@ async function principal() {
   }
 
   console.log("\n=== Rascunhos de contrato ===\n");
-  for (const chave of alvos) await criarRascunho(chave);
+  for (const chave of alvos) await criarRascunho(chave, { substituir });
 
   console.log("\nNENHUM está publicado: ninguém aceita nada até você revisar e publicar.");
   console.log("Revise em /admin/painel/contratos — procure os trechos marcados com [DECIDIR:].\n");
