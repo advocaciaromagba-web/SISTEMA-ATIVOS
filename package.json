@@ -20,7 +20,8 @@
     "setup": "npm install && npx prisma db push && npm run db:seed",
     "admin:criar": "node scripts/criar-admin.mjs",
     "ia:chave": "node scripts/definir-chave-ia.mjs",
-    "planos:semear": "node --import ./node_modules/sucrase/register/ts.js scripts/semear-planos.mjs"
+    "planos:semear": "node --import ./node_modules/sucrase/register/ts.js scripts/semear-planos.mjs",
+    "contratos:rascunho": "node scripts/rascunho-contratos.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
