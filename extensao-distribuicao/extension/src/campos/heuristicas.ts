@@ -149,6 +149,8 @@ const PROVAS_DE_QUALIFICACAO = [
   "inscrit[oa]",
   "pessoa\\s+jur[ií]dica",
   "pessoa\\s+f[íi]sica",
+  "institui[çc][ãa]o\\s+financeira",
+  "sociedade\\s+empres[áa]ria",
   "residente",
   "domiciliad[oa]",
   "estabelecimento",
@@ -181,6 +183,111 @@ function extrairNomesPorRotulo(texto: string, rotulos: string[]): string[] {
   return dedupe(nomes);
 }
 
+// Palavras que só aparecem no endereçamento ("EXCELENTÍSSIMO ... JUIZ DE
+// DIREITO DA VARA CÍVEL DA COMARCA DE X, ESTADO DE Y") e nunca fazem
+// parte do nome de uma parte. Servem de parede: ao ler o nome de trás pra
+// frente, a leitura para na última delas. Inclui os estados porque o
+// endereçamento quase sempre termina em "ESTADO DE <estado>", e o nome da
+// parte vem logo depois.
+const PALAVRAS_DE_CABECALHO = [
+  "excelent[íi]ssim[oa]",
+  "senhor[a]?",
+  "doutor[a]?",
+  "ju[íi]z[ao]?",
+  "ju[íi]zo",
+  "meirit[íi]ssim[oa]",
+  "direito",
+  "trabalho",
+  "vara",
+  "comarca",
+  "foro",
+  "subse[çc][ãa]o",
+  "se[çc][ãa]o",
+  "judici[áa]ria",
+  "tribunal",
+  "estado",
+  "c[íi]vel",
+  "criminal",
+  "federal",
+  "justi[çc]a",
+  "turma",
+  "c[âa]mara",
+  "fam[íi]lia",
+  "regional",
+  "distrital",
+  "rio\\s+grande\\s+do\\s+norte",
+  "rio\\s+grande\\s+do\\s+sul",
+  "mato\\s+grosso\\s+do\\s+sul",
+  "mato\\s+grosso",
+  "minas\\s+gerais",
+  "esp[íi]rito\\s+santo",
+  "rio\\s+de\\s+janeiro",
+  "s[ãa]o\\s+paulo",
+  "santa\\s+catarina",
+  "distrito\\s+federal",
+  "pernambuco",
+  "tocantins",
+  "rond[ôo]nia",
+  "maranh[ãa]o",
+  "para[íi]ba",
+  "paran[áa]",
+  "amazonas",
+  "roraima",
+  "sergipe",
+  "alagoas",
+  "cear[áa]",
+  "amap[áa]",
+  "bahia",
+  "goi[áa]s",
+  "piau[íi]",
+  "acre",
+  "par[áa]",
+];
+
+const REGEX_CABECALHO = new RegExp(`\\b(?:${PALAVRAS_DE_CABECALHO.join("|")})\\b`, "gi");
+
+// Nome próprio: palavras que começam com maiúscula, com conectores em
+// minúscula no meio ("de", "da", "dos", "e"). SEM a flag "i" de propósito
+// — é a maiúscula que distingue "JOSÉ ARINALDO DE OLIVEIRA" de um pedaço
+// de frase comum como "inscrito no CPF sob o nº".
+const REGEX_NOME_NO_FIM = /(?:[A-ZÀ-Ú][A-ZÀ-Úa-zà-ú'.-]*)(?:\s+(?:d[aeo]s?|e|[A-ZÀ-Ú][A-ZÀ-Úa-zà-ú'.-]*))*$/;
+
+function nomeAntesDaProva(anterior: string): string {
+  // Corta tudo até a última palavra de cabeçalho — o nome da parte vem
+  // depois dela.
+  REGEX_CABECALHO.lastIndex = 0;
+  let corte = 0;
+  let ocorrencia: RegExpExecArray | null;
+  while ((ocorrencia = REGEX_CABECALHO.exec(anterior)) !== null) {
+    corte = ocorrencia.index + ocorrencia[0].length;
+  }
+  let trecho = anterior.slice(corte);
+  // Depois de "COMARCA"/"VARA"/"FORO" sobra o "de <lugar>" — que também
+  // não é nome de parte.
+  if (corte > 0) trecho = trecho.replace(/^\s*d[aeo]s?\s+[A-ZÀ-Ú][A-ZÀ-Úa-zà-ú'.-]*/, "");
+
+  const achado = REGEX_NOME_NO_FIM.exec(trecho.trimEnd());
+  return achado ? normalizarEspacos(achado[0]) : "";
+}
+
+/** Muita petição não põe rótulo nenhum antes do nome: emenda o nome direto
+ * depois do endereçamento ("...COMARCA DE X, ESTADO DE Y FULANO DE TAL,
+ * brasileiro, ... CPF ...") e só atribui o papel bem depois ("doravante
+ * denominados simplesmente AUTORES"). Aqui a âncora é a prova de
+ * qualificação (", brasileiro", ", inscrito no CPF"...) e o nome é lido de
+ * trás pra frente a partir dela. Serve de reserva para quando a busca por
+ * rótulo não achar nada. */
+function extrairNomesSemRotulo(texto: string): string[] {
+  const nomes: string[] = [];
+  const regexProva = new RegExp(`,\\s*(?:${PROVAS_DE_QUALIFICACAO.join("|")})`, "gi");
+  let correspondencia: RegExpExecArray | null;
+  while ((correspondencia = regexProva.exec(texto)) !== null) {
+    const nome = nomeAntesDaProva(texto.slice(0, correspondencia.index));
+    if (nome.length >= 5 && nome.includes(" ")) nomes.push(nome);
+  }
+  return dedupe(nomes);
+}
+
 // Numa petição inicial, autor e requerido só aparecem de forma confiável
 // no início do documento — no endereçamento e na qualificação das partes,
 // antes de "DOS FATOS". Depois disso, as mesmas palavras voltam o tempo
@@ -208,6 +315,26 @@ function zonaDeQualificacao(texto: string): string {
 
 export function extrairCandidatos(texto: string): CandidatosExtraidos {
   const zona = zonaDeQualificacao(texto);
+
+  // "em face de" marca a virada do polo ativo para o passivo na petição
+  // ("... propor a presente AÇÃO X em face de FULANO, ..."). Serve tanto
+  // de rótulo do réu quanto de fronteira: o que vem antes disso é
+  // qualificação de quem propõe.
+  const indiceEmFaceDe = zona.search(/\bem\s+face\s+d[eo]\b/i);
+  const zonaDoAutor = indiceEmFaceDe === -1 ? zona : zona.slice(0, indiceEmFaceDe);
+
+  // Formas no singular e no plural (a petição pode escrever "OS
+  // REQUERENTES" ou "O REQUERENTE"), e os termos próprios de mandado de
+  // segurança/ação mandamental (impetrante/impetrado/autoridade coatora),
+  // bem comuns e diferentes de "requerente/requerido".
+  const nomesRequerentePorRotulo = extrairNomesPorRotulo(zona, [
+    "requerentes?",
+    "autor(?:a|as|es)?",
+    "exequentes?",
+    "reclamantes?",
+    "impetrantes?",
+  ]);
+
   return {
     cpfs: extrairCpfs(zona),
     cnpjs: extrairCnpjs(zona),
@@ -216,11 +343,12 @@ export function extrairCandidatos(texto: string): CandidatosExtraidos {
     numeroProcessoCnj: extrairNumeroProcessoCnj(texto),
     valorCausa: extrairValorCausa(texto),
     competencia: extrairCompetencia(texto),
-    // Formas no singular e no plural (a petição pode escrever "OS
-    // REQUERENTES" ou "O REQUERENTE"), e os termos próprios de mandado de
-    // segurança/ação mandamental (impetrante/impetrado/autoridade coatora),
-    // bem comuns e diferentes de "requerente/requerido".
-    nomesRequerente: extrairNomesPorRotulo(zona, ["requerentes?", "autor(?:a|as|es)?", "exequentes?", "reclamantes?", "impetrantes?"]),
+    // Sem rótulo antes do nome (padrão comum: o papel só é atribuído
+    // depois, com "doravante denominados simplesmente AUTORES"), cai na
+    // busca por posição, limitada ao trecho anterior ao "em face de" para
+    // não confundir o autor com o réu.
+    nomesRequerente:
+      nomesRequerentePorRotulo.length > 0 ? nomesRequerentePorRotulo : extrairNomesSemRotulo(zonaDoAutor),
     nomesRequerido: extrairNomesPorRotulo(zona, [
       "requerid[oa]s?",
       "r[eé]us?",
@@ -228,6 +356,7 @@ export function extrairCandidatos(texto: string): CandidatosExtraidos {
       "reclamados?",
       "impetrados?",
       "autoridade\\s+coatora",
+      "em\\s+face\\s+d[eo]",
     ]),
   };
 }
