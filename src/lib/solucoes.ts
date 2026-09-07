@@ -231,6 +231,37 @@ export const SOLUCOES: Solucao[] = [
       "Ainda não está no ar — falta o contrato com o SERASA. O cadastro, o login e o crédito pré-pago já " +
       "funcionam; a consulta em si passa a responder assim que a integração for ligada.",
   },
+
+  {
+    chave: "AGROJUD",
+    nome: "Agrojud",
+    resumo: "Análise de contrato de crédito rural: enquadramento na MP 1.376/2026, taxas, garantias e seguro.",
+    paraQuem:
+      "Advogado que atende produtor rural em renegociação de dívida — precisa saber, contrato por contrato, se " +
+      "há enquadramento como crédito rural, se atende a MP do alongamento e o que falta para atender.",
+    entrada: [
+      "Os dados do contrato (ou o PDF, para leitura assistida por IA quando configurada)",
+      "Perdas de safra, laudo técnico, taxas, garantias, avalistas e apólice de seguro rural, quando houver",
+    ],
+    entrega: [
+      "Enquadramento como crédito rural, com a finalidade classificada (custeio, investimento, comercialização, industrialização)",
+      "Checklist de enquadramento na MP nº 1.376/2026, artigo por artigo, com o que atende e o que falta",
+      "Modalidade elegível (geral ou favorecida) e as condições que se aplicam: limite, taxa, prazo e carência",
+      "Análise de taxas, garantias aportadas e avalistas",
+      "Análise de seguro rural: se consta e quais as coberturas",
+      "Apontamento de riscos e de potencial desequilíbrio contratual, para revisão ou anulação",
+    ],
+    fontes: [
+      "Lei nº 4.829/65 — institucionaliza o crédito rural",
+      "Medida Provisória nº 1.376, de 15 de julho de 2026 — texto oficial (Senado Federal)",
+    ],
+    estado: "PARCIAL",
+    limite:
+      "O enquadramento é decidido por regras fixas, direto do texto da lei — nunca pela IA. A leitura automática " +
+      "do PDF depende de ANTHROPIC_API_KEY configurada; sem ela, o preenchimento é manual. A MP 1.376/2026 é " +
+      "recente e tem prazo de vigência: confira se ainda está em vigor, foi convertida em lei ou perdeu eficácia " +
+      "antes de aplicar a um caso novo. O sistema não substitui a leitura do texto legal pelo advogado.",
+  },
 ];
 
 export function solucao(chave: string): Solucao | undefined {

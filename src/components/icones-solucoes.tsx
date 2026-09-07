@@ -98,6 +98,19 @@ export function IconeFichaCadastral({ className = "" }: Props) {
   );
 }
 
+export function IconeTrigo({ className = "" }: Props) {
+  return (
+    <svg viewBox="0 0 24 24" className={`${base} ${className}`} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 21V9" />
+      <path d="M12 9c0-3 1.5-5 4-6.5C15.5 5 14 7 12 9" />
+      <path d="M12 9c0-3-1.5-5-4-6.5C8.5 5 10 7 12 9" />
+      <path d="M12 13c0-2.2 1.2-3.7 3-4.8C14.2 10.6 13.2 12 12 13" />
+      <path d="M12 13c0-2.2-1.2-3.7-3-4.8C9.8 10.6 10.8 12 12 13" />
+      <path d="M8 21h8" />
+    </svg>
+  );
+}
+
 export const ICONE_SOLUCAO: Record<string, (props: Props) => JSX.Element> = {
   COMPLIANCE_EMPRESA: IconePredio,
   DILIGENCIA_PESSOA: IconePessoa,
@@ -105,4 +118,5 @@ export const ICONE_SOLUCAO: Record<string, (props: Props) => JSX.Element> = {
   LICITACOES: IconeMartelo,
   GESTAO_ATIVOS: IconeAtivos,
   CONSULTA_CADASTRAL_SERASA: IconeFichaCadastral,
+  AGROJUD: IconeTrigo,
 };

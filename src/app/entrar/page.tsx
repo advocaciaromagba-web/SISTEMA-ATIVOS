@@ -20,6 +20,7 @@ const SOLUCOES_ACESSO = [
   { chave: "LICITACOES" as const, nome: "Análise de licitações", entrar: "/licitacoes/entrar", cadastro: "/licitacoes/cadastro" },
   { chave: "GESTAO_ATIVOS" as const, nome: "Gestão de ativos e operações", entrar: "/login", cadastro: "/cadastro" },
   { chave: "CONSULTA_CADASTRAL_SERASA" as const, nome: "Consulta cadastral", entrar: "/serasa/entrar", cadastro: "/serasa/cadastro" },
+  { chave: "AGROJUD" as const, nome: "Agrojud", entrar: "/agrojud/entrar", cadastro: "/agrojud/cadastro" },
 ] as const;
 
 const ESTADO_POR_CHAVE: Record<(typeof SOLUCOES_ACESSO)[number]["chave"], keyof typeof ROTULO_ESTADO> = {
@@ -29,6 +30,7 @@ const ESTADO_POR_CHAVE: Record<(typeof SOLUCOES_ACESSO)[number]["chave"], keyof 
   LICITACOES: "PARCIAL",
   GESTAO_ATIVOS: "DISPONIVEL",
   CONSULTA_CADASTRAL_SERASA: "EM_CONSTRUCAO",
+  AGROJUD: "PARCIAL",
 };
 
 export default function EscolherSolucaoParaEntrar() {

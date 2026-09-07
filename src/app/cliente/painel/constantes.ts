@@ -7,4 +7,5 @@ export const PAINEL_DA_SOLUCAO: Record<string, string> = {
   CONSULTA_CADASTRAL_SERASA: "/serasa/painel",
   DILIGENCIA_PESSOA: "/diligencia/painel",
   VERIFICACAO_DOCUMENTOS: "/verificacao/painel",
+  AGROJUD: "/agrojud/painel",
 };

@@ -57,6 +57,10 @@ const CONFIGS: Record<string, ConfigSolucao> = {
     cookieName: "verificacao.session-token",
     campos: (u) => ({ verificacaoContaId: u.verificacaoContaId, papel: u.papel }),
   },
+  AGROJUD: {
+    cookieName: "agro.session-token",
+    campos: (u) => ({ agroContaId: u.agroContaId, papel: u.papel }),
+  },
 };
 
 export function solucaoTemSso(solucao: string): boolean {

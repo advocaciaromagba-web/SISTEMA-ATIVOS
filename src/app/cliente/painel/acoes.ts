@@ -152,6 +152,26 @@ export async function criarOuReativarContaDaSolucao(
       });
       return;
     }
+    case "AGROJUD": {
+      const existente = await prisma.agroUsuario.findUnique({ where: { email: cliente.email } });
+      if (existente) {
+        await prisma.agroUsuario.update({ where: { id: existente.id }, data: { ativo: true } });
+        await prisma.agroConta.update({ where: { id: existente.agroContaId }, data: { ativa: true } });
+        return;
+      }
+      await prisma.agroConta.create({
+        data: {
+          tipo: "PJ",
+          nome: cliente.nome,
+          formaCobranca: "ASSINATURA",
+          plano: "TESTE",
+          statusAssinatura: "TESTE",
+          testeExpiraEm,
+          usuarios: { create: { nome: cliente.nome, email: cliente.email, passwordHash: cliente.passwordHash, papel: "DONO" } },
+        },
+      });
+      return;
+    }
   }
 }
 
@@ -174,6 +194,9 @@ export async function desativarContaDaSolucao(solucao: string, email: string): P
       return;
     case "CONSULTA_CADASTRAL_SERASA":
       await prisma.serasaUsuario.updateMany({ where: { email }, data: { ativo: false } });
+      return;
+    case "AGROJUD":
+      await prisma.agroUsuario.updateMany({ where: { email }, data: { ativo: false } });
       return;
   }
 }
@@ -212,6 +235,11 @@ export async function ativarPlanoPagoDaSolucao(solucao: string, email: string, p
       if (usuario) await prisma.verificacaoConta.update({ where: { id: usuario.verificacaoContaId }, data: dados });
       return;
     }
+    case "AGROJUD": {
+      const usuario = await prisma.agroUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.agroConta.update({ where: { id: usuario.agroContaId }, data: dados });
+      return;
+    }
   }
 }
 
@@ -243,6 +271,11 @@ export async function marcarInadimplenteDaSolucao(solucao: string, email: string
       if (usuario) await prisma.verificacaoConta.update({ where: { id: usuario.verificacaoContaId }, data: { statusAssinatura: "INADIMPLENTE" } });
       return;
     }
+    case "AGROJUD": {
+      const usuario = await prisma.agroUsuario.findUnique({ where: { email } });
+      if (usuario) await prisma.agroConta.update({ where: { id: usuario.agroContaId }, data: { statusAssinatura: "INADIMPLENTE" } });
+      return;
+    }
   }
 }
 
@@ -262,6 +295,8 @@ async function buscarUsuarioDaSolucao(solucao: string, email: string): Promise<U
       return prisma.verificacaoUsuario.findFirst({ where: { email, ativo: true } });
     case "CONSULTA_CADASTRAL_SERASA":
       return prisma.serasaUsuario.findFirst({ where: { email, ativo: true } });
+    case "AGROJUD":
+      return prisma.agroUsuario.findFirst({ where: { email, ativo: true } });
     default:
       return null;
   }

@@ -1819,6 +1819,191 @@ model VerificacaoDocumento {
 }
 
 // ---------------------------------------------------------------------
+// AGROJUD — nona solucao, isolada das demais. Analisa contrato de credito
+// rural: se e credito rural de verdade, se se enquadra na MP 1.376/2026
+// (o que atende, o que falta, com o artigo de cada requisito), taxas,
+// garantias, avalistas, riscos e se ha seguro rural com quais coberturas.
+//
+// O motor de enquadramento (src/lib/agro/mp1376.ts e credito-rural.ts) e
+// codigo deterministico, nao IA — os limites, taxas e prazos da MP vem
+// direto do texto oficial. A IA (quando configurada) so ajuda a extrair os
+// fatos do PDF pro formulario; nada que ela le vira parecer sem revisao
+// humana antes.
+// ---------------------------------------------------------------------
+
+model AgroConta {
+  id String @id @default(cuid())
+
+  tipo        String // PF | PJ
+  nome        String
+  razaoSocial String?
+  documento   String?
+
+  emailContato String?
+  telefone     String?
+
+  enderecoRua         String?
+  enderecoNumero      String?
+  enderecoComplemento String?
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  enderecoCep         String?
+
+  formaCobranca    String    @default("ASSINATURA") // AVULSO | CREDITO | ASSINATURA
+  plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
+  statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
+  testeExpiraEm    DateTime?
+  assinaturaAte    DateTime?
+  saldoCredito     Decimal   @default(0) @db.Decimal(12, 2)
+
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  usuarios  AgroUsuario[]
+  contratos AgroContrato[]
+
+  @@index([statusAssinatura])
+}
+
+model AgroUsuario {
+  id          String    @id @default(cuid())
+  agroContaId String
+  agroConta   AgroConta @relation(fields: [agroContaId], references: [id], onDelete: Cascade)
+
+  nome         String
+  email        String  @unique
+  passwordHash String
+  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
+  ativo        Boolean @default(true)
+
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
+  totpRecuperacao    String?
+  /// Token de redefinição de senha (hash sha256), com validade curta.
+  resetTokenHash     String?   @unique
+  resetTokenExpiraEm DateTime?
+
+  ultimoAcesso DateTime?
+  criadoEm     DateTime  @default(now())
+  atualizadoEm DateTime  @updatedAt
+
+  @@index([agroContaId])
+}
+
+model AgroTentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  ip       String?
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+}
+
+/// Um contrato de crédito rural, do jeito que ele foi apresentado, mais o
+/// que a análise conclui sobre ele. Cada linha é um parecer.
+model AgroContrato {
+  id          String    @id @default(cuid())
+  agroContaId String
+  agroConta   AgroConta @relation(fields: [agroContaId], references: [id], onDelete: Cascade)
+
+  // ----- identificação -----
+  titulo                String
+  mutuarioNome          String?
+  mutuarioDocumento     String? // CPF ou CNPJ
+  instituicaoFinanceira String?
+  numeroContrato        String?
+  dataContratacao       DateTime?
+
+  // ----- enquadramento como crédito rural (Lei 4.829/65, art. 3º) -----
+  /// CUSTEIO | INVESTIMENTO | COMERCIALIZACAO | INDUSTRIALIZACAO | null (não identificado)
+  categoriaOperacao          String?
+  fonteRecursos              String?
+  enquadraCreditoRural       Boolean?
+  justificativaEnquadramento String?
+
+  // ----- porte do beneficiário e situação -----
+  /// PRONAF | PRONAMP | DEMAIS
+  categoriaBeneficiario         String?
+  valorOperacao                 Decimal?  @db.Decimal(14, 2)
+  /// ADIMPLENTE | INADIMPLENTE
+  situacaoAdimplencia           String?
+  dataInicioInadimplencia       DateTime?
+  foiRenegociadoOuProrrogado    Boolean?
+  dataRenegociacaoOuProrrogacao DateTime?
+
+  // ----- perdas de safra (MP 1.376, art. 1º §1º e §7º) -----
+  numeroSafrasComPerda           Int?
+  anosSafrasComPerda             Json? // ex.: [2021, 2022, 2023]
+  percentualReducaoRenda         Decimal? @db.Decimal(5, 2)
+  /// CLIMATICO | PRECO | AMBOS
+  causaPerda                     String?
+  eventosClimaticos              Json? // ex.: ["seca", "geada"]
+  temLaudoTecnico                Boolean?
+  profissionalHabilitadoNome     String?
+  profissionalHabilitadoRegistro String?
+
+  // ----- exclusões (MP 1.376, art. 1º §8º e §9º) -----
+  origemFundoSocial           Boolean? @default(false)
+  origemMP1314_2025           Boolean? @default(false)
+  encaminhadoDividaAtivaUniao Boolean? @default(false)
+
+  // ----- taxas -----
+  taxaJurosContratual Decimal? @db.Decimal(6, 3)
+  indexador           String?
+  encargosMoratorios  String?
+
+  // ----- garantias e avalistas -----
+  tiposGarantia      Json? // ex.: ["HIPOTECA", "AVAL"]
+  garantiasDescricao String?
+  valorGarantia      Decimal? @db.Decimal(14, 2)
+  avalistas          Json? // [{ nome, documento, patrimonioDescrito }]
+
+  // ----- seguro rural -----
+  temSeguroRural      Boolean?
+  seguradora          String?
+  apoliceNumero       String?
+  coberturas          Json? // ["granizo", "seca", ...]
+  vigenciaInicio      DateTime?
+  vigenciaFim         DateTime?
+  temProagro          Boolean?
+  indenizacaoRecebida Decimal?  @db.Decimal(14, 2)
+
+  // ----- riscos e desequilíbrios -----
+  riscosIdentificados     Json?
+  desequilibrioContratual String?
+
+  // ----- arquivo e leitura por IA -----
+  nomeArquivo String?
+  arquivo     Bytes?
+  arquivoTipo String?
+  hashSha256  String?
+  /// Rascunho extraído pela IA — nunca usado direto no parecer, só como
+  /// sugestão pra pessoa revisar e confirmar campo a campo.
+  leituraIa   Json?
+
+  // ----- resultado da análise (gerado pelo motor determinístico) -----
+  /// Preenchido por analisarEnquadramentoMP1376() — checklist com artigo de
+  /// cada requisito, modalidade elegível, limite, taxa e prazo aplicáveis.
+  resultadoMp1376 Json?
+  situacao        String  @default("RASCUNHO") // RASCUNHO | ANALISADO
+  parecerTexto    String?
+
+  solicitadoPorId String?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+  analisadoEm     DateTime?
+
+  @@index([agroContaId])
+  @@index([agroContaId, mutuarioDocumento])
+}
+
+// ---------------------------------------------------------------------
 // CLIENTE — identidade única do assinante, para não precisar de um
 // cadastro por solução. Não guarda dado de nenhuma solução: só nome,
 // e-mail, senha e 2FA próprios, e quais soluções estão assinadas. Cada
@@ -1840,10 +2025,10 @@ model Cliente {
   documento       String?
   asaasCustomerId String? @unique
 
-  totpSegredo     String?
-  totpAtivado     Boolean   @default(false)
-  totpAtivadoEm   DateTime?
-  totpRecuperacao String?
+  totpSegredo        String?
+  totpAtivado        Boolean   @default(false)
+  totpAtivadoEm      DateTime?
+  totpRecuperacao    String?
   /// Token de redefinição de senha (hash sha256), com validade curta.
   resetTokenHash     String?   @unique
   resetTokenExpiraEm DateTime?
@@ -1884,8 +2069,8 @@ model ClienteAssinatura {
   /// ESSENCIAL | PROFISSIONAL | MESA — o que foi assinado. Quem manda no
   /// acesso de verdade continua sendo o Conta.statusAssinatura da propria
   /// solucao; isto aqui e so o que foi comprado.
-  plano  String?
-  ciclo  String? // MENSAL | ANUAL
+  plano               String?
+  ciclo               String? // MENSAL | ANUAL
   /// Id da assinatura recorrente no Asaas — nulo enquanto so no teste, sem
   /// cobranca configurada ainda.
   asaasSubscriptionId String? @unique
