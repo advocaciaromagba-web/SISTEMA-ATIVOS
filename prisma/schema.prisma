@@ -2263,3 +2263,98 @@ model AdminAcesso {
   @@index([administradorId, iniciadoEm])
   @@index([solucao, contaId])
 }
+
+// =====================================================================
+// Custo do sistema
+// =====================================================================
+
+/// Uma linha por chamada à inteligência artificial.
+///
+/// Os números de token vêm da RESPOSTA da própria API — são medidos, não
+/// estimados. O custo em dólar só é calculado quando existe preço informado
+/// em `PrecoIa`; sem isso o campo fica nulo e a tela diz que falta o preço,
+/// em vez de mostrar um número inventado.
+model UsoIa {
+  id String @id @default(cuid())
+
+  solucao    String?
+  contaId    String?
+  /// O que estava sendo lido, para dar sentido à linha depois.
+  referencia String?
+
+  modelo             String
+  tokensEntrada      Int @default(0)
+  tokensSaida        Int @default(0)
+  tokensCacheCriacao Int @default(0)
+  tokensCacheLeitura Int @default(0)
+
+  custoUsd Decimal? @db.Decimal(12, 6)
+
+  /// Preenchido quando a chamada falhou. É por aqui que se percebe crédito
+  /// acabado, chave revogada ou limite atingido.
+  erro String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([criadoEm])
+  @@index([solucao, criadoEm])
+  @@index([contaId, criadoEm])
+}
+
+/// Preço por milhão de tokens, POR MODELO, informado por uma pessoa.
+///
+/// O sistema não adivinha preço de tabela de terceiro nem o deixa fixo no
+/// código: preço muda, e um valor errado aqui vira relatório financeiro
+/// errado. Enquanto ninguém informar, o custo aparece como "falta o preço".
+model PrecoIa {
+  id     String @id @default(cuid())
+  modelo String @unique
+
+  usdPorMilhaoEntrada Decimal @db.Decimal(12, 4)
+  usdPorMilhaoSaida   Decimal @db.Decimal(12, 4)
+
+  /// De onde o preço foi tirado — a página de preços consultada, com data.
+  fonte        String
+  informadoPor String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+/// Avisos do sistema para o administrador — crédito de IA acabando, falhas
+/// repetidas, renovação a vencer.
+model AlertaSistema {
+  id String @id @default(cuid())
+
+  /// IA_SEM_CREDITO | IA_FALHANDO | IA_RENOVACAO | OUTRO
+  tipo      String
+  gravidade String // CRITICO | ATENCAO | INFORMATIVO
+
+  titulo  String
+  detalhe String
+
+  /// Quantas vezes o mesmo problema voltou a acontecer sem ser resolvido.
+  ocorrencias Int @default(1)
+
+  resolvido   Boolean   @default(false)
+  resolvidoEm DateTime?
+  resolvidoPor String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([resolvido, criadoEm])
+  @@index([tipo, resolvido])
+}
+
+/// Configuração da administração, em chave e valor. Usada, por exemplo, para
+/// a data de renovação do crédito de IA — que a API não informa e por isso
+/// precisa ser dita por uma pessoa.
+model ConfigAdmin {
+  chave String @id
+
+  valor         String
+  atualizadoPor String?
+  atualizadoEm  DateTime @updatedAt
+  criadoEm      DateTime @default(now())
+}

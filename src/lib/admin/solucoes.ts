@@ -7,9 +7,10 @@
  * administração, onde cada conta mora. Quem lê continua sendo uma consulta
  * por solução, na tabela daquela solução.
  *
- * Os campos que a administração usa (nome, documento, plano, statusAssinatura,
- * testeExpiraEm, bloqueadoEm, criadoEm) existem com o mesmo nome nos sete
- * modelos — foi conferido no schema antes de escrever isto.
+ * Os campos que a administração usa (nome, documento, emailContato,
+ * statusAssinatura, testeExpiraEm, bloqueadoEm, criadoEm) existem com o mesmo
+ * nome nos sete modelos. `plano` é a exceção: a Consulta cadastral não tem —
+ * ela funciona por saldo pré-pago. Por isso o `temPlano` no descritor.
  */
 import { prisma } from "@/lib/prisma";
 
@@ -34,6 +35,12 @@ export type DescritorSolucao = {
   painel: string;
   /** Se a conta tem campo `ativa` além do bloqueio administrativo. */
   temCampoAtiva: boolean;
+  /**
+   * Nem toda solução vende por plano: a Consulta cadastral funciona por saldo
+   * pré-pago e não tem o campo `plano`. Filtrar por plano nela quebra a consulta
+   * inteira — foi assim que este campo apareceu.
+   */
+  temPlano: boolean;
 };
 
 export const SOLUCOES_ADMIN: DescritorSolucao[] = [
@@ -44,7 +51,8 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     modeloUsuario: "usuario",
     campoContaNoUsuario: "organizacaoId",
     painel: "/painel",
-    temCampoAtiva: false,
+    temCampoAtiva: true,
+    temPlano: true,
   },
   {
     chave: "LICITACOES",
@@ -54,6 +62,7 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     campoContaNoUsuario: "licitacaoContaId",
     painel: "/licitacoes/painel",
     temCampoAtiva: true,
+    temPlano: true,
   },
   {
     chave: "COMPLIANCE_EMPRESA",
@@ -63,6 +72,7 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     campoContaNoUsuario: "complianceContaId",
     painel: "/compliance/painel",
     temCampoAtiva: true,
+    temPlano: true,
   },
   {
     chave: "CONSULTA_CADASTRAL_SERASA",
@@ -72,6 +82,7 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     campoContaNoUsuario: "serasaContaId",
     painel: "/serasa/painel",
     temCampoAtiva: true,
+    temPlano: false,
   },
   {
     chave: "DILIGENCIA_PESSOA",
@@ -81,6 +92,7 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     campoContaNoUsuario: "diligenciaContaId",
     painel: "/diligencia/painel",
     temCampoAtiva: true,
+    temPlano: true,
   },
   {
     chave: "VERIFICACAO_DOCUMENTOS",
@@ -90,6 +102,7 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     campoContaNoUsuario: "verificacaoContaId",
     painel: "/verificacao/painel",
     temCampoAtiva: true,
+    temPlano: true,
   },
   {
     chave: "AGROJUD",
@@ -99,6 +112,7 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     campoContaNoUsuario: "agroContaId",
     painel: "/agrojud/painel/contratos",
     temCampoAtiva: true,
+    temPlano: true,
   },
 ];
 

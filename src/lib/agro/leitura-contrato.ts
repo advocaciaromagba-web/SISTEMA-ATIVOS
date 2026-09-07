@@ -27,7 +27,12 @@ export type RascunhoContrato = {
   riscosIdentificados?: string[];
 };
 
-export async function lerContratoComIa(arquivo: Buffer, tipoArquivo: string | null): Promise<{ dados: RascunhoContrato | null; erro: string | null }> {
+export async function lerContratoComIa(
+  arquivo: Buffer,
+  tipoArquivo: string | null,
+  /** De quem é este gasto, para a administração separar custo por cliente. */
+  contaId?: string | null
+): Promise<{ dados: RascunhoContrato | null; erro: string | null }> {
   if (!iaConfigurada()) return { dados: null, erro: "IA não configurada (ANTHROPIC_API_KEY)." };
 
   let bloco: BlocoConteudo | null = null;
@@ -53,6 +58,7 @@ export async function lerContratoComIa(arquivo: Buffer, tipoArquivo: string | nu
       "seguradora, apoliceNumero, coberturas (lista de texto), riscosIdentificados (lista de texto — cláusulas " +
       "que pareçam desequilibradas, onerosas ou incomuns, descritas objetivamente).",
     conteudo: [bloco],
+    contexto: { solucao: "AGROJUD", contaId: contaId ?? null, referencia: "Leitura de contrato de crédito rural" },
     maxTokens: 4000,
   });
 

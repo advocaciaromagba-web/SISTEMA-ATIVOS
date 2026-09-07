@@ -58,14 +58,14 @@ async function testeEsgotado(agroContaId: string, statusAssinatura: string): Pro
 export async function sugerirLeituraContrato(
   dados: FormData
 ): Promise<{ ok: true; dados: RascunhoContrato } | { ok: false; erro: string }> {
-  await exigirEdicaoAgro();
+  const { conta } = await exigirEdicaoAgro();
 
   const arquivo = dados.get("arquivo");
   if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, erro: "Selecione um arquivo primeiro." };
   if (arquivo.size > 15 * 1024 * 1024) return { ok: false, erro: "Arquivo maior que 15 MB." };
 
   const bytes = Buffer.from(await arquivo.arrayBuffer());
-  const { dados: rascunho, erro } = await lerContratoComIa(bytes, arquivo.type || null);
+  const { dados: rascunho, erro } = await lerContratoComIa(bytes, arquivo.type || null, conta.id);
 
   if (!rascunho) return { ok: false, erro: erro ?? "A IA não conseguiu ler o arquivo." };
   return { ok: true, dados: rascunho };

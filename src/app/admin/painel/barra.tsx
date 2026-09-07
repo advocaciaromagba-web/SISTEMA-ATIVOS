@@ -8,6 +8,8 @@ import { MarcaLogo } from "@/components/marca-logo";
 const ABAS = [
   { href: "/admin/painel", rotulo: "Visão geral" },
   { href: "/admin/painel/contas", rotulo: "Contas" },
+  { href: "/admin/painel/financeiro", rotulo: "Financeiro" },
+  { href: "/admin/painel/custos", rotulo: "Custos" },
   { href: "/admin/painel/auditoria", rotulo: "Auditoria" },
 ];
 

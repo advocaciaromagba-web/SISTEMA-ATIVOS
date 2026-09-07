@@ -7,6 +7,8 @@
  * pedidos à IA; são conferidos em código.
  */
 
+import { abrirAlerta, classificarFalhaIa, lerUso, registrarUsoIa, type ContextoUsoIa } from "./custo";
+
 const URL_ANTHROPIC = "https://api.anthropic.com/v1/messages";
 const TEMPO_LIMITE = 90_000;
 
@@ -33,9 +35,13 @@ export async function perguntarJson<T>(params: {
   instrucao: string;
   conteudo: string | BlocoConteudo[];
   maxTokens?: number;
+  /** De quem é este gasto — para a administração conseguir separar depois. */
+  contexto?: ContextoUsoIa;
 }): Promise<{ ok: true; dados: T } | { ok: false; erro: string }> {
   const chave = (process.env.ANTHROPIC_API_KEY ?? "").trim();
   if (!chave) return { ok: false, erro: "Inteligência artificial não configurada (ANTHROPIC_API_KEY)." };
+
+  const modeloPedido = modelo();
 
   const conteudo: BlocoConteudo[] =
     typeof params.conteudo === "string" ? [{ type: "text", text: params.conteudo }] : params.conteudo;
@@ -49,7 +55,7 @@ export async function perguntarJson<T>(params: {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: modelo(),
+        model: modeloPedido,
         max_tokens: params.maxTokens ?? 4000,
         system: params.instrucao,
         messages: [{ role: "user", content: conteudo }],
@@ -59,10 +65,35 @@ export async function perguntarJson<T>(params: {
 
     if (!resposta.ok) {
       const corpo = await resposta.text().catch(() => "");
+
+      // Falha também é gasto de atenção: fica registrada, e as que param o
+      // sistema (crédito acabado, chave revogada, limite) viram alerta.
+      const falha = classificarFalhaIa(resposta.status, corpo);
+      await registrarUsoIa({
+        uso: { modelo: modeloPedido, tokensEntrada: 0, tokensSaida: 0, tokensCacheCriacao: 0, tokensCacheLeitura: 0 },
+        contexto: params.contexto,
+        erro: `HTTP ${resposta.status}: ${corpo.slice(0, 300)}`,
+      });
+      if (falha) {
+        await abrirAlerta({
+          tipo: falha.tipo,
+          gravidade: falha.tipo === "IA_SEM_CREDITO" ? "CRITICO" : "ATENCAO",
+          titulo: falha.titulo,
+          detalhe: falha.detalhe,
+        });
+      }
+
       return { ok: false, erro: `IA respondeu HTTP ${resposta.status}: ${corpo.slice(0, 300)}` };
     }
 
-    const dados = (await resposta.json()) as { content?: Array<{ type: string; text?: string }> };
+    const dados = (await resposta.json()) as {
+      content?: Array<{ type: string; text?: string }>;
+      model?: string;
+      usage?: Record<string, number>;
+    };
+
+    // Os tokens vêm da resposta: são medidos, não estimados.
+    await registrarUsoIa({ uso: lerUso(dados, modeloPedido), contexto: params.contexto });
     const texto = (dados.content ?? [])
       .filter((b) => b.type === "text")
       .map((b) => b.text ?? "")
