@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirEdicaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { somenteAlfanumerico, validarDocumento } from "@/lib/validacao";
 import { auditarParticipante } from "@/lib/licitacoes/auditoria";
+import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -34,7 +35,7 @@ export async function salvarCertame(_anterior: ResultadoAcao, dados: FormData): 
 
   let arquivoEditalNome: string | null = null;
   let bytes: Buffer | null = null;
-  if (arquivo instanceof File && arquivo.size > 0) {
+  if (arquivoComConteudo(arquivo)) {
     if (arquivo.size > 20 * 1024 * 1024) return { erro: "Edital maior que 20 MB." };
     arquivoEditalNome = arquivo.name;
     bytes = Buffer.from(await arquivo.arrayBuffer());
@@ -109,7 +110,7 @@ export async function anexarDocumentoParticipante(_anterior: ResultadoAcao, dado
 
   if (!participanteCertameId || !certameId) return { erro: "Participante não informado." };
   if (!TIPOS_DOCUMENTO_PARTICIPANTE.includes(tipo)) return { erro: "Tipo de documento desconhecido." };
-  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Selecione um arquivo." };
+  if (!arquivoComConteudo(arquivo)) return { erro: "Selecione um arquivo." };
   if (arquivo.size > 10 * 1024 * 1024) return { erro: "Arquivo maior que 10 MB." };
 
   const participante = await prisma.participanteCertame.findFirst({

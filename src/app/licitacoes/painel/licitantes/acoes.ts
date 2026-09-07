@@ -11,6 +11,7 @@ import { auditarLicitante } from "@/lib/licitacoes/auditoria";
 import { contaComoOrganizacao, usuarioLicitacoesComoUsuario } from "@/lib/licitacoes/contexto";
 import { buscarOportunidadesPncp, type OportunidadePncp } from "@/lib/licitacoes/pncp";
 import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -199,7 +200,7 @@ export async function anexarDocumentoPessoal(_anterior: ResultadoAcao, dados: Fo
 
   if (!licitanteEmpresaId) return { erro: "Empresa não informada." };
   if (!TIPOS_DOCUMENTO_PESSOAL.includes(tipo)) return { erro: "Tipo de documento desconhecido." };
-  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Selecione um arquivo." };
+  if (!arquivoComConteudo(arquivo)) return { erro: "Selecione um arquivo." };
   if (arquivo.size > 10 * 1024 * 1024) return { erro: "Arquivo maior que 10 MB." };
 
   const licitante = await prisma.licitanteEmpresa.findFirst({
@@ -256,7 +257,7 @@ export async function salvarEditalInteresse(_anterior: ResultadoAcao, dados: For
 
   let arquivoNome: string | null = null;
   let bytes: Buffer | null = null;
-  if (arquivo instanceof File && arquivo.size > 0) {
+  if (arquivoComConteudo(arquivo)) {
     if (arquivo.size > 20 * 1024 * 1024) return { erro: "Edital maior que 20 MB." };
     arquivoNome = arquivo.name;
     bytes = Buffer.from(await arquivo.arrayBuffer());

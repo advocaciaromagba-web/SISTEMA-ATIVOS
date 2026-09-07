@@ -6,6 +6,7 @@ import { iaConfigurada } from "@/lib/ia/claude";
 import { lerDocumentos, type Perfil, type ResultadoLeitura } from "@/lib/ia/leitura";
 import { consultarReceita } from "@/lib/auditoria/fontes/receita";
 import { registrarConsumo } from "../avulsos/acoes";
+import { arquivoComConteudo, type ArquivoEnviado } from "@/lib/arquivo-enviado";
 
 export type ResultadoLeituraAcao = {
   erro?: string;
@@ -38,7 +39,11 @@ export async function lerArquivos(
     return { erro: "Tipo de leitura desconhecido." };
   }
 
-  const enviados = dados.getAll("arquivos").filter((a): a is File => a instanceof File && a.size > 0);
+  // O predicado precisa devolver um tipo compatível com o do array para o
+  // TypeScript estreitar; daí a interseção.
+  const enviados = dados
+    .getAll("arquivos")
+    .filter((a): a is FormDataEntryValue & ArquivoEnviado => arquivoComConteudo(a));
   if (enviados.length === 0) return { erro: "Escolha ao menos um arquivo." };
 
   const arquivos = await Promise.all(

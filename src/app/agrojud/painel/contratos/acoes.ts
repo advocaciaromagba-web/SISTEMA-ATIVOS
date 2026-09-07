@@ -7,9 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { exigirEdicaoAgro } from "@/lib/agro/sessao";
 import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
 import { lerContratoComIa, type RascunhoContrato } from "@/lib/agro/leitura-contrato";
+import { abrirAlerta } from "@/lib/ia/custo";
 import { analisarEnquadramentoCreditoRural, type FatosCreditoRural } from "@/lib/agro/credito-rural";
 import { analisarEnquadramentoMP1376, type FatosContrato } from "@/lib/agro/mp1376";
 import { analisarAlongamento, type FatosAlongamento, type HipoteseMcr } from "@/lib/agro/alongamento";
+import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -61,14 +63,39 @@ export async function sugerirLeituraContrato(
   const { conta } = await exigirEdicaoAgro();
 
   const arquivo = dados.get("arquivo");
-  if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, erro: "Selecione um arquivo primeiro." };
+  if (!arquivoComConteudo(arquivo)) return { ok: false, erro: "Selecione um arquivo primeiro." };
   if (arquivo.size > 15 * 1024 * 1024) return { ok: false, erro: "Arquivo maior que 15 MB." };
 
-  const bytes = Buffer.from(await arquivo.arrayBuffer());
-  const { dados: rascunho, erro } = await lerContratoComIa(bytes, arquivo.type || null, conta.id);
+  // Qualquer exceção daqui para baixo vira mensagem na tela, não página de
+  // erro. Ação que lança exceção em produção derruba a tela inteira e some
+  // com o que a pessoa tinha digitado — e ela nem fica sabendo o que houve.
+  // O detalhe técnico não vai para o cliente: vai para os alertas do sistema,
+  // onde o administrador enxerga.
+  try {
+    const bytes = Buffer.from(await arquivo.arrayBuffer());
+    const { dados: rascunho, erro } = await lerContratoComIa(bytes, arquivo.type || null, conta.id);
 
-  if (!rascunho) return { ok: false, erro: erro ?? "A IA não conseguiu ler o arquivo." };
-  return { ok: true, dados: rascunho };
+    if (!rascunho) return { ok: false, erro: erro ?? "A IA não conseguiu ler o arquivo." };
+    return { ok: true, dados: rascunho };
+  } catch (falha) {
+    const mensagem = falha instanceof Error ? `${falha.name}: ${falha.message}` : String(falha);
+
+    await abrirAlerta({
+      tipo: "IA_FALHANDO",
+      gravidade: "ATENCAO",
+      titulo: "Falha ao ler documento por IA",
+      detalhe:
+        `A leitura do arquivo quebrou antes de terminar. Detalhe técnico: ${mensagem.slice(0, 500)}. ` +
+        `Arquivo: ${arquivo.type || "tipo desconhecido"}, ${arquivo.size} bytes. Conta: ${conta.id}.`,
+    });
+
+    return {
+      ok: false,
+      erro:
+        "Não foi possível ler este arquivo agora. O preenchimento manual continua funcionando, e a falha foi " +
+        "registrada para a equipe.",
+    };
+  }
 }
 
 export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
@@ -86,7 +113,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
   let nomeArquivo: string | null = null;
   let hashSha256: string | null = null;
   const arquivo = dados.get("arquivo");
-  if (arquivo instanceof File && arquivo.size > 0) {
+  if (arquivoComConteudo(arquivo)) {
     if (arquivo.size > 15 * 1024 * 1024) return { erro: "Arquivo maior que 15 MB." };
     arquivoBytes = Buffer.from(await arquivo.arrayBuffer());
     arquivoTipo = arquivo.type || null;

@@ -9,6 +9,7 @@ import { iaConfigurada, perguntarJson, type BlocoConteudo } from "@/lib/ia/claud
 import { somenteAlfanumerico } from "@/lib/validacao";
 import { emitirCertidao, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
 import { CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
+import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -98,7 +99,7 @@ export async function verificarDocumento(_anterior: ResultadoAcao, dados: FormDa
 
   if (!titulo) return { erro: "Dê um título para identificar este documento." };
   if (!TIPOS_DOCUMENTO.includes(tipo)) return { erro: "Tipo de documento desconhecido." };
-  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Selecione um arquivo." };
+  if (!arquivoComConteudo(arquivo)) return { erro: "Selecione um arquivo." };
   if (arquivo.size > 15 * 1024 * 1024) return { erro: "Arquivo maior que 15 MB." };
 
   const bytes = Buffer.from(await arquivo.arrayBuffer());

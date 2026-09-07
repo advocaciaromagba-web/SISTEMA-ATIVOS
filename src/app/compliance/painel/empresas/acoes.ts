@@ -12,6 +12,7 @@ import { contaComplianceComoOrganizacao, usuarioComplianceComoUsuario } from "@/
 import type { DadosDiligencia } from "@/lib/documentos/geradores/diligencia";
 import type { Apontamento } from "@/lib/auditoria/tipos";
 import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -175,7 +176,7 @@ export async function anexarCertidao(_anterior: ResultadoAcao, dados: FormData):
 
   if (!complianceEmpresaId) return { erro: "Empresa não informada." };
   if (!TIPOS_CERTIDAO.includes(tipo)) return { erro: "Tipo de certidão desconhecido." };
-  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Selecione um arquivo." };
+  if (!arquivoComConteudo(arquivo)) return { erro: "Selecione um arquivo." };
   if (arquivo.size > 10 * 1024 * 1024) return { erro: "Arquivo maior que 10 MB." };
 
   const empresa = await prisma.complianceEmpresa.findFirst({

@@ -10,6 +10,7 @@ import { CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
 import { emitirCertidao, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
 import { registrarConsumo } from "../avulsos/acoes";
 import type { ResultadoAcao } from "../pessoas/acoes";
+import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 const LIMITE_ARQUIVO = 10 * 1024 * 1024; // 10 MB
 const TIPOS_ACEITOS = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
@@ -71,7 +72,7 @@ export async function registrarCertidao(_anterior: ResultadoAcao, dados: FormDat
   let arquivoTipo: string | null = null;
   let hash: string | null = null;
 
-  if (enviado instanceof File && enviado.size > 0) {
+  if (arquivoComConteudo(enviado)) {
     if (enviado.size > LIMITE_ARQUIVO) {
       return { erro: "O arquivo passa de 10 MB. Envie o PDF original da certidão, não a digitalização em alta." };
     }
