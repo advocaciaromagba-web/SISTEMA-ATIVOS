@@ -16,6 +16,9 @@ export function BarraVerificacao({ marcaNome, contaNome, usuarioNome }: { marcaN
           <Link href="/verificacao/painel/documentos" className="text-white/80 hover:text-white hover:underline">
             Documentos
           </Link>
+          <Link href="/verificacao/painel/assinatura" className="text-white/80 hover:text-white hover:underline">
+            Assinatura
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3 text-sm">

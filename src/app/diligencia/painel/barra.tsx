@@ -16,6 +16,9 @@ export function BarraDiligencia({ marcaNome, contaNome, usuarioNome }: { marcaNo
           <Link href="/diligencia/painel/pessoas" className="text-white/80 hover:text-white hover:underline">
             Pessoas
           </Link>
+          <Link href="/diligencia/painel/assinatura" className="text-white/80 hover:text-white hover:underline">
+            Assinatura
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3 text-sm">

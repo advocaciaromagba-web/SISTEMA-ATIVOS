@@ -12,7 +12,9 @@
  * nome nos sete modelos. `plano` é a exceção: a Consulta cadastral não tem —
  * ela funciona por saldo pré-pago. Por isso o `temPlano` no descritor.
  */
-import { prisma } from "@/lib/prisma";
+import { modelo } from "@/lib/modelo-prisma";
+
+export { modelo };
 
 export type ChaveSolucaoAdmin =
   | "GESTAO_ATIVOS"
@@ -118,29 +120,6 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
 
 export function descritor(chave: string): DescritorSolucao | undefined {
   return SOLUCOES_ADMIN.find((s) => s.chave === chave);
-}
-
-/**
- * Acesso genérico a um model do Prisma pelo nome.
- *
- * O Prisma Client não é indexável por string no tipo, e escrever sete blocos
- * `if` repetidos em cada tela seria pior de manter do que este ponto único de
- * conversão. Fica isolado aqui, e só aqui.
- */
-type ModeloGenerico = {
-  findMany: (args?: unknown) => Promise<Record<string, unknown>[]>;
-  findUnique: (args: unknown) => Promise<Record<string, unknown> | null>;
-  findFirst: (args: unknown) => Promise<Record<string, unknown> | null>;
-  count: (args?: unknown) => Promise<number>;
-  update: (args: unknown) => Promise<Record<string, unknown>>;
-  delete: (args: unknown) => Promise<Record<string, unknown>>;
-};
-
-export function modelo(nome: string): ModeloGenerico {
-  const cliente = prisma as unknown as Record<string, ModeloGenerico>;
-  const m = cliente[nome];
-  if (!m) throw new Error(`Model desconhecido no Prisma Client: ${nome}`);
-  return m;
 }
 
 /** Campos que a administração lê de qualquer conta, iguais nos sete modelos. */

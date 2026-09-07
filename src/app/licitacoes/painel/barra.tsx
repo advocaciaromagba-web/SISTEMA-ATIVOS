@@ -18,6 +18,9 @@ export function BarraLicitacoes({ marcaNome, contaNome, usuarioNome }: { marcaNo
         </Link>
 
         <div className="flex flex-1 items-center justify-end gap-3 text-sm">
+          <Link href="/licitacoes/painel/assinatura" className="text-white/70 hover:text-white hover:underline">
+            Assinatura
+          </Link>
           <Link href="/licitacoes/painel/seguranca" className="text-white/70 hover:text-white hover:underline">
             Segurança
           </Link>

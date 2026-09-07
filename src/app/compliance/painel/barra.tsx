@@ -16,6 +16,9 @@ export function BarraCompliance({ marcaNome, contaNome, usuarioNome }: { marcaNo
           <Link href="/compliance/painel/empresas" className="text-white/80 hover:text-white hover:underline">
             Empresas
           </Link>
+          <Link href="/compliance/painel/assinatura" className="text-white/80 hover:text-white hover:underline">
+            Assinatura
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3 text-sm">

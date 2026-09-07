@@ -2,61 +2,48 @@
 
 import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
-import { assinarSolucao, cancelarSolucao, acessarSolucao, obterLinkPagamento } from "./acoes";
+import { acessarSolucao } from "./acoes";
 
-/** Só o Serasa não tem plano por mensalidade — o resto passa pelo seletor de planos. */
-const SOLUCOES_SEM_PLANO = new Set(["CONSULTA_CADASTRAL_SERASA"]);
+const ROTULO_STATUS: Record<string, string> = {
+  TESTE: "em teste",
+  ATIVA: "assinatura ativa",
+  INADIMPLENTE: "pagamento pendente",
+  CANCELADA: "cancelada",
+};
 
+/**
+ * Cartão de uma solução no hub.
+ *
+ * Duas situações, e só duas: ou o cliente já tem conta ali — e o cartão leva
+ * para dentro — ou não tem, e o cartão leva para a página de planos DAQUELA
+ * solução. Não existe mais botão de assinar aqui: assinar é dentro da
+ * solução, com o preço e o contrato dela.
+ */
 export function CartaoSolucao({
   chave,
   nome,
   resumo,
   icone,
-  assinada,
-  temCobranca,
+  temConta,
+  statusAssinatura,
+  paginaDePlanos,
 }: {
   chave: string;
   nome: string;
   resumo: string;
   icone: ReactNode;
-  assinada: boolean;
-  temCobranca: boolean;
+  temConta: boolean;
+  statusAssinatura: string | null;
+  paginaDePlanos: string;
 }) {
   const [rodando, iniciar] = useTransition();
   const [erro, setErro] = useState("");
-  const temPlano = !SOLUCOES_SEM_PLANO.has(chave);
-
-  function assinar() {
-    setErro("");
-    iniciar(async () => {
-      const r = await assinarSolucao(chave);
-      if (r.erro) setErro(r.erro);
-    });
-  }
-
-  function cancelar() {
-    if (!confirm(`Cancelar a assinatura de "${nome}"? Seus dados continuam guardados.`)) return;
-    setErro("");
-    iniciar(async () => {
-      const r = await cancelarSolucao(chave);
-      if (r.erro) setErro(r.erro);
-    });
-  }
 
   function acessar() {
     setErro("");
     iniciar(async () => {
       const r = await acessarSolucao(chave);
       if (r?.erro) setErro(r.erro);
-    });
-  }
-
-  function verPagamento() {
-    setErro("");
-    iniciar(async () => {
-      const r = await obterLinkPagamento(chave);
-      if (r.erro) setErro(r.erro);
-      else if (r.url) window.open(r.url, "_blank", "noopener,noreferrer");
     });
   }
 
@@ -77,32 +64,24 @@ export function CartaoSolucao({
 
       {erro && <div className="aviso-erro text-xs">{erro}</div>}
 
-      {assinada ? (
+      {temConta ? (
         <div className="mt-auto space-y-2">
+          {statusAssinatura && (
+            <p className="text-xs text-slate-500">
+              Situação: {ROTULO_STATUS[statusAssinatura] ?? statusAssinatura.toLowerCase()}
+            </p>
+          )}
           <button onClick={acessar} disabled={rodando} className="botao-principal w-full py-1.5 text-sm">
             {rodando ? "Abrindo..." : "Acessar"}
           </button>
-          <div className="flex items-center justify-between gap-2 text-xs">
-            {temCobranca ? (
-              <button onClick={verPagamento} disabled={rodando} className="text-slate-500 hover:underline">
-                Ver pagamento
-              </button>
-            ) : (
-              <span />
-            )}
-            <button onClick={cancelar} disabled={rodando} className="text-slate-400 hover:text-red-600 hover:underline">
-              Cancelar
-            </button>
-          </div>
+          <p className="text-center text-xs text-slate-400">
+            Plano, cobrança e cancelamento ficam dentro da solução.
+          </p>
         </div>
-      ) : temPlano ? (
-        <Link href={`/cliente/painel/assinar/${chave}`} className="botao-secundario mt-auto py-1.5 text-center text-sm">
-          Assinar
-        </Link>
       ) : (
-        <button onClick={assinar} disabled={rodando} className="botao-secundario mt-auto py-1.5 text-sm">
-          {rodando ? "Assinando..." : "Assinar"}
-        </button>
+        <Link href={paginaDePlanos} className="botao-secundario mt-auto py-1.5 text-center text-sm">
+          Ver planos
+        </Link>
       )}
     </div>
   );

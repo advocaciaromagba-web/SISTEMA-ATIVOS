@@ -16,6 +16,9 @@ export function BarraAgro({ marcaNome, contaNome, usuarioNome }: { marcaNome: st
           <Link href="/agrojud/painel/contratos" className="text-white/80 hover:text-white hover:underline">
             Contratos
           </Link>
+          <Link href="/agrojud/painel/assinatura" className="text-white/80 hover:text-white hover:underline">
+            Assinatura
+          </Link>
         </nav>
 
         <div className="flex items-center gap-3 text-sm">
