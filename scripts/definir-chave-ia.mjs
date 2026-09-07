@@ -83,6 +83,20 @@ async function principal() {
     return;
   }
 
+  // Colar duas vezes é o erro mais comum aqui: no PowerShell o botão direito
+  // já cola, e quem também aperta Ctrl+V acaba com a chave emendada nela
+  // mesma. Sem este aviso, a pessoa só vê "API key is invalid" e conclui que
+  // a chave está errada — quando o problema foi a colagem.
+  const metade = chave.length / 2;
+  if (chave.length % 2 === 0 && chave.slice(0, metade) === chave.slice(metade)) {
+    console.error("\nEsta chave parece ter sido COLADA DUAS VEZES: ela é a mesma sequência repetida.");
+    console.error(`Tem ${chave.length} caracteres, e a metade (${metade}) já é uma chave inteira.`);
+    console.error("Rode de novo e cole uma vez só — botão direito OU Ctrl+V, não os dois.");
+    console.error("\nO .env não foi alterado.");
+    process.exitCode = 1;
+    return;
+  }
+
   console.log(`\nChave recebida: ${mascarar(chave)}`);
   console.log("Testando contra a API...");
 
