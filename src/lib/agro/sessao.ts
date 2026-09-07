@@ -31,6 +31,23 @@ export async function exigirSessaoAgro(): Promise<SessaoAgro> {
   return { usuario: dadosUsuario as AgroUsuario, conta: agroConta };
 }
 
+/**
+ * Igual a `exigirSessaoAgro`, mas sem redirecionar — para rotas de API
+ * (`/api/...`), onde `redirect()` não é o comportamento certo. Devolve
+ * `null` quando não há sessão válida; quem chama decide a resposta HTTP.
+ */
+export async function sessaoAgroAtual(): Promise<SessaoAgro | null> {
+  const sessao = await getServerSession(authOptionsAgro);
+  const id = (sessao?.user as { id?: string } | undefined)?.id;
+  if (!id) return null;
+
+  const usuario = await prisma.agroUsuario.findUnique({ where: { id }, include: { agroConta: true } });
+  if (!usuario || !usuario.ativo || !usuario.agroConta.ativa) return null;
+
+  const { agroConta, ...dadosUsuario } = usuario;
+  return { usuario: dadosUsuario as AgroUsuario, conta: agroConta };
+}
+
 export function podeEditarAgro(usuario: AgroUsuario): boolean {
   return usuario.papel !== "LEITOR";
 }

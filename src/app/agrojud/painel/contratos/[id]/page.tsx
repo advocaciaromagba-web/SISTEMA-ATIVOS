@@ -4,11 +4,24 @@ import { exigirSessaoAgro } from "@/lib/agro/sessao";
 import { prisma } from "@/lib/prisma";
 import { moeda } from "@/lib/formato";
 import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
+import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
 import { BotaoExcluir } from "./botao-excluir";
 
 const ROTULO_MODALIDADE: Record<string, string> = {
   GERAL: "Modalidade geral (2+ safras, ≥30%)",
   FAVORECIDA: "Modalidade favorecida (3+ safras, só clima, ≥40%)",
+};
+
+const ROTULO_GRAVIDADE: Record<string, string> = {
+  CRITICO: "Crítico",
+  ATENCAO: "Atenção",
+  INFORMATIVO: "Informativo",
+};
+
+const COR_GRAVIDADE: Record<string, string> = {
+  CRITICO: "border-red-300 bg-red-50",
+  ATENCAO: "border-amber-300 bg-amber-50",
+  INFORMATIVO: "border-slate-200 bg-slate-50",
 };
 
 function Selo({ valor }: { valor: boolean | "INDETERMINADO" }) {
@@ -24,6 +37,7 @@ export default async function DetalheContratoAgro({ params }: { params: { id: st
   if (!contrato) notFound();
 
   const resultado = contrato.resultadoMp1376 as ResultadoMp1376 | null;
+  const resultadoAlongamento = contrato.resultadoAlongamento as ResultadoAlongamento | null;
   const avalistas = (contrato.avalistas as Array<{ nome?: string; documento?: string; patrimonioDescrito?: string }> | null) ?? [];
   const coberturas = (contrato.coberturas as string[] | null) ?? [];
   const riscos = (contrato.riscosIdentificados as string[] | null) ?? [];
@@ -113,6 +127,76 @@ export default async function DetalheContratoAgro({ params }: { params: { id: st
             <br />
             Fonte: {resultado.fonte}. Consultado em {new Date(resultado.dataConsulta).toLocaleString("pt-BR")}.
           </p>
+        </div>
+      )}
+
+      {resultadoAlongamento && (
+        <div className="cartao space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-slate-900">Alongamento da dívida (regime geral)</h2>
+            <div className="flex gap-2">
+              <a href={`/api/agro/contratos/${contrato.id}/requerimento`} className="botao-secundario py-1.5 text-xs">
+                Baixar requerimento administrativo
+              </a>
+              <a href={`/api/agro/contratos/${contrato.id}/peticao`} className="botao-principal py-1.5 text-xs">
+                Baixar minuta de petição inicial
+              </a>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 text-sm">
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+              Regime: {resultadoAlongamento.regimeAplicavel === "ANTERIOR_5314" ? "anterior à Res. CMN 5.314/2026" : resultadoAlongamento.regimeAplicavel === "POSTERIOR_5314" ? "posterior à Res. CMN 5.314/2026" : "indeterminado"}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+              Força da tese: {resultadoAlongamento.forcaDaTese === "FORTE" ? "forte" : resultadoAlongamento.forcaDaTese === "CONTROVERTIDA" ? "controvertida" : "indeterminada"}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+              Caminho recomendado: {resultadoAlongamento.caminhoRecomendado === "ADMINISTRATIVO" ? "administrativo" : resultadoAlongamento.caminhoRecomendado === "JUDICIAL" ? "judicial" : "administrativo e judicial"}
+            </span>
+          </div>
+
+          {resultadoAlongamento.alertas.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alertas</h3>
+              <ul className="mt-2 space-y-2">
+                {resultadoAlongamento.alertas.map((a, i) => (
+                  <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium text-slate-900">{a.titulo}</div>
+                      <span className="text-xs font-semibold uppercase text-slate-500">{ROTULO_GRAVIDADE[a.gravidade]}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">{a.texto}</p>
+                    <p className="mt-1 text-xs text-slate-400">Fonte: {a.fonte}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {resultadoAlongamento.orientacoes.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Orientações</h3>
+              <ul className="mt-2 space-y-2">
+                {resultadoAlongamento.orientacoes.map((o, i) => (
+                  <li key={i} className="rounded-lg border border-slate-200 p-3">
+                    <div className="text-sm font-medium text-slate-900">{o.titulo}</div>
+                    <p className="mt-1 text-sm text-slate-600">{o.texto}</p>
+                    <p className="mt-1 text-xs text-slate-400">Fonte: {o.fonte}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Documentos a reunir</h3>
+            <ul className="mt-2 list-disc pl-5 text-sm text-slate-600">
+              {resultadoAlongamento.documentosNecessarios.map((doc, i) => (
+                <li key={i}>{doc}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 

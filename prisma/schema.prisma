@@ -1994,6 +1994,28 @@ model AgroContrato {
   situacao        String  @default("RASCUNHO") // RASCUNHO | ANALISADO
   parecerTexto    String?
 
+  // ----- alongamento da dívida (regime geral, Súmula 298/STJ x Res. CMN 5.314/2026) -----
+  dataVencimento               DateTime?
+  dataPedidoAlongamento        DateTime?
+  hipotesesMcr                 Json? // ["FRUSTRACAO_SAFRA", "COMERCIALIZACAO", ...]
+  laudoUnilateral              Boolean?
+  bancoConvidadoParaLaudo      Boolean?
+  houvePedidoAdministrativo    Boolean?
+  /// DEFERIDO | INDEFERIDO | SEM_RESPOSTA
+  respostaBanco                String?
+  recusaFundamentadaPorEscrito Boolean?
+  /// Preenchido por analisarAlongamento() — regime aplicável, força da tese,
+  /// alertas e orientações, artigo por artigo, sempre com a fonte.
+  resultadoAlongamento         Json?
+
+  // ----- dados para as peças (requerimento administrativo e petição inicial) -----
+  advogadoNome     String?
+  advogadoOab      String?
+  enderecoBancoReu String?
+  comarcaForo      String?
+  varaForo         String?
+  valorCausa       Decimal? @db.Decimal(14, 2)
+
   solicitadoPorId String?
   criadoEm        DateTime  @default(now())
   atualizadoEm    DateTime  @updatedAt

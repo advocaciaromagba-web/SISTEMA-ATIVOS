@@ -68,6 +68,22 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   const [origemMP1314_2025, setOrigemMP1314] = useState("");
   const [encaminhadoDividaAtivaUniao, setEncaminhadoDividaAtiva] = useState("");
 
+  const [dataVencimento, setDataVencimento] = useState("");
+  const [dataPedidoAlongamento, setDataPedidoAlongamento] = useState("");
+  const [hipotesesMcr, setHipotesesMcr] = useState<string[]>([]);
+  const [laudoUnilateral, setLaudoUnilateral] = useState("");
+  const [bancoConvidadoParaLaudo, setBancoConvidadoParaLaudo] = useState("");
+  const [houvePedidoAdministrativo, setHouvePedidoAdministrativo] = useState("");
+  const [respostaBanco, setRespostaBanco] = useState("");
+  const [recusaFundamentadaPorEscrito, setRecusaFundamentadaPorEscrito] = useState("");
+
+  const [advogadoNome, setAdvogadoNome] = useState("");
+  const [advogadoOab, setAdvogadoOab] = useState("");
+  const [enderecoBancoReu, setEnderecoBancoReu] = useState("");
+  const [comarcaForo, setComarcaForo] = useState("");
+  const [varaForo, setVaraForo] = useState("");
+  const [valorCausa, setValorCausa] = useState("");
+
   const [taxaJurosContratual, setTaxaJurosContratual] = useState("");
   const [indexador, setIndexador] = useState("");
   const [encargosMoratorios, setEncargosMoratorios] = useState("");
@@ -505,6 +521,116 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
             onChange={(e) => setDesequilibrioContratual(e.target.value)}
             placeholder="Ex.: onerosidade excessiva, cláusula de capitalização de juros, garantia desproporcional ao valor financiado..."
           />
+        </div>
+      </div>
+
+      <div className="cartao space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900">Alongamento da dívida (regime geral — MCR 2-6-4)</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="rotulo" htmlFor="dataVencimento">
+              Data de vencimento da dívida
+            </label>
+            <input id="dataVencimento" name="dataVencimento" type="date" className="campo" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
+          </div>
+          <div>
+            <label className="rotulo" htmlFor="dataPedidoAlongamento">
+              Data do pedido de prorrogação (se já protocolado)
+            </label>
+            <input id="dataPedidoAlongamento" name="dataPedidoAlongamento" type="date" className="campo" value={dataPedidoAlongamento} onChange={(e) => setDataPedidoAlongamento(e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <label className="rotulo mb-2 block">Hipóteses do MCR 2-6-4 aplicáveis</label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {[
+              { valor: "COMERCIALIZACAO", rotulo: "Dificuldade de comercialização" },
+              { valor: "FRUSTRACAO_SAFRA", rotulo: "Frustração de safra por fatores adversos" },
+              { valor: "OCORRENCIA_PREJUDICIAL", rotulo: "Ocorrência prejudicial ao desenvolvimento da operação" },
+              { valor: "FLUXO_CAIXA_ACUMULADO", rotulo: "Fluxo de caixa por perdas acumuladas de safras anteriores" },
+            ].map((h) => (
+              <label key={h.valor} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={hipotesesMcr.includes(h.valor)}
+                  onChange={(e) =>
+                    setHipotesesMcr(e.target.checked ? [...hipotesesMcr, h.valor] : hipotesesMcr.filter((x) => x !== h.valor))
+                  }
+                />
+                {h.rotulo}
+              </label>
+            ))}
+          </div>
+          <input type="hidden" name="hipotesesMcr" value={hipotesesMcr.join(",")} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoSimNao nome="laudoUnilateral" rotulo="O laudo foi produzido só pelo profissional do produtor?" valor={laudoUnilateral} onChange={setLaudoUnilateral} />
+          <CampoSimNao nome="bancoConvidadoParaLaudo" rotulo="O banco foi convidado a acompanhar a vistoria?" valor={bancoConvidadoParaLaudo} onChange={setBancoConvidadoParaLaudo} />
+          <CampoSimNao nome="houvePedidoAdministrativo" rotulo="Já houve pedido administrativo ao banco?" valor={houvePedidoAdministrativo} onChange={setHouvePedidoAdministrativo} />
+          <div>
+            <label className="rotulo" htmlFor="respostaBanco">
+              Resposta do banco
+            </label>
+            <select id="respostaBanco" name="respostaBanco" className="campo" value={respostaBanco} onChange={(e) => setRespostaBanco(e.target.value)}>
+              <option value="">Não informado</option>
+              <option value="DEFERIDO">Deferido</option>
+              <option value="INDEFERIDO">Indeferido</option>
+              <option value="SEM_RESPOSTA">Sem resposta</option>
+            </select>
+          </div>
+          {respostaBanco === "INDEFERIDO" && (
+            <CampoSimNao
+              nome="recusaFundamentadaPorEscrito"
+              rotulo="A recusa veio por escrito e fundamentada?"
+              valor={recusaFundamentadaPorEscrito}
+              onChange={setRecusaFundamentadaPorEscrito}
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="cartao space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900">Dados para o requerimento e a petição</h2>
+        <p className="ajuda">Preenchidos aqui já saem prontos nas minutas geradas — mas podem ser ajustados depois, direto no Word.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="rotulo" htmlFor="advogadoNome">
+              Nome do(a) advogado(a)
+            </label>
+            <input id="advogadoNome" name="advogadoNome" className="campo" value={advogadoNome} onChange={(e) => setAdvogadoNome(e.target.value)} />
+          </div>
+          <div>
+            <label className="rotulo" htmlFor="advogadoOab">
+              OAB
+            </label>
+            <input id="advogadoOab" name="advogadoOab" className="campo" value={advogadoOab} onChange={(e) => setAdvogadoOab(e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="rotulo" htmlFor="enderecoBancoReu">
+              Endereço da instituição financeira (para o requerimento)
+            </label>
+            <input id="enderecoBancoReu" name="enderecoBancoReu" className="campo" value={enderecoBancoReu} onChange={(e) => setEnderecoBancoReu(e.target.value)} />
+          </div>
+          <div>
+            <label className="rotulo" htmlFor="comarcaForo">
+              Comarca
+            </label>
+            <input id="comarcaForo" name="comarcaForo" className="campo" value={comarcaForo} onChange={(e) => setComarcaForo(e.target.value)} />
+          </div>
+          <div>
+            <label className="rotulo" htmlFor="varaForo">
+              Vara
+            </label>
+            <input id="varaForo" name="varaForo" className="campo" placeholder="ex.: 2ª Vara Cível" value={varaForo} onChange={(e) => setVaraForo(e.target.value)} />
+          </div>
+          <div>
+            <label className="rotulo" htmlFor="valorCausa">
+              Valor da causa (R$)
+            </label>
+            <input id="valorCausa" name="valorCausa" className="campo" value={valorCausa} onChange={(e) => setValorCausa(e.target.value)} />
+          </div>
         </div>
       </div>
 

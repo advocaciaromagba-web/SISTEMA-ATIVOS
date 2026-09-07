@@ -9,6 +9,7 @@ import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
 import { lerContratoComIa, type RascunhoContrato } from "@/lib/agro/leitura-contrato";
 import { analisarEnquadramentoCreditoRural, type FatosCreditoRural } from "@/lib/agro/credito-rural";
 import { analisarEnquadramentoMP1376, type FatosContrato } from "@/lib/agro/mp1376";
+import { analisarAlongamento, type FatosAlongamento, type HipoteseMcr } from "@/lib/agro/alongamento";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -126,6 +127,21 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
   };
   const resultadoMp1376 = analisarEnquadramentoMP1376(fatosMp1376);
 
+  const fatosAlongamento: FatosAlongamento = {
+    dataContratacao: data(dados, "dataContratacao"),
+    dataVencimento: data(dados, "dataVencimento"),
+    dataPedidoAlongamento: data(dados, "dataPedidoAlongamento"),
+    hipotesesMcr: listaTexto(dados, "hipotesesMcr") as HipoteseMcr[],
+    temLaudoTecnico: booleano(dados, "temLaudoTecnico"),
+    laudoUnilateral: booleano(dados, "laudoUnilateral"),
+    bancoConvidadoParaLaudo: booleano(dados, "bancoConvidadoParaLaudo"),
+    houvePedidoAdministrativo: booleano(dados, "houvePedidoAdministrativo"),
+    respostaBanco: texto(dados, "respostaBanco") as FatosAlongamento["respostaBanco"],
+    recusaFundamentadaPorEscrito: booleano(dados, "recusaFundamentadaPorEscrito"),
+    categoriaBeneficiario,
+  };
+  const resultadoAlongamento = analisarAlongamento(fatosAlongamento);
+
   const avalistasTexto = texto(dados, "avalistasJson");
   let avalistas: unknown = undefined;
   if (avalistasTexto) {
@@ -200,6 +216,23 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       resultadoMp1376: (resultadoMp1376 as unknown) as never,
       situacao: "ANALISADO",
       analisadoEm: new Date(),
+
+      dataVencimento: data(dados, "dataVencimento"),
+      dataPedidoAlongamento: data(dados, "dataPedidoAlongamento"),
+      hipotesesMcr: (listaTexto(dados, "hipotesesMcr") as unknown) as never,
+      laudoUnilateral: booleano(dados, "laudoUnilateral"),
+      bancoConvidadoParaLaudo: booleano(dados, "bancoConvidadoParaLaudo"),
+      houvePedidoAdministrativo: booleano(dados, "houvePedidoAdministrativo"),
+      respostaBanco: texto(dados, "respostaBanco"),
+      recusaFundamentadaPorEscrito: booleano(dados, "recusaFundamentadaPorEscrito"),
+      resultadoAlongamento: (resultadoAlongamento as unknown) as never,
+
+      advogadoNome: texto(dados, "advogadoNome"),
+      advogadoOab: texto(dados, "advogadoOab"),
+      enderecoBancoReu: texto(dados, "enderecoBancoReu"),
+      comarcaForo: texto(dados, "comarcaForo"),
+      varaForo: texto(dados, "varaForo"),
+      valorCausa: numero(dados, "valorCausa"),
 
       solicitadoPorId: usuario.id,
     },
