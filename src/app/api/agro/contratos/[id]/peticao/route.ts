@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sessaoAgroAtual } from "@/lib/agro/sessao";
 import { gerarPeticaoInicial, montarDadosPeticao } from "@/lib/agro/documentos";
+import { obterAcompanhamentoMp } from "@/lib/agro/acompanhamento";
+import { avisoParaPeca } from "@/lib/agro/vigencia-mp";
 
 /**
  * Gera na hora a minuta de petição inicial — sempre com o dado mais recente
@@ -16,7 +18,10 @@ export async function GET(_pedido: Request, { params }: { params: { id: string }
     return NextResponse.json({ erro: "Contrato não encontrado ou ainda não analisado." }, { status: 404 });
   }
 
-  const dados = montarDadosPeticao(contrato);
+  // A peça sai com o estado da MP no momento do download, não no momento da
+  // análise: entre um e outro a MP pode ter sido convertida ou caducado.
+  const acompanhamento = await obterAcompanhamentoMp();
+  const dados = montarDadosPeticao(contrato, avisoParaPeca(acompanhamento.vigencia));
   if (!dados) return NextResponse.json({ erro: "Contrato ainda não tem análise de alongamento." }, { status: 400 });
 
   const { buffer, nomeArquivo } = await gerarPeticaoInicial(dados);

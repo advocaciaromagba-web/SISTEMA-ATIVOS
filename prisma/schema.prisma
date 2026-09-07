@@ -1905,6 +1905,29 @@ model AgroTentativaLogin {
   @@index([email, criadoEm])
 }
 
+/// Último estado conhecido da norma que a solução acompanha (hoje, a MP
+/// 1.376/2026). Não é dado de cliente: é uma linha só, compartilhada, que
+/// existe para dois fins — não consultar a Câmara a cada carregamento de
+/// página, e saber DESDE QUANDO o estado é esse, para avisar quando mudar.
+model AgroVigenciaNorma {
+  id    String @id @default(cuid())
+  chave String @unique // MPV-1376-2026
+
+  idProposicao Int?
+  situacao     String // EM_TRAMITACAO | PRORROGADA | CONVERTIDA_EM_LEI | PERDEU_EFICACIA | REJEITADA_OU_ARQUIVADA | INDETERMINADO
+
+  /// Cópia do estado completo, do jeito que a fonte devolveu, para auditoria.
+  retrato Json?
+
+  /// Quando a consulta foi feita, e quando o estado de fato mudou.
+  conferidoEm DateTime @default(now())
+  alteradoEm  DateTime @default(now())
+  /// Situação anterior, guardada para o aviso de mudança no painel.
+  situacaoAnterior String?
+
+  criadoEm DateTime @default(now())
+}
+
 /// Um contrato de crédito rural, do jeito que ele foi apresentado, mais o
 /// que a análise conclui sobre ele. Cada linha é um parecer.
 model AgroContrato {

@@ -47,6 +47,12 @@ export type DadosPeticaoAgro = {
   resultado: ResultadoAlongamento;
   resultadoMp1376: ResultadoMp1376 | null;
 
+  /**
+   * Aviso sobre a vigência da MP, quando ela deixou de estar em tramitação
+   * normal (convertida, caducada, rejeitada). Entra na peça como advertência.
+   */
+  avisoVigenciaMp: string | null;
+
   valorCausa: number | null;
 };
 
@@ -281,7 +287,12 @@ export async function gerarPeticaoInicial(d: DadosPeticaoAgro): Promise<{ buffer
                 }), o que reforça o direito ora pleiteado.`
               : "A parte autora ressalva que a linha específica da Medida Provisória nº 1.376/2026 foi também analisada, mas [CONFERIR ENQUADRAMENTO ANTES DE CITAR NA PEÇA — VER PARECER MP 1.376 DESTE CONTRATO]."
           ),
-          paragrafo(`Fonte: ${d.resultadoMp1376.fonte}.`, { italico: true, espacoDepois: 220 }),
+          paragrafo(`Fonte: ${d.resultadoMp1376.fonte}.`, { italico: true, espacoDepois: d.avisoVigenciaMp ? 120 : 220 }),
+          // Medida provisória tem prazo. Se ela já mudou de estado, a peça não
+          // pode citá-la como se nada tivesse acontecido.
+          ...(d.avisoVigenciaMp
+            ? [paragrafo(`[ADVERTÊNCIA AO ADVOGADO: ${d.avisoVigenciaMp}]`, { italico: true, espacoDepois: 220 })]
+            : []),
         ]
       : []),
 
@@ -376,7 +387,7 @@ export type AgroContratoParaPeticao = {
   valorCausa: unknown;
 };
 
-export function montarDadosPeticao(c: AgroContratoParaPeticao): DadosPeticaoAgro | null {
+export function montarDadosPeticao(c: AgroContratoParaPeticao, avisoVigenciaMp: string | null = null): DadosPeticaoAgro | null {
   if (!c.resultadoAlongamento) return null;
 
   return {
@@ -400,6 +411,7 @@ export function montarDadosPeticao(c: AgroContratoParaPeticao): DadosPeticaoAgro
     riscosIdentificados: (c.riscosIdentificados as string[] | null) ?? [],
     resultado: c.resultadoAlongamento as ResultadoAlongamento,
     resultadoMp1376: (c.resultadoMp1376 as ResultadoMp1376 | null) ?? null,
+    avisoVigenciaMp,
     valorCausa: c.valorCausa === null || c.valorCausa === undefined ? null : Number(c.valorCausa),
   };
 }
