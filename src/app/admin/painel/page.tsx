@@ -2,6 +2,9 @@ import Link from "next/link";
 import { exigirSessaoAdmin } from "@/lib/admin/sessao";
 import { prisma } from "@/lib/prisma";
 import { SOLUCOES_ADMIN, modelo } from "@/lib/admin/solucoes";
+// A exigência de versão é lida do próprio package.json, para não existirem
+// dois lugares dizendo coisas diferentes sobre o mesmo requisito.
+import pacote from "../../../../package.json";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +34,13 @@ export default async function VisaoGeralAdmin() {
     prisma.adminAuditoria.count({ where: { criadoEm: { gte: desde } } }),
     prisma.adminAcesso.count({ where: { encerradoEm: null } }),
   ]);
+
+  // Versão mínima declarada em package.json (engines.node), lida em execução
+  // para não haver dois lugares dizendo coisas diferentes.
+  const versaoExigida = (pacote.engines?.node as string | undefined) ?? "não declarada";
+  const versaoMinima = Number((versaoExigida.match(/(\d+)/) ?? [])[1] ?? 0);
+  const versaoAtual = Number((process.version.match(/^v(\d+)/) ?? [])[1] ?? 0);
+  const atendeExigencia = versaoMinima === 0 || versaoAtual >= versaoMinima;
 
   const totalContas = porSolucao.reduce((s, x) => s + x.total, 0);
   const totalAtivas = porSolucao.reduce((s, x) => s + x.ativas, 0);
@@ -67,6 +77,24 @@ export default async function VisaoGeralAdmin() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Numero rotulo="Clientes no hub" valor={clientes} detalhe="conta única que acessa várias soluções" />
         <Numero rotulo="Assinaturas no hub" valor={assinaturasAtivas} detalhe="vínculos ativos cliente ↔ solução" />
+      </div>
+
+      {/* A versão do Node fica à vista de propósito. Foi exatamente ela que
+          derrubou todos os envios de arquivo em produção sem que nada
+          aparecesse: o global `File` não existe antes do Node 20, e a máquina
+          de desenvolvimento rodava uma versão nova. Informação de ambiente que
+          ninguém consegue ver é informação que ninguém confere. */}
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">
+        <p className="text-xs uppercase tracking-wide text-slate-500">Ambiente do servidor</p>
+        <p className="mt-1 text-slate-700">
+          Node <span className="font-medium text-slate-900">{process.version}</span> · exigido pelo projeto:{" "}
+          <span className="font-medium text-slate-900">{versaoExigida}</span>
+          {atendeExigencia ? null : (
+            <span className="ml-2 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+              abaixo do exigido
+            </span>
+          )}
+        </p>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Plataforma para intermediarios de ativos: CRM de operacoes, geracao de documentos e due diligence",
   "engines": {
-    "node": ">=18.18"
+    "node": ">=20.9"
   },
   "scripts": {
     "dev": "next dev",
