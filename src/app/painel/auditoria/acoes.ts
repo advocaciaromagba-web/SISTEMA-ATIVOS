@@ -5,14 +5,17 @@ import { prisma } from "@/lib/prisma";
 import { exigirEdicao, exigirSessao } from "@/lib/sessao";
 import { registrar } from "@/lib/registro";
 import { executarAuditoria } from "@/lib/auditoria/executar";
-import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
 /** Teste grátis: só a cota de consultas definida em `planos.ts`, e nada além dela. */
 async function testeEsgotado(organizacaoId: string, statusAssinatura: string): Promise<boolean> {
   if (statusAssinatura !== "TESTE") return false;
   const total = await prisma.auditoria.count({ where: { organizacaoId } });
-  return total >= CONSULTAS_GRATIS_TESTE;
+  // Cota do teste desta solução — definida na administração, sem relação
+  // com as outras.
+  const { consultasGratisTeste } = await configuracaoDaSolucao("GESTAO_ATIVOS");
+  return total >= consultasGratisTeste;
 }
 
 /** Roda a auditoria de uma parte, opcionalmente medida contra uma operação. */
@@ -21,7 +24,7 @@ export async function auditarParte(pessoaId: string, operacaoId?: string | null)
 
   if (await testeEsgotado(organizacao.id, organizacao.statusAssinatura)) {
     return {
-      erro: `Seu teste grátis já usou as ${CONSULTAS_GRATIS_TESTE} consultas incluídas. Assine um plano para continuar auditando.`,
+      erro: `Seu teste grátis já usou as ${(await configuracaoDaSolucao("GESTAO_ATIVOS")).consultasGratisTeste} consultas incluídas. Assine um plano para continuar auditando.`,
     };
   }
 

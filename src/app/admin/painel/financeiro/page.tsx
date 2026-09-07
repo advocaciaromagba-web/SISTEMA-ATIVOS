@@ -1,7 +1,7 @@
 import { exigirSessaoAdmin } from "@/lib/admin/sessao";
 import { prisma } from "@/lib/prisma";
 import { SOLUCOES_ADMIN, modelo } from "@/lib/admin/solucoes";
-import { PLANO_POR_CHAVE } from "@/lib/planos";
+import { todosOsPlanosDaSolucao } from "@/lib/planos-solucao";
 import { moeda } from "@/lib/formato";
 import { asaasConfigurado } from "@/lib/asaas/cliente";
 
@@ -40,19 +40,27 @@ export default async function FinanceiroAdmin() {
       const contarPlano = (plano: string) =>
         s.temPlano ? m.count({ where: { statusAssinatura: "ATIVA", plano } }) : Promise.resolve(0);
 
-      const [essencial, profissional, mesa, teste, inadimplentes, ativas] = await Promise.all([
-        contarPlano("ESSENCIAL"),
-        contarPlano("PROFISSIONAL"),
-        contarPlano("MESA"),
+      // Os planos e os preços são os DESTA solução. Antes esta conta usava uma
+      // tabela única para todas — o que dava um número errado no momento em que
+      // duas soluções passassem a cobrar valores diferentes.
+      const planos = s.temPlano ? await todosOsPlanosDaSolucao(s.chave) : [];
+
+      const [teste, inadimplentes, ativas] = await Promise.all([
         m.count({ where: { statusAssinatura: "TESTE" } }),
         m.count({ where: { statusAssinatura: "INADIMPLENTE" } }),
         m.count({ where: { statusAssinatura: "ATIVA" } }),
       ]);
-      const mensal =
-        essencial * (PLANO_POR_CHAVE.ESSENCIAL?.precoMensal ?? 0) +
-        profissional * (PLANO_POR_CHAVE.PROFISSIONAL?.precoMensal ?? 0) +
-        mesa * (PLANO_POR_CHAVE.MESA?.precoMensal ?? 0);
-      return { ...s, essencial, profissional, mesa, teste, inadimplentes, ativas, mensal };
+
+      const porPlano = await Promise.all(
+        planos.map(async (p) => {
+          const assinantes = await contarPlano(p.chave);
+          return { chave: p.chave, nome: p.nome, precoMensal: p.precoMensal, assinantes };
+        })
+      );
+
+      const mensal = porPlano.reduce((soma, p) => soma + p.assinantes * p.precoMensal, 0);
+
+      return { ...s, porPlano, teste, inadimplentes, ativas, mensal };
     })
   );
 
@@ -140,9 +148,7 @@ export default async function FinanceiroAdmin() {
               <tr>
                 <th className="px-4 py-3">Solução</th>
                 <th className="px-4 py-3">Ativas</th>
-                <th className="px-4 py-3">Essencial</th>
-                <th className="px-4 py-3">Profissional</th>
-                <th className="px-4 py-3">Mesa</th>
+                <th className="px-4 py-3">Por plano</th>
                 <th className="px-4 py-3">Em teste</th>
                 <th className="px-4 py-3">Inadimplentes</th>
                 <th className="px-4 py-3">Recorrente/mês</th>
@@ -156,9 +162,15 @@ export default async function FinanceiroAdmin() {
                     {!a.temPlano && <span className="ml-1.5 text-xs font-normal text-slate-400">saldo pré-pago</span>}
                   </td>
                   <td className="px-4 py-3 text-slate-600">{a.ativas}</td>
-                  <td className="px-4 py-3 text-slate-600">{a.temPlano ? a.essencial : "—"}</td>
-                  <td className="px-4 py-3 text-slate-600">{a.temPlano ? a.profissional : "—"}</td>
-                  <td className="px-4 py-3 text-slate-600">{a.temPlano ? a.mesa : "—"}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {a.porPlano.length === 0 ? (
+                      <span className="text-slate-400">—</span>
+                    ) : (
+                      <span className="text-xs">
+                        {a.porPlano.map((p) => `${p.nome}: ${p.assinantes}`).join(" · ")}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{a.teste}</td>
                   <td className="px-4 py-3">
                     {a.inadimplentes > 0 ? (
@@ -176,8 +188,8 @@ export default async function FinanceiroAdmin() {
           </table>
         </div>
         <p className="mt-2 text-xs text-slate-400">
-          O valor recorrente é calculado multiplicando as assinaturas ativas pelo preço da tabela do próprio sistema
-          (src/lib/planos.ts). Não é extrato do Asaas: descontos, atrasos e cobranças em aberto não estão refletidos
+          O valor recorrente é calculado multiplicando as assinaturas ativas de cada solução pelo preço cadastrado
+          naquela solução. Não é extrato do Asaas: descontos, atrasos e cobranças em aberto não estão refletidos
           aqui.
         </p>
       </div>

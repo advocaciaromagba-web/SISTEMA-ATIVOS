@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { exigirEdicaoAgro } from "@/lib/agro/sessao";
-import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { lerContratoComIa, type RascunhoContrato } from "@/lib/agro/leitura-contrato";
 import { abrirAlerta } from "@/lib/ia/custo";
 import { analisarEnquadramentoCreditoRural, type FatosCreditoRural } from "@/lib/agro/credito-rural";
@@ -49,7 +49,10 @@ const listaTexto = (dados: FormData, chave: string): string[] => {
 async function testeEsgotado(agroContaId: string, statusAssinatura: string): Promise<boolean> {
   if (statusAssinatura !== "TESTE") return false;
   const total = await prisma.agroContrato.count({ where: { agroContaId } });
-  return total >= CONSULTAS_GRATIS_TESTE;
+  // Cota do teste desta solução — definida na administração, sem relação
+  // com as outras.
+  const { consultasGratisTeste } = await configuracaoDaSolucao("AGROJUD");
+  return total >= consultasGratisTeste;
 }
 
 /**
@@ -102,7 +105,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
   const { usuario, conta } = await exigirEdicaoAgro();
 
   if (await testeEsgotado(conta.id, conta.statusAssinatura)) {
-    return { erro: `Seu teste grátis já usou as ${CONSULTAS_GRATIS_TESTE} análises incluídas. Assine um plano para continuar.` };
+    return { erro: `Seu teste grátis já usou as ${(await configuracaoDaSolucao("AGROJUD")).consultasGratisTeste} análises incluídas. Assine um plano para continuar.` };
   }
 
   const titulo = texto(dados, "titulo");

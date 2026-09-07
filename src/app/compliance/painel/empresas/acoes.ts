@@ -11,7 +11,7 @@ import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import { contaComplianceComoOrganizacao, usuarioComplianceComoUsuario } from "@/lib/compliance/contexto";
 import type { DadosDiligencia } from "@/lib/documentos/geradores/diligencia";
 import type { Apontamento } from "@/lib/auditoria/tipos";
-import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
@@ -22,7 +22,10 @@ const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() 
 async function testeEsgotado(complianceContaId: string, statusAssinatura: string): Promise<boolean> {
   if (statusAssinatura !== "TESTE") return false;
   const total = await prisma.complianceAuditoria.count({ where: { complianceContaId } });
-  return total >= CONSULTAS_GRATIS_TESTE;
+  // Cota do teste desta solução — definida na administração, sem relação
+  // com as outras.
+  const { consultasGratisTeste } = await configuracaoDaSolucao("COMPLIANCE_EMPRESA");
+  return total >= consultasGratisTeste;
 }
 
 /**
@@ -144,7 +147,7 @@ export async function reauditarEmpresa(id: string): Promise<ResultadoAcao> {
 
   if (await testeEsgotado(conta.id, conta.statusAssinatura)) {
     return {
-      erro: `Seu teste grátis já usou as ${CONSULTAS_GRATIS_TESTE} consultas incluídas. Assine um plano para continuar auditando.`,
+      erro: `Seu teste grátis já usou as ${(await configuracaoDaSolucao("COMPLIANCE_EMPRESA")).consultasGratisTeste} consultas incluídas. Assine um plano para continuar auditando.`,
     };
   }
 

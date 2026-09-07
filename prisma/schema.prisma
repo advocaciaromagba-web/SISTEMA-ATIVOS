@@ -2358,3 +2358,60 @@ model ConfigAdmin {
   atualizadoEm  DateTime @updatedAt
   criadoEm      DateTime @default(now())
 }
+
+// =====================================================================
+// Planos e preços, por solução
+//
+// Saíram do código de propósito. Antes cada solução tinha um arquivo com os
+// mesmos valores repetidos, e mudar um preço exigia deploy — o que na prática
+// significava que ninguém mudava. Agora quem define é o administrador, e cada
+// solução tem os seus, sem herdar nada de ninguém.
+// =====================================================================
+
+/// Um plano de assinatura de UMA solução. Nada aqui é compartilhado entre
+/// soluções: mesmo que duas tenham um plano chamado "Essencial", são linhas
+/// diferentes, com preços independentes.
+model PlanoSolucao {
+  id String @id @default(cuid())
+
+  /// GESTAO_ATIVOS | LICITACOES | COMPLIANCE_EMPRESA | DILIGENCIA_PESSOA |
+  /// VERIFICACAO_DOCUMENTOS | AGROJUD | CONSULTA_CADASTRAL_SERASA
+  solucao String
+  /// Identificador do plano dentro da solução (ESSENCIAL, PROFISSIONAL...).
+  chave   String
+
+  nome     String
+  paraQuem String?
+
+  precoMensal Decimal @db.Decimal(12, 2)
+  precoAnual  Decimal @db.Decimal(12, 2)
+
+  /// Listas de texto: o que o plano inclui e o que não inclui.
+  inclui    Json
+  naoInclui Json?
+
+  destaque Boolean @default(false)
+  ordem    Int     @default(0)
+  /// Plano fora de venda continua existindo para quem já assinou.
+  ativo    Boolean @default(true)
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([solucao, chave])
+  @@index([solucao, ativo, ordem])
+}
+
+/// Regras de teste grátis, por solução. Também eram globais: três dias e três
+/// consultas valiam para todas, o que não faz sentido quando o custo de cada
+/// análise é diferente.
+model ConfiguracaoSolucao {
+  solucao String @id
+
+  diasDeTeste          Int @default(3)
+  consultasGratisTeste Int @default(3)
+
+  atualizadoPor String?
+  atualizadoEm  DateTime @updatedAt
+  criadoEm      DateTime @default(now())
+}

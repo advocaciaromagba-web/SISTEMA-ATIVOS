@@ -3,12 +3,17 @@ import type { Metadata } from "next";
 import { marca } from "@/lib/marca";
 import { MarcaLogo } from "@/components/marca-logo";
 import { moeda } from "@/lib/formato";
-import { DIAS_DE_TESTE, CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
-import { PLANOS_COMPLIANCE } from "@/lib/compliance/planos";
+import { planosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solucao";
 
 export const metadata: Metadata = { title: "Planos — Compliance" };
 
-export default function PlanosCompliance() {
+// Lê do banco a cada acesso: preço alterado na administração vale na hora.
+export const dynamic = "force-dynamic";
+
+export default async function PlanosCompliance() {
+  const planos = await planosDaSolucao("COMPLIANCE_EMPRESA");
+  const { diasDeTeste, consultasGratisTeste } = await configuracaoDaSolucao("COMPLIANCE_EMPRESA");
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-4 py-6">
@@ -26,12 +31,12 @@ export default function PlanosCompliance() {
         <p className="sobretitulo">Compliance de empresas</p>
         <h1 className="titulo mt-3 text-3xl font-semibold text-slate-900">Planos e preços</h1>
         <p className="mt-3 max-w-2xl text-lg leading-relaxed text-slate-600">
-          Conta própria desta solução, separada de qualquer outra assinatura da {marca.nome}. {DIAS_DE_TESTE} dias
-          de teste com {CONSULTAS_GRATIS_TESTE} consultas grátis, sem cartão.
+          Conta própria desta solução, separada de qualquer outra assinatura da {marca.nome}. {diasDeTeste} dias
+          de teste com {consultasGratisTeste} consultas grátis, sem cartão.
         </p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {PLANOS_COMPLIANCE.map((plano) => (
+          {planos.map((plano) => (
             <div
               key={plano.chave}
               className={`flex flex-col rounded-xl border bg-white p-6 ${

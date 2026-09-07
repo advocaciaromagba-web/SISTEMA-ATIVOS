@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { exigirEdicaoVerificacao } from "@/lib/verificacao/sessao";
-import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { iaConfigurada, perguntarJson, type BlocoConteudo } from "@/lib/ia/claude";
 import { somenteAlfanumerico } from "@/lib/validacao";
 import { emitirCertidao, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
@@ -51,7 +51,10 @@ function compararResultado(
 async function testeEsgotado(verificacaoContaId: string, statusAssinatura: string): Promise<boolean> {
   if (statusAssinatura !== "TESTE") return false;
   const total = await prisma.verificacaoDocumento.count({ where: { verificacaoContaId } });
-  return total >= CONSULTAS_GRATIS_TESTE;
+  // Cota do teste desta solução — definida na administração, sem relação
+  // com as outras.
+  const { consultasGratisTeste } = await configuracaoDaSolucao("VERIFICACAO_DOCUMENTOS");
+  return total >= consultasGratisTeste;
 }
 
 /**
@@ -87,7 +90,7 @@ export async function verificarDocumento(_anterior: ResultadoAcao, dados: FormDa
 
   if (await testeEsgotado(conta.id, conta.statusAssinatura)) {
     return {
-      erro: `Seu teste grátis já usou os ${CONSULTAS_GRATIS_TESTE} documentos incluídos. Assine um plano para continuar.`,
+      erro: `Seu teste grátis já usou os ${(await configuracaoDaSolucao("VERIFICACAO_DOCUMENTOS")).consultasGratisTeste} documentos incluídos. Assine um plano para continuar.`,
     };
   }
 
@@ -143,7 +146,7 @@ export async function emitirCertidaoVerificacao(_anterior: ResultadoAcao, dados:
 
   if (await testeEsgotado(conta.id, conta.statusAssinatura)) {
     return {
-      erro: `Seu teste grátis já usou os ${CONSULTAS_GRATIS_TESTE} documentos incluídos. Assine um plano para continuar.`,
+      erro: `Seu teste grátis já usou os ${(await configuracaoDaSolucao("VERIFICACAO_DOCUMENTOS")).consultasGratisTeste} documentos incluídos. Assine um plano para continuar.`,
     };
   }
 

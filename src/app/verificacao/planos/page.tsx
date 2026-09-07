@@ -3,12 +3,17 @@ import type { Metadata } from "next";
 import { marca } from "@/lib/marca";
 import { MarcaLogo } from "@/components/marca-logo";
 import { moeda } from "@/lib/formato";
-import { DIAS_DE_TESTE, CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
-import { PLANOS_VERIFICACAO } from "@/lib/verificacao/planos";
+import { planosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solucao";
 
 export const metadata: Metadata = { title: "Planos — Verificação de Documentos" };
 
-export default function PlanosVerificacao() {
+// Lê do banco a cada acesso: preço alterado na administração vale na hora.
+export const dynamic = "force-dynamic";
+
+export default async function PlanosVerificacao() {
+  const planos = await planosDaSolucao("VERIFICACAO_DOCUMENTOS");
+  const { diasDeTeste, consultasGratisTeste } = await configuracaoDaSolucao("VERIFICACAO_DOCUMENTOS");
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-4 py-6">
@@ -26,12 +31,12 @@ export default function PlanosVerificacao() {
         <p className="sobretitulo">Verificação de documentos</p>
         <h1 className="titulo mt-3 text-3xl font-semibold text-slate-900">Planos e preços</h1>
         <p className="mt-3 max-w-2xl text-lg leading-relaxed text-slate-600">
-          Conta própria desta solução, separada de qualquer outra assinatura da {marca.nome}. {DIAS_DE_TESTE} dias
-          de teste com {CONSULTAS_GRATIS_TESTE} documentos grátis, sem cartão.
+          Conta própria desta solução, separada de qualquer outra assinatura da {marca.nome}. {diasDeTeste} dias
+          de teste com {consultasGratisTeste} documentos grátis, sem cartão.
         </p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {PLANOS_VERIFICACAO.map((plano) => (
+          {planos.map((plano) => (
             <div
               key={plano.chave}
               className={`flex flex-col rounded-xl border bg-white p-6 ${

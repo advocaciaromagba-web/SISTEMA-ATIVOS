@@ -19,7 +19,8 @@
     "db:studio": "prisma studio",
     "setup": "npm install && npx prisma db push && npm run db:seed",
     "admin:criar": "node scripts/criar-admin.mjs",
-    "ia:chave": "node scripts/definir-chave-ia.mjs"
+    "ia:chave": "node scripts/definir-chave-ia.mjs",
+    "planos:semear": "node --import ./node_modules/sucrase/register/ts.js scripts/semear-planos.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

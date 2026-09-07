@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { somenteAlfanumerico, validarDocumento, validarEmail } from "@/lib/validacao";
-import { DIAS_DE_TESTE } from "@/lib/planos";
+import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 
 export type ResultadoCadastro = { erro?: string };
 
@@ -40,7 +40,9 @@ export async function criarContaLicitacoes(_anterior: ResultadoCadastro, dados: 
   if (jaExiste) return { erro: "Já existe uma conta com este e-mail nesta solução." };
 
   const passwordHash = await bcrypt.hash(senha, 10);
-  const testeExpiraEm = new Date(Date.now() + DIAS_DE_TESTE * 24 * 60 * 60 * 1000);
+  // Dias de teste desta solução — cada uma tem o seu, definido na administração.
+  const { diasDeTeste } = await configuracaoDaSolucao("LICITACOES");
+  const testeExpiraEm = new Date(Date.now() + diasDeTeste * 24 * 60 * 60 * 1000);
 
   await prisma.licitacaoConta.create({
     data: {

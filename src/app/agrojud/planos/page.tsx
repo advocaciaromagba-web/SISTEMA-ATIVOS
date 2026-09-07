@@ -3,12 +3,17 @@ import type { Metadata } from "next";
 import { marca } from "@/lib/marca";
 import { MarcaLogo } from "@/components/marca-logo";
 import { moeda } from "@/lib/formato";
-import { DIAS_DE_TESTE, CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
-import { PLANOS_AGRO } from "@/lib/agro/planos";
+import { planosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solucao";
 
 export const metadata: Metadata = { title: "Planos — Agrojud" };
 
-export default function PlanosAgro() {
+// Lê do banco a cada acesso: preço alterado na administração vale na hora.
+export const dynamic = "force-dynamic";
+
+export default async function PlanosAgro() {
+  const planos = await planosDaSolucao("AGROJUD");
+  const { diasDeTeste, consultasGratisTeste } = await configuracaoDaSolucao("AGROJUD");
+
   return (
     <main className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white px-4 py-6">
@@ -26,12 +31,12 @@ export default function PlanosAgro() {
         <p className="sobretitulo">Agrojud</p>
         <h1 className="titulo mt-3 text-3xl font-semibold text-slate-900">Planos e preços</h1>
         <p className="mt-3 max-w-2xl text-lg leading-relaxed text-slate-600">
-          Conta própria desta solução, separada de qualquer outra assinatura da {marca.nome}. {DIAS_DE_TESTE} dias
-          de teste com {CONSULTAS_GRATIS_TESTE} análises grátis, sem cartão.
+          Conta própria desta solução, separada de qualquer outra assinatura da {marca.nome}. {diasDeTeste} dias
+          de teste com {consultasGratisTeste} análises grátis, sem cartão.
         </p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {PLANOS_AGRO.map((plano) => (
+          {planos.map((plano) => (
             <div
               key={plano.chave}
               className={`flex flex-col rounded-xl border bg-white p-6 ${

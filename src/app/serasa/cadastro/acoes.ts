@@ -5,14 +5,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { somenteAlfanumerico, validarDocumento, validarEmail } from "@/lib/validacao";
 import { PRECO_CONSULTA } from "@/lib/serasa/fonte";
-import { DIAS_DE_TESTE, CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 
 export type ResultadoCadastro = { erro?: string };
 
 const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() ?? "").trim() || null;
-
-/** Cortesia de teste: mesma cota de consultas grátis das demais soluções. */
-const CREDITO_TESTE = PRECO_CONSULTA * CONSULTAS_GRATIS_TESTE;
 
 /**
  * Cria a conta e o primeiro usuário da solução de Consulta Cadastral SERASA.
@@ -39,7 +36,12 @@ export async function criarContaSerasa(_anterior: ResultadoCadastro, dados: Form
   if (jaExiste) return { erro: "Já existe uma conta com este e-mail nesta solução." };
 
   const passwordHash = await bcrypt.hash(senha, 12);
-  const testeExpiraEm = new Date(Date.now() + DIAS_DE_TESTE * 24 * 60 * 60 * 1000);
+  // Dias de teste desta solução — cada uma tem o seu, definido na administração.
+  // Esta solução é pré-paga: a cortesia de teste vira saldo, calculado com a
+  // cota desta solução — que a administração define separadamente das outras.
+  const { diasDeTeste, consultasGratisTeste } = await configuracaoDaSolucao("CONSULTA_CADASTRAL_SERASA");
+  const creditoDeTeste = PRECO_CONSULTA * consultasGratisTeste;
+  const testeExpiraEm = new Date(Date.now() + diasDeTeste * 24 * 60 * 60 * 1000);
 
   await prisma.serasaConta.create({
     data: {
@@ -47,7 +49,7 @@ export async function criarContaSerasa(_anterior: ResultadoCadastro, dados: Form
       nome,
       documento: documento || null,
       emailContato: email,
-      saldoCredito: CREDITO_TESTE,
+      saldoCredito: creditoDeTeste,
       statusAssinatura: "TESTE",
       testeExpiraEm,
       usuarios: {

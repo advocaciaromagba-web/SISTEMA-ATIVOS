@@ -10,7 +10,7 @@ import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import { auditarLicitante } from "@/lib/licitacoes/auditoria";
 import { contaComoOrganizacao, usuarioLicitacoesComoUsuario } from "@/lib/licitacoes/contexto";
 import { buscarOportunidadesPncp, type OportunidadePncp } from "@/lib/licitacoes/pncp";
-import { CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
+import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
@@ -19,7 +19,10 @@ export type ResultadoAcao = { erro?: string; ok?: boolean };
 async function testeEsgotado(licitacaoContaId: string, statusAssinatura: string): Promise<boolean> {
   if (statusAssinatura !== "TESTE") return false;
   const total = await prisma.licitanteAuditoria.count({ where: { licitacaoContaId } });
-  return total >= CONSULTAS_GRATIS_TESTE;
+  // Cota do teste desta solução — definida na administração, sem relação
+  // com as outras.
+  const { consultasGratisTeste } = await configuracaoDaSolucao("LICITACOES");
+  return total >= consultasGratisTeste;
 }
 
 const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() ?? "").trim() || null;
