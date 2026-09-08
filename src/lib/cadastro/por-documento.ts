@@ -67,7 +67,9 @@ async function porCnpj(cnpj: string): Promise<{ ok: true; leitura: ResultadoLeit
   }
 
   const d = consulta.dados;
-  const bruto = (consulta.resultado as { bruto?: Record<string, unknown> } | undefined)?.bruto ?? {};
+  const resultado = consulta.resultado as { bruto?: Record<string, unknown>; espelho?: string } | undefined;
+  const bruto = resultado?.bruto ?? {};
+  const espelho = resultado?.espelho ?? "base pública";
   const texto = (chave: string) => {
     const v = bruto[chave];
     return typeof v === "string" && v.trim() ? v.trim() : null;
@@ -144,12 +146,25 @@ async function porCnpj(cnpj: string): Promise<{ ok: true; leitura: ResultadoLeit
         ? ` Quadro societário: ${nomes.join(", ")}.`
         : ` Quadro societário: ${nomes.slice(0, LIMITE_SOCIOS).join(", ")} e mais ${nomes.length - LIMITE_SOCIOS}.`;
 
+  // Dizer "consulta feita direto na base oficial" era falso, e falso do jeito
+  // que mais atrapalha: a consulta é feita num espelho público dos DADOS
+  // ABERTOS do CNPJ, que a Receita republica de tempos em tempos. Alteração
+  // recente — troca de sócio, mudança de endereço, aumento de capital — só
+  // aparece depois que a Receita republica o arquivo e o espelho reimporta.
+  // Nenhum dos dois espelhos devolve a data da extração, então nem dá para
+  // mostrar de quando é o dado: o que dá para fazer com honestidade é dizer
+  // que ele pode estar atrasado, e de qual espelho veio.
+  const procedencia =
+    `Dado da base pública de dados abertos do CNPJ (via ${espelho}), não da consulta ao vivo na Receita. ` +
+    `Alteração recente pode ainda não constar — se a empresa mudou de sócios, endereço ou capital há pouco, ` +
+    `confirme no site da Receita Federal antes de decidir.${socios}`;
+
   return {
     ok: true,
     leitura: {
       campos,
       documentosReconhecidos: [`Cadastro da Receita Federal — ${d.situacao ?? "situação não informada"}`],
-      avisos: [...avisos, `Consulta feita direto na base oficial, sem interpretação.${socios}`],
+      avisos: [...avisos, procedencia],
     },
   };
 }

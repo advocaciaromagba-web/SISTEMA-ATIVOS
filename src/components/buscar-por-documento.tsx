@@ -107,8 +107,9 @@ export function BuscarPorDocumento({
     <section className="cartao">
       <h2 className="text-base font-semibold">Preencher pelo CPF ou CNPJ</h2>
       <p className="text-sm text-slate-500">
-        Cole o documento e o cadastro se monta com o que consta na base da Receita. Sem interpretação, sem
-        digitação.
+        Cole o documento e o cadastro se monta com o que consta na base pública de dados abertos do CNPJ. Sem
+        interpretação, sem digitação — mas essa base é uma cópia que a Receita republica de tempos em tempos, e não
+        a consulta ao vivo: <span className="font-medium">alteração recente pode ainda não aparecer aqui</span>.
       </p>
 
       <form action={acao} className="mt-4">
