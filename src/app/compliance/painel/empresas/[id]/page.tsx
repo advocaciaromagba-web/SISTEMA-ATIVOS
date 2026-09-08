@@ -131,7 +131,11 @@ export default async function DetalheEmpresa(props: { params: Promise<{ id: stri
             </ul>
           )}
 
-          <FormularioCertidao complianceEmpresaId={empresa.id} />
+          <FormularioCertidao
+            complianceEmpresaId={empresa.id}
+            documento={empresa.documento}
+            uf={empresa.enderecoUf}
+          />
         </section>
 
         {/* ---- relatório assinado ---- */}

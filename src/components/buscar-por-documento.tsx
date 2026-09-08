@@ -6,6 +6,8 @@ import { useActionState } from "react";
 import { buscarPorDocumento, type ResultadoBusca } from "@/components/acoes-busca-documento";
 import { rotuloDoCampo, valorParaExibir, type Confianca, type Perfil } from "@/lib/ia/leitura";
 import { formatarDocumento, somenteAlfanumerico } from "@/lib/validacao";
+import { acessoCnpjSituacao } from "@/lib/auditoria/links-certidoes";
+import { AcessoOrgao } from "@/components/acesso-orgao";
 
 const inicial: ResultadoBusca = {};
 
@@ -137,6 +139,12 @@ export function BuscarPorDocumento({
               </p>
             )}
           </div>
+
+          {limpo.length === 14 && (
+            <div className="w-full">
+              <AcessoOrgao acesso={acessoCnpjSituacao(limpo)} documento={limpo} />
+            </div>
+          )}
 
           {ehCpf && (
             <div>

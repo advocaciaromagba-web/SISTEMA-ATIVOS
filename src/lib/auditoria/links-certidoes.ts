@@ -76,6 +76,17 @@ export type Acesso = {
   instrucao: string;
   /** Precisa resolver captcha? Serve para preparar quem vai clicar. */
   captcha: boolean;
+  /**
+   * O documento já chega digitado no campo da página de destino — sobra só
+   * resolver o captcha (quando houver). Verificado um por um, abrindo a
+   * página de verdade: a maioria dos órgãos usa formulário com sessão
+   * própria (JSF, ASP com viewstate) que não aceita valor por parâmetro de
+   * endereço, e nesses casos value fica `false` — o link abre a página certa,
+   * mas o número precisa ser colado à mão. Nunca marcar `true` sem ter
+   * testado de verdade: um preenchimento que promete e não entrega é pior
+   * que não prometer.
+   */
+  preenchido: boolean;
 };
 
 /**
@@ -97,6 +108,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           "Preencha nome completo, filiação, data de nascimento e CPF. A certidão sai na hora, em PDF. " +
           "Se der divergência de dados, é preciso comparecer a uma unidade da PF.",
         captcha: true,
+        preenchido: false,
       };
 
     case "BNMP_MANDADO":
@@ -107,6 +119,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           "Escolha 'Consulta de peças', informe o nome ou o CPF e pesquise. Imprima o resultado em PDF mesmo " +
           "quando nada constar — é ele que prova que a consulta foi feita.",
         captcha: true,
+        preenchido: false,
       };
 
     case "IMPROBIDADE_CNJ":
@@ -115,6 +128,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
         direto: true,
         instrucao: `Informe o CPF/CNPJ${doc ? ` (${doc})` : ""}, resolva o captcha e emita a certidão.`,
         captcha: true,
+        preenchido: false,
       };
 
     case "CADIN_FEDERAL":
@@ -125,6 +139,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           "Só a própria parte consegue tirar: a lei restringe a consulta ao CADIN aos órgãos públicos federais. " +
           "Peça a ela para entrar no e-CAC com certificado digital ou conta gov.br prata/ouro, e enviar o PDF.",
         captcha: false,
+        preenchido: false,
       };
 
     case "DIVIDA_ATIVA_ESTADUAL": {
@@ -134,6 +149,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           direto: false,
           instrucao: "Cadastre a UF da parte para que o sistema aponte a Secretaria da Fazenda certa.",
           captcha: true,
+        preenchido: false,
         };
       }
       return {
@@ -143,6 +159,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           `Secretaria da Fazenda de ${estado}. Num precatório estadual, tire também a do estado que deve o ` +
           "precatório: é ali que a compensação acontece.",
         captcha: true,
+        preenchido: false,
       };
     }
 
@@ -154,16 +171,40 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           "Informe o CPF/CNPJ, resolva o captcha e clique em 'Emitir certidão'. Sai em PDF na hora. É esta " +
           "certidão que consulta o Banco Nacional de Devedores Trabalhistas — o BNDT não tem base aberta.",
         captcha: true,
+        preenchido: false,
       };
 
+    // O endereço antigo (servicos.receita.fazenda.gov.br/servicos/certidaointernet/)
+    // foi verificado em setembro de 2026 e está fora do ar — a Receita moveu a
+    // emissão para dentro do login único gov.br. Não há mais um link direto,
+    // sem conta, para esta certidão: por isso aponta para a página do próprio
+    // catálogo de serviços do governo, e a instrução avisa do login.
     case "CND_FEDERAL":
+    case "CERTIDAO_TRIBUTOS_FEDERAIS":
       return {
-        url: "https://servicos.receita.fazenda.gov.br/servicos/certidaointernet/",
+        url: "https://www.gov.br/pt-br/servicos/emitir-certidao-de-regularidade-fiscal",
         direto: true,
         instrucao:
-          "Escolha pessoa física ou jurídica, informe o documento e emita. Se houver pendência, o sistema " +
-          "informa qual — e ela precisa ser resolvida antes da habilitação no tribunal.",
-        captcha: true,
+          "A Receita moveu esta emissão para dentro do login único gov.br — é preciso entrar com conta " +
+          "gov.br (nível prata ou ouro) ou certificado digital antes de emitir. Se houver pendência, o " +
+          "sistema informa qual, e ela precisa ser resolvida antes da habilitação no tribunal.",
+        captcha: false,
+        preenchido: false,
+      };
+
+    // Caixa Econômica — Certificado de Regularidade do FGTS. Verificado em
+    // setembro de 2026: não tem captcha, mas o formulário é um JSF com sessão
+    // própria (POST + viewstate) — não aceita o documento vindo por parâmetro
+    // de endereço, então não preenche sozinho.
+    case "CERTIDAO_FGTS":
+      return {
+        url: "https://consulta-crf.caixa.gov.br/consultacrf/pages/consultaEmpregador.jsf",
+        direto: true,
+        instrucao:
+          "Escolha \"CNPJ\" em Tipo de Inscrição, cole o número (só dígitos, sem pontuação) e clique em " +
+          "Consultar. Sem captcha nesta página — mas o campo não vem preenchido, precisa colar.",
+        captcha: false,
+        preenchido: false,
       };
 
     case "PROTESTO":
@@ -174,15 +215,17 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           "Consulta nacional por CPF/CNPJ. Alguns estados não participam da central — nesses casos, peça a " +
           "certidão diretamente aos cartórios da comarca de domicílio.",
         captcha: true,
+        preenchido: false,
       };
 
     case "DISTRIBUICAO_CRIMINAL_ESTADUAL":
     case "DISTRIBUICAO_CIVEL":
-    case "FALENCIA_RECUPERACAO": {
+    case "FALENCIA_RECUPERACAO":
+    case "CERTIDAO_FALENCIA_CONCORDATA": {
       const tipo =
         chave === "DISTRIBUICAO_CRIMINAL_ESTADUAL"
           ? "criminal"
-          : chave === "FALENCIA_RECUPERACAO"
+          : chave === "FALENCIA_RECUPERACAO" || chave === "CERTIDAO_FALENCIA_CONCORDATA"
             ? "de falência, recuperação judicial e concordata"
             : "cível e de execuções";
 
@@ -194,6 +237,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
             "Cadastre o endereço da parte para que o sistema aponte o tribunal certo. Sem a UF, é preciso " +
             "escolher o tribunal na lista do CNJ.",
           captcha: true,
+        preenchido: false,
         };
       }
 
@@ -206,6 +250,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
             `Escolha o modelo de certidão ${tipo}, informe o documento da parte, resolva o captcha e emita. ` +
             "Guarde o PDF com o código de autenticidade.",
           captcha: true,
+        preenchido: false,
         };
       }
 
@@ -219,6 +264,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           `O Tribunal de Justiça de ${estado} usa sistema próprio, cujo endereço muda com frequência. ` +
           "A busca abre a página de certidões do próprio tribunal — procure por 'certidão de distribuição'.",
         captcha: true,
+        preenchido: false,
       };
     }
 
@@ -231,6 +277,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           direto: false,
           instrucao: "Cadastre a UF da parte para que o sistema aponte o TRF certo.",
           captcha: true,
+        preenchido: false,
         };
       }
 
@@ -241,6 +288,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           `${estado} pertence ao TRF da ${trf.numero}ª Região. Procure por 'certidão de distribuição' e escolha ` +
           "a criminal. Algumas regiões emitem uma certidão única, cível e criminal.",
         captcha: true,
+        preenchido: false,
       };
     }
 
@@ -252,6 +300,7 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           "Requerida na vara de origem, informando o número do processo. Muitos tribunais só emitem a pedido do " +
           "advogado constituído nos autos — quem tem procuração precisa solicitar.",
         captcha: false,
+        preenchido: false,
       };
 
     case "CERTIDAO_PRECATORIO":
@@ -263,9 +312,34 @@ export function acessoDaCertidao(chave: string, uf: string | null, documento: st
           "orçamentário (LOA), a ordem cronológica e as cessões já averbadas — informação que não existe em " +
           "nenhuma base aberta.",
         captcha: false,
+        preenchido: false,
       };
 
     default:
       return null;
   }
+}
+
+/**
+ * Acesso à situação cadastral do CNPJ direto no site da Receita/RedeSim —
+ * o mesmo comprovante que embasa a consulta automática por CNPJ (ver
+ * `src/lib/cadastro/por-documento.ts`), mas ao vivo, no minuto da consulta.
+ *
+ * Único acesso deste arquivo com `preenchido: true`: verificado abrindo a
+ * página de verdade com `?cnpj=<14 dígitos>` na URL — o campo chega com o
+ * número já digitado, e sobra só marcar "Sou humano" (hCaptcha) e clicar em
+ * Consultar. Confirmado com dois CNPJs diferentes antes de marcar como
+ * verdade, seguindo a mesma regra dos demais casos deste arquivo.
+ */
+export function acessoCnpjSituacao(cnpj: string): Acesso {
+  const limpo = cnpj.replace(/\D/g, "");
+  return {
+    url: `https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp?cnpj=${limpo}`,
+    direto: true,
+    instrucao:
+      "O CNPJ já chega digitado. Marque \"Sou humano\" e clique em Consultar — o comprovante mostra a " +
+      "situação cadastral e o quadro societário na hora, direto da Receita.",
+    captcha: true,
+    preenchido: true,
+  };
 }
