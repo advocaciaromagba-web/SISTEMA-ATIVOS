@@ -5,6 +5,10 @@ import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { formatarDocumento } from "@/lib/validacao";
 import { FormularioParticipante } from "./participante-form";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 const ROTULO_SITUACAO: Record<string, string> = {
@@ -28,7 +32,8 @@ const COR_COMPLIANCE: Record<string, string> = {
   RESTRICAO: "bg-red-100 text-red-800",
 };
 
-export default async function DetalheCertame({ params }: { params: { id: string } }) {
+export default async function DetalheCertame(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { conta } = await exigirSessaoLicitacoes();
 
   const certame = await prisma.certame.findFirst({

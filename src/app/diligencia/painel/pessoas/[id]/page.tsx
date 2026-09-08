@@ -7,6 +7,10 @@ import { dataCurta } from "@/lib/formato";
 import { BotaoReauditar } from "./reauditar-botao";
 import { LiberacaoPessoa } from "./liberacao";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 const ROTULO_IDONEIDADE: Record<string, string> = {
@@ -22,7 +26,8 @@ const COR_IDONEIDADE: Record<string, string> = {
 
 type Apontamento = { titulo: string; detalhe: string };
 
-export default async function DetalhePessoa({ params }: { params: { id: string } }) {
+export default async function DetalhePessoa(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { usuario, conta } = await exigirSessaoDiligencia();
 
   const pessoa = await prisma.diligenciaPessoa.findFirst({

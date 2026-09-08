@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 /**
  * Ícones de traço para a home pública — cinco soluções mais as quatro etapas
  * do diagrama de operação. Desenhados à mão em SVG (sem depender de nenhuma

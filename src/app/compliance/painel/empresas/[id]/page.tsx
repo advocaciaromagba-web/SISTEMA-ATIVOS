@@ -9,6 +9,10 @@ import { FormularioRelatorio } from "./relatorio-form";
 import { BotaoReauditar } from "./reauditar-botao";
 import { LiberacaoEmpresa } from "./liberacao";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 const ROTULO_IDONEIDADE: Record<string, string> = {
@@ -31,7 +35,8 @@ const ROTULO_CERTIDAO: Record<string, string> = {
 
 type Apontamento = { titulo: string; detalhe: string };
 
-export default async function DetalheEmpresa({ params }: { params: { id: string } }) {
+export default async function DetalheEmpresa(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { usuario, conta } = await exigirSessaoCompliance();
 
   const empresa = await prisma.complianceEmpresa.findFirst({

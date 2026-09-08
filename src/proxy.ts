@@ -1,8 +1,10 @@
 import { withAuth } from "next-auth/middleware";
 
-export default withAuth({
+const proxy = withAuth({
   pages: { signIn: "/login" },
 });
+
+export default proxy;
 
 /**
  * Exige login em TUDO, menos no que está liberado abaixo.
@@ -20,7 +22,7 @@ export default withAuth({
  *                    cadastro por solução
  * - /licitacoes, /compliance, /serasa, /diligencia, /verificacao, /agrojud ... soluções com login
  *                    PRÓPRIO — cada uma confere a própria sessão em cada página
- *                    (exigirSessaoX()), e nunca deve passar pelo middleware
+ *                    (exigirSessaoX()), e nunca deve passar pelo proxy
  *                    da Gestão de Ativos. Bug real encontrado em produção:
  *                    sem esta exclusão, TODA página dessas soluções
  *                    (entrar, cadastro, painel) redirecionava para o login
@@ -28,7 +30,7 @@ export default withAuth({
  * - /admin ......... administração da Blackbird, login PRÓPRIO e cookie
  *                    próprio (`exigirSessaoAdmin()` em cada página). Não é
  *                    conta de cliente nem de solução, e não pode passar pelo
- *                    middleware da Gestão de Ativos pelo mesmo motivo das
+ *                    proxy da Gestão de Ativos pelo mesmo motivo das
  *                    soluções acima.
  * - /api ........... cada rota confere a sessão por conta própria, e os
  *                    webhooks de pagamento são chamados de fora, sem sessão

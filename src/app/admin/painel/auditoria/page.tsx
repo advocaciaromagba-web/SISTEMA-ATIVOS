@@ -3,6 +3,10 @@ import { exigirSessaoAdmin } from "@/lib/admin/sessao";
 import { prisma } from "@/lib/prisma";
 import { SOLUCOES_ADMIN } from "@/lib/admin/solucoes";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 const POR_PAGINA = 100;
@@ -27,11 +31,12 @@ function quando(d: Date): string {
   return new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
 }
 
-export default async function AuditoriaAdmin({
-  searchParams,
-}: {
-  searchParams: { acao?: string; solucao?: string; pagina?: string };
-}) {
+export default async function AuditoriaAdmin(
+  props: {
+    searchParams: Promise<{ acao?: string; solucao?: string; pagina?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await exigirSessaoAdmin();
 
   const pagina = Math.max(1, Number(searchParams.pagina ?? "1") || 1);

@@ -3,9 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { FormularioLicitante } from "../../formulario";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
-export default async function EditarLicitante({ params }: { params: { id: string } }) {
+export default async function EditarLicitante(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { conta } = await exigirSessaoLicitacoes();
 
   const licitante = await prisma.licitanteEmpresa.findFirst({

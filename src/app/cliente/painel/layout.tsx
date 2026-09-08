@@ -4,6 +4,10 @@ import { marca } from "@/lib/marca";
 import { MarcaEscura } from "@/components/marca-logo";
 import { SairBotao } from "./sair-botao";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export default async function LayoutPainelCliente({ children }: { children: React.ReactNode }) {
   const cliente = await exigirSessaoCliente();
 

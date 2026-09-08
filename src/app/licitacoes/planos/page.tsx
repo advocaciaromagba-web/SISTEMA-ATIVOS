@@ -5,6 +5,10 @@ import { MarcaLogo } from "@/components/marca-logo";
 import { moeda } from "@/lib/formato";
 import { planosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solucao";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const metadata: Metadata = { title: "Planos — Licitações" };
 
 // Lê do banco a cada acesso: preço alterado na administração vale na hora.

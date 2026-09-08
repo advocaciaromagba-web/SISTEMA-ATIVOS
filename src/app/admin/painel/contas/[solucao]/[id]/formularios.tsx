@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { bloquearConta, desbloquearConta, excluirContaDefinitivo, type ResultadoAcaoAdmin } from "../../acoes";
 import { entrarComoCliente, type ResultadoAcesso } from "../../acoes-acesso";
 
@@ -24,8 +24,8 @@ export function FormularioBloqueio({
   bloqueada: boolean;
   motivoAtual: string | null;
 }) {
-  const [estadoBloqueio, acaoBloquear] = useFormState(bloquearConta, INICIAL);
-  const [estadoDesbloqueio, acaoDesbloquear] = useFormState(desbloquearConta, INICIAL);
+  const [estadoBloqueio, acaoBloquear] = useActionState(bloquearConta, INICIAL);
+  const [estadoDesbloqueio, acaoDesbloquear] = useActionState(desbloquearConta, INICIAL);
 
   if (bloqueada) {
     return (
@@ -72,7 +72,7 @@ export function FormularioBloqueio({
 }
 
 export function FormularioAcesso({ solucao, id, nome }: { solucao: string; id: string; nome: string }) {
-  const [estado, acao] = useFormState<ResultadoAcesso, FormData>(entrarComoCliente, {});
+  const [estado, acao] = useActionState<ResultadoAcesso, FormData>(entrarComoCliente, {});
 
   return (
     <div className="cartao">
@@ -101,7 +101,7 @@ export function FormularioAcesso({ solucao, id, nome }: { solucao: string; id: s
 
 export function FormularioExclusao({ solucao, id, nome }: { solucao: string; id: string; nome: string }) {
   const [aberto, setAberto] = useState(false);
-  const [estado, acao] = useFormState(excluirContaDefinitivo, INICIAL);
+  const [estado, acao] = useActionState(excluirContaDefinitivo, INICIAL);
 
   return (
     <div className="cartao border-red-200">

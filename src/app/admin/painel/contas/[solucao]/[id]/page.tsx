@@ -6,13 +6,18 @@ import { buscarConta, descritor, modelo } from "@/lib/admin/solucoes";
 import { prisma } from "@/lib/prisma";
 import { FormularioAcesso, FormularioBloqueio, FormularioExclusao } from "./formularios";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 function data(d: Date | null | undefined): string {
   return d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
 }
 
-export default async function ContaAdmin({ params }: { params: { solucao: string; id: string } }) {
+export default async function ContaAdmin(props: { params: Promise<{ solucao: string; id: string }> }) {
+  const params = await props.params;
   const admin = await exigirSessaoAdmin();
 
   const d = descritor(params.solucao);

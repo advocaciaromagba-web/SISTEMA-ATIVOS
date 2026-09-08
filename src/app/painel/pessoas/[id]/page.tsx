@@ -15,9 +15,14 @@ import { dataCurta, dataHora, moeda } from "@/lib/formato";
 import { formatarDocumento } from "@/lib/validacao";
 import { podeEditar } from "@/lib/sessao";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
-export default async function EditarPessoa({ params }: { params: { id: string } }) {
+export default async function EditarPessoa(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { organizacao, usuario } = await exigirSessao();
 
   const pessoa = await prisma.pessoa.findFirst({

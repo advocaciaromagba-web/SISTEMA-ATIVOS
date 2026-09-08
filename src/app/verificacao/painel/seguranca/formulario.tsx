@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { gerarSegredoDuasEtapas, confirmarDuasEtapas, desligarDuasEtapas, type ResultadoSeguranca } from "./acoes";
 import { BotaoSalvar } from "@/components/campos";
 
@@ -10,7 +10,7 @@ const inicial: ResultadoSeguranca = {};
 export function FormularioDuasEtapas({ ativado }: { ativado: boolean }) {
   const [segredo, setSegredo] = useState<string | null>(null);
   const [gerando, iniciarGeracao] = useTransition();
-  const [estado, acao] = useFormState(confirmarDuasEtapas, inicial);
+  const [estado, acao] = useActionState(confirmarDuasEtapas, inicial);
   const [desligando, iniciarDesligamento] = useTransition();
 
   if (ativado) {

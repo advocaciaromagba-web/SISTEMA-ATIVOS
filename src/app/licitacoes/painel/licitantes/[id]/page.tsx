@@ -8,6 +8,10 @@ import { FormularioEdital } from "./edital-form";
 import { FormularioEnvelope } from "./envelope-form";
 import { LiberacaoLicitante } from "./liberacao";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 const ROTULO_DOCUMENTO: Record<string, string> = {
@@ -18,7 +22,8 @@ const ROTULO_DOCUMENTO: Record<string, string> = {
   OUTRO: "Outro",
 };
 
-export default async function DetalheLicitante({ params }: { params: { id: string } }) {
+export default async function DetalheLicitante(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { usuario, conta } = await exigirSessaoLicitacoes();
 
   const licitante = await prisma.licitanteEmpresa.findFirst({

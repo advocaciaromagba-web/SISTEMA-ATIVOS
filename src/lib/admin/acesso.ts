@@ -14,7 +14,7 @@
  * solução, emitido pela mesma ponte que o hub do cliente já usa. Este aqui
  * serve só para marcar e para saber o que encerrar.
  */
-import { cookies } from "next/headers";
+import { cookies, type UnsafeUnwrappedCookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 export const COOKIE_ACESSO_ADMIN = "admin.acesso";
@@ -44,7 +44,7 @@ export type AcessoEmCurso = {
  * administrativo em curso. Devolve `null` no caso normal (cliente de verdade).
  */
 export async function acessoAdminEmCurso(): Promise<AcessoEmCurso | null> {
-  const id = cookies().get(COOKIE_ACESSO_ADMIN)?.value;
+  const id = (await cookies()).get(COOKIE_ACESSO_ADMIN)?.value;
   if (!id) return null;
 
   const acesso = await prisma.adminAcesso.findUnique({
@@ -65,7 +65,7 @@ export async function acessoAdminEmCurso(): Promise<AcessoEmCurso | null> {
 }
 
 export function marcarCookieAcesso(acessoId: string, duracaoSegundos: number): void {
-  cookies().set(COOKIE_ACESSO_ADMIN, acessoId, {
+  (cookies() as unknown as UnsafeUnwrappedCookies).set(COOKIE_ACESSO_ADMIN, acessoId, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -76,7 +76,7 @@ export function marcarCookieAcesso(acessoId: string, duracaoSegundos: number): v
 
 /** Apaga o cookie da solução e o marcador — o admin volta a ser só o admin. */
 export function limparCookiesDeAcesso(solucao: string): void {
-  const c = cookies();
+  const c = (cookies() as unknown as UnsafeUnwrappedCookies);
   const cookieSolucao = COOKIE_DA_SOLUCAO[solucao];
   if (cookieSolucao) c.delete(cookieSolucao);
   c.delete(COOKIE_ACESSO_ADMIN);

@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { exigirSessaoDiligencia } from "@/lib/diligencia/sessao";
 import { formatarDocumento } from "@/lib/validacao";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 const ROTULOS: Record<string, string> = {

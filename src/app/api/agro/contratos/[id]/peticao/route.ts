@@ -9,7 +9,8 @@ import { avisoParaPeca } from "@/lib/agro/vigencia-mp";
  * Gera na hora a minuta de petição inicial — sempre com o dado mais recente
  * do contrato, nunca guardada em disco.
  */
-export async function GET(_pedido: Request, { params }: { params: { id: string } }) {
+export async function GET(_pedido: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const sessao = await sessaoAgroAtual();
   if (!sessao) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
 

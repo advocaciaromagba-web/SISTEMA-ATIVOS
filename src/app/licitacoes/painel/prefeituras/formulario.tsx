@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarCertame, type ResultadoAcao } from "./acoes";
 import { Campo, BotaoSalvar } from "@/components/campos";
 
@@ -16,7 +16,7 @@ const MODALIDADES = [
 ];
 
 export function FormularioCertame() {
-  const [estado, acao] = useFormState(salvarCertame, inicial);
+  const [estado, acao] = useActionState(salvarCertame, inicial);
 
   return (
     <form action={acao} className="space-y-4">

@@ -7,6 +7,10 @@ import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
 import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
 import { BotaoExcluir } from "./botao-excluir";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 const ROTULO_MODALIDADE: Record<string, string> = {
   GERAL: "Modalidade geral (2+ safras, ≥30%)",
   FAVORECIDA: "Modalidade favorecida (3+ safras, só clima, ≥40%)",
@@ -30,7 +34,8 @@ function Selo({ valor }: { valor: boolean | "INDETERMINADO" }) {
   return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">Falta dado</span>;
 }
 
-export default async function DetalheContratoAgro({ params }: { params: { id: string } }) {
+export default async function DetalheContratoAgro(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { conta } = await exigirSessaoAgro();
 
   const contrato = await prisma.agroContrato.findFirst({ where: { id: params.id, agroContaId: conta.id } });

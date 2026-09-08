@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { anexarDocumentoParticipante, type ResultadoAcao } from "../../acoes";
 import { BotaoSalvar } from "@/components/campos";
 
@@ -23,7 +23,7 @@ export function FormularioDocumentoParticipante({
   certameId: string;
   participanteCertameId: string;
 }) {
-  const [estado, acao] = useFormState(anexarDocumentoParticipante, inicial);
+  const [estado, acao] = useActionState(anexarDocumentoParticipante, inicial);
 
   return (
     <form action={acao} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">

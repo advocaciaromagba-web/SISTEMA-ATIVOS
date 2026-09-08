@@ -5,7 +5,7 @@
  * editado nem apagado pelo sistema — é ele que responde "quem fez isso e
  * quando", pergunta que aparece justamente quando uma operação dá errado.
  */
-import { headers } from "next/headers";
+import { headers, type UnsafeUnwrappedHeaders } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 export type AcaoAuditoria =
@@ -33,7 +33,7 @@ type Registro = {
 /** Origem da requisição, quando houver uma. */
 function origem(): { ip: string | null; agente: string | null } {
   try {
-    const h = headers();
+    const h = (headers() as unknown as UnsafeUnwrappedHeaders);
     const ip =
       h.get("cf-connecting-ip") ||
       h.get("x-forwarded-for")?.split(",")[0]?.trim() ||

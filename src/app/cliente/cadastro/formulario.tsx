@@ -1,12 +1,12 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { criarCliente, type ResultadoCadastro } from "./acoes";
 
 const inicial: ResultadoCadastro = {};
 
 export function FormularioCadastroCliente() {
-  const [estado, acao] = useFormState(criarCliente, inicial);
+  const [estado, acao] = useActionState(criarCliente, inicial);
 
   return (
     <form action={acao} className="cartao space-y-5">

@@ -9,7 +9,7 @@
  * Grava nome e e-mail em cópia: se a conta do administrador sumir, o que ele
  * fez continua legível.
  */
-import { headers } from "next/headers";
+import { headers, type UnsafeUnwrappedHeaders } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import type { Administrador } from "@prisma/client";
 
@@ -31,7 +31,7 @@ export type AcaoAdmin =
 /** Pega IP e navegador de quem está agindo, quando disponíveis. */
 function origem(): { ip: string | null; agente: string | null } {
   try {
-    const h = headers();
+    const h = (headers() as unknown as UnsafeUnwrappedHeaders);
     const encaminhado = h.get("x-forwarded-for");
     return {
       ip: encaminhado ? encaminhado.split(",")[0].trim() : h.get("x-real-ip"),

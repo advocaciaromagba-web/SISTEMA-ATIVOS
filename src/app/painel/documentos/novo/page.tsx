@@ -6,13 +6,18 @@ import { conferirRequisitos } from "@/lib/documentos";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
 import { FormularioGeracao } from "./formulario";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
-export default async function NovoDocumento({
-  searchParams,
-}: {
-  searchParams: { operacao?: string; tipo?: string };
-}) {
+export default async function NovoDocumento(
+  props: {
+    searchParams: Promise<{ operacao?: string; tipo?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { organizacao, usuario } = await exigirSessao();
 
   const operacoes = await prisma.operacao.findMany({

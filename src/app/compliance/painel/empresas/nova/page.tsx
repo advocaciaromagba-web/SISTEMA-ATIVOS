@@ -1,6 +1,10 @@
 import { exigirSessaoCompliance } from "@/lib/compliance/sessao";
 import { FormularioEmpresa } from "../formulario";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export default async function NovaEmpresa() {
   await exigirSessaoCompliance();
 

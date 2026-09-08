@@ -7,7 +7,8 @@ import { gerarRequerimentoAdministrativo, montarDadosPeticao } from "@/lib/agro/
  * Gera na hora o requerimento administrativo de alongamento — não fica
  * guardado, é sempre montado com o dado mais recente do contrato.
  */
-export async function GET(_pedido: Request, { params }: { params: { id: string } }) {
+export async function GET(_pedido: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const sessao = await sessaoAgroAtual();
   if (!sessao) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
 

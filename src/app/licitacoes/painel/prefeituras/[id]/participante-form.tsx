@@ -1,13 +1,13 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarParticipante, type ResultadoAcao } from "../acoes";
 import { Campo, BotaoSalvar } from "@/components/campos";
 
 const inicial: ResultadoAcao = {};
 
 export function FormularioParticipante({ certameId }: { certameId: string }) {
-  const [estado, acao] = useFormState(salvarParticipante, inicial);
+  const [estado, acao] = useActionState(salvarParticipante, inicial);
 
   return (
     <form action={acao} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">

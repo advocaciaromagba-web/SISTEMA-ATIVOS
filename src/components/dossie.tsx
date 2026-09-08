@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { auditarParte, liberarParte, rebloquearParte } from "@/app/painel/auditoria/acoes";
 import type { ResultadoAcao } from "@/app/painel/pessoas/acoes";
 import { BotaoSalvar } from "@/components/campos";
@@ -71,7 +71,7 @@ export function Dossie(props: DossieProps) {
   const [erro, setErro] = useState("");
   const [operacaoEscolhida, setOperacaoEscolhida] = useState(operacoes[0]?.id ?? "");
   const [abrirLiberacao, setAbrirLiberacao] = useState(false);
-  const [estadoLiberacao, acaoLiberar] = useFormState(liberarParte, inicial);
+  const [estadoLiberacao, acaoLiberar] = useActionState(liberarParte, inicial);
 
   function auditar() {
     setErro("");

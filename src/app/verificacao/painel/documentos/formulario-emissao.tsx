@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { emitirCertidaoVerificacao, type ResultadoAcao } from "./acoes";
 import { BotaoSalvar } from "@/components/campos";
 import { CATALOGO_CERTIDOES } from "@/lib/auditoria/certidoes";
@@ -14,7 +14,7 @@ const inicial: ResultadoAcao = {};
  * do mesmo tipo e do mesmo CPF/CNPJ, quando existir.
  */
 export function FormularioEmissao() {
-  const [estado, acao] = useFormState(emitirCertidaoVerificacao, inicial);
+  const [estado, acao] = useActionState(emitirCertidaoVerificacao, inicial);
   const [tipoPessoa, setTipoPessoa] = useState<"PF" | "PJ">("PJ");
 
   const certidoes = CATALOGO_CERTIDOES.filter((c) => c.aplicaA === tipoPessoa || c.aplicaA === "AMBAS");

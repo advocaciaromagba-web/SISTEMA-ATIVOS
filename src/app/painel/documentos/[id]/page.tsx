@@ -5,6 +5,10 @@ import { exigirSessao } from "@/lib/sessao";
 import { CATALOGO_POR_CHAVE } from "@/lib/documentos/catalogo";
 import { dataHora } from "@/lib/formato";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 type DadosGuardados = {
@@ -13,7 +17,8 @@ type DadosGuardados = {
   partes?: Array<{ papel: string; nome: string; documento: string | null; comissaoPercentual: number | null }>;
 };
 
-export default async function DetalheDocumento({ params }: { params: { id: string } }) {
+export default async function DetalheDocumento(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { organizacao } = await exigirSessao();
 
   const documento = await prisma.documento.findFirst({

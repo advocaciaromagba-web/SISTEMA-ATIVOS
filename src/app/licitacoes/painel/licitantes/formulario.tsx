@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import type { LicitanteEmpresa } from "@prisma/client";
 import { salvarLicitante, type ResultadoAcao } from "./acoes";
 import { Campo, BotaoSalvar, Marcador, Secao } from "@/components/campos";
@@ -18,7 +18,7 @@ const inicial: ResultadoAcao = {};
  * tabela de outra solução, então não fere o isolamento.
  */
 export function FormularioLicitante({ licitante }: { licitante?: LicitanteEmpresa }) {
-  const [estado, acao] = useFormState(salvarLicitante, inicial);
+  const [estado, acao] = useActionState(salvarLicitante, inicial);
   const formulario = useRef<HTMLFormElement>(null);
 
   function aplicarLeitura(campos: Record<string, string>) {

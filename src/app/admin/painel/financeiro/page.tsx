@@ -5,6 +5,10 @@ import { todosOsPlanosDaSolucao } from "@/lib/planos-solucao";
 import { moeda } from "@/lib/formato";
 import { asaasConfigurado } from "@/lib/asaas/cliente";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 /** Consultas pagas a terceiros, por solução. O modelo de cada uma é diferente. */

@@ -8,6 +8,10 @@ import { BotoesAutenticidade } from "./autenticidade-botoes";
 import { FormularioAssinatura } from "./assinatura-form";
 import { FormularioParecer } from "./parecer-form";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const dynamic = "force-dynamic";
 
 const ROTULO_DOCUMENTO: Record<string, string> = {
@@ -20,11 +24,12 @@ const ROTULO_DOCUMENTO: Record<string, string> = {
   OUTRO: "Outro",
 };
 
-export default async function DetalheParticipante({
-  params,
-}: {
-  params: { id: string; participanteId: string };
-}) {
+export default async function DetalheParticipante(
+  props: {
+    params: Promise<{ id: string; participanteId: string }>;
+  }
+) {
+  const params = await props.params;
   const { conta } = await exigirSessaoLicitacoes();
 
   const certame = await prisma.certame.findFirst({ where: { id: params.id, licitacaoContaId: conta.id } });

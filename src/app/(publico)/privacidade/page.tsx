@@ -2,6 +2,10 @@ import Link from "next/link";
 import { marca } from "@/lib/marca";
 import { VALIDADE_AUDITORIA_DIAS } from "@/lib/auditoria/executar";
 
+// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+export const instant = false;
+
 export const metadata = {
   title: "Política de privacidade",
   description: "Como os dados pessoais são tratados, com que base legal, por quanto tempo e como exercer direitos.",

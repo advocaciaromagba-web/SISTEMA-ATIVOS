@@ -13,7 +13,7 @@
  *    por si, sem depender de a linha do contrato continuar intacta.
  */
 import crypto from "crypto";
-import { headers } from "next/headers";
+import { headers, type UnsafeUnwrappedHeaders } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 export function hashDoConteudo(conteudo: string): string {
@@ -63,7 +63,7 @@ export async function jaAceitouOVigente(solucao: string, contaId: string): Promi
 
 function origem(): { ip: string | null; agente: string | null } {
   try {
-    const h = headers();
+    const h = (headers() as unknown as UnsafeUnwrappedHeaders);
     const encaminhado = h.get("x-forwarded-for");
     return {
       ip: encaminhado ? encaminhado.split(",")[0].trim() : h.get("x-real-ip"),

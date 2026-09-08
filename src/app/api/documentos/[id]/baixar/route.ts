@@ -11,7 +11,8 @@ import { registrar } from "@/lib/registro";
  * Sem essa segunda conferência, bastaria adivinhar um id para ler o contrato
  * de outro assinante.
  */
-export async function GET(_pedido: Request, { params }: { params: { id: string } }) {
+export async function GET(_pedido: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const sessao = await sessaoAtual();
   if (!sessao) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
 

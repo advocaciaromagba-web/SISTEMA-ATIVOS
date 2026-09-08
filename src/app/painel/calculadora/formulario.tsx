@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { calcular, type ResultadoCalculadora } from "./acoes";
 import { BotaoSalvar, Campo, Marcador, Secao, Selecao } from "@/components/campos";
 import { moeda, moedaComExtenso, numero as formatarNumero } from "@/lib/formato";
@@ -11,7 +11,7 @@ const inicial: ResultadoCalculadora = {};
 const hoje = new Date().toISOString().slice(0, 10);
 
 export function FormularioCalculadora() {
-  const [estado, acao] = useFormState(calcular, inicial);
+  const [estado, acao] = useActionState(calcular, inicial);
   const [honorarios, setHonorarios] = useState("DESTACADOS");
   const [mostrarMeses, setMostrarMeses] = useState(false);
 

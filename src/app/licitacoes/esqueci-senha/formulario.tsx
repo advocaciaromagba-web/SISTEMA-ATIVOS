@@ -1,12 +1,12 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { pedirRedefinicaoSenha, type ResultadoEsqueciSenha } from "./acoes";
 
 const inicial: ResultadoEsqueciSenha = {};
 
 export function FormularioEsqueciSenha() {
-  const [estado, acao] = useFormState(pedirRedefinicaoSenha, inicial);
+  const [estado, acao] = useActionState(pedirRedefinicaoSenha, inicial);
 
   if (estado.enviado) {
     return (
