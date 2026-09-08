@@ -2,10 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 export const dynamic = "force-dynamic";
 
 const ROTULO_FASE: Record<string, string> = {

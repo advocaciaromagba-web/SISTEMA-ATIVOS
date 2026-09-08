@@ -13,7 +13,7 @@
  *    por si, sem depender de a linha do contrato continuar intacta.
  */
 import crypto from "crypto";
-import { headers, type UnsafeUnwrappedHeaders } from "next/headers";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 export function hashDoConteudo(conteudo: string): string {
@@ -61,9 +61,9 @@ export async function jaAceitouOVigente(solucao: string, contaId: string): Promi
   return Boolean(aceite);
 }
 
-function origem(): { ip: string | null; agente: string | null } {
+async function origem(): Promise<{ ip: string | null; agente: string | null }> {
   try {
-    const h = (headers() as unknown as UnsafeUnwrappedHeaders);
+    const h = await headers();
     const encaminhado = h.get("x-forwarded-for");
     return {
       ip: encaminhado ? encaminhado.split(",")[0].trim() : h.get("x-real-ip"),
@@ -90,7 +90,7 @@ export async function registrarAceite(params: {
   const vigente = await contratoVigente(params.solucao);
   if (!vigente) return { registrado: false, versao: null };
 
-  const { ip, agente } = origem();
+  const { ip, agente } = await origem();
 
   await prisma.aceiteContrato.create({
     data: {

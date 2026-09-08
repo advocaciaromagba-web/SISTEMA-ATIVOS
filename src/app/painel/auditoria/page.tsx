@@ -6,10 +6,6 @@ import { ROTULO_CAPACIDADE, ROTULO_IDONEIDADE, type Capacidade, type Idoneidade 
 import { dataHora } from "@/lib/formato";
 import { formatarDocumento } from "@/lib/validacao";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 export const dynamic = "force-dynamic";
 
 const CORES_IDONEIDADE: Record<string, string> = {

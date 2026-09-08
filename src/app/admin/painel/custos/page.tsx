@@ -4,10 +4,6 @@ import { SOLUCOES_ADMIN } from "@/lib/admin/solucoes";
 import { BotaoResolver, FormularioPreco, FormularioRenovacao } from "./formularios";
 import { CHAVE_RENOVACAO_IA, CHAVE_SALDO_IA } from "./chaves";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 export const dynamic = "force-dynamic";
 
 const COR_GRAVIDADE: Record<string, string> = {

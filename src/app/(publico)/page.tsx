@@ -7,10 +7,6 @@ import { ROTULO_ESTADO, SOLUCOES } from "@/lib/solucoes";
 import { ICONE_SOLUCAO } from "@/components/icones-solucoes";
 import { DiagramaOperacao } from "@/components/diagrama-operacao";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 export const metadata = {
   // `absolute` desliga o sufixo do modelo: esta e a linha que aparece na
   // busca, e ela ja comeca pelo nome da marca.

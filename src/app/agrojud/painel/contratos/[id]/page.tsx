@@ -7,10 +7,6 @@ import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
 import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
 import { BotaoExcluir } from "./botao-excluir";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 const ROTULO_MODALIDADE: Record<string, string> = {
   GERAL: "Modalidade geral (2+ safras, ≥30%)",
   FAVORECIDA: "Modalidade favorecida (3+ safras, só clima, ≥40%)",

@@ -3,10 +3,6 @@ import { marca } from "@/lib/marca";
 import { ADICIONAIS, DIAS_DE_TESTE, PLANOS, SERVICOS, economiaAnual } from "@/lib/planos";
 import { moeda } from "@/lib/formato";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 export const metadata = {
   title: "Planos e preços",
   description: "Preços publicados, sem consulta comercial. Teste antes de assinar.",

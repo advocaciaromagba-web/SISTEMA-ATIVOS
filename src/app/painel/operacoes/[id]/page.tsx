@@ -8,10 +8,6 @@ import { moeda, percentualComExtenso, dataCurta } from "@/lib/formato";
 import { formatarDocumento, formatarNumeroProcessoCnj } from "@/lib/validacao";
 import { Partes, type ParteResumo, type PessoaResumo } from "./partes";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 export const dynamic = "force-dynamic";
 
 export default async function DetalheOperacao(props: { params: Promise<{ id: string }> }) {

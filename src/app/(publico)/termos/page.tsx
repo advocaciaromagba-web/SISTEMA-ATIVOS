@@ -2,10 +2,6 @@ import Link from "next/link";
 import { marca } from "@/lib/marca";
 import { DIAS_DE_TESTE } from "@/lib/planos";
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-export const instant = false;
-
 export const metadata = {
   title: "Termos de uso",
   description: "Condições de contratação e uso da plataforma.",
