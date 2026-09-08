@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { exigirEdicaoSerasa } from "@/lib/serasa/sessao";
 import { somenteAlfanumerico, validarDocumento } from "@/lib/validacao";
 import { consultarSerasa, PRECO_CONSULTA } from "@/lib/serasa/fonte";
+import { ehAcessoInterno } from "@/lib/acesso-interno";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -29,8 +30,13 @@ export async function novaConsulta(_anterior: ResultadoAcao, dados: FormData): P
     return { erro: tipoPessoa === "PF" ? "CPF inválido — confira os números." : "CNPJ inválido — confira os números." };
   }
 
+  // A conta interna da Blackbird não tem saldo porque não compra crédito: a
+  // consulta roda e nada é debitado. O custo real da consulta ao terceiro
+  // continua existindo, e continua aparecendo no painel de custos.
+  const interno = ehAcessoInterno(conta.statusAssinatura);
+
   const saldoAtual = Number(conta.saldoCredito);
-  if (saldoAtual < PRECO_CONSULTA) {
+  if (!interno && saldoAtual < PRECO_CONSULTA) {
     return { erro: `Saldo insuficiente. Esta consulta custa R$ ${PRECO_CONSULTA.toFixed(2)}, e o saldo atual é R$ ${saldoAtual.toFixed(2)}.` };
   }
 
@@ -54,14 +60,18 @@ export async function novaConsulta(_anterior: ResultadoAcao, dados: FormData): P
         data: {
           situacao: "CONCLUIDA",
           resultado: resposta.resultado as never,
-          creditoDebitado: PRECO_CONSULTA,
+          creditoDebitado: interno ? 0 : PRECO_CONSULTA,
           concluidaEm: new Date(),
         },
       }),
-      prisma.serasaConta.update({
-        where: { id: conta.id },
-        data: { saldoCredito: { decrement: PRECO_CONSULTA } },
-      }),
+      ...(interno
+        ? []
+        : [
+            prisma.serasaConta.update({
+              where: { id: conta.id },
+              data: { saldoCredito: { decrement: PRECO_CONSULTA } },
+            }),
+          ]),
     ]);
   } else {
     await prisma.serasaConsulta.update({

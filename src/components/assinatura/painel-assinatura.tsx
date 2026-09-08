@@ -4,6 +4,7 @@ import { situacaoDaAssinatura } from "@/lib/assinatura-solucao";
 import { planosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { contratoVigente } from "@/lib/contratos-solucao";
 import { moeda } from "@/lib/formato";
+import { ehAcessoInterno } from "@/lib/acesso-interno";
 import { FormularioAssinar, FormularioCancelar } from "./formularios";
 
 /**
@@ -31,6 +32,27 @@ export async function PainelAssinatura({
     configuracaoDaSolucao(solucao),
     contratoVigente(solucao),
   ]);
+
+  // Conta interna da Blackbird: não há o que assinar, e mostrar o formulário
+  // aqui seria pior que inútil — um clique criaria cobrança de verdade no
+  // Asaas, da empresa para ela mesma.
+  if (ehAcessoInterno(situacao?.statusAssinatura)) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Assinatura — {rotulo}</h1>
+        </div>
+        <div className="cartao">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Situação atual</p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">Acesso interno da Blackbird</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Esta é a conta da própria casa: não tem assinatura, não tem cobrança e não tem limite de uso. Não há nada
+            para contratar nem para cancelar nesta tela.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const planoAtual = planos.find((p) => p.chave === situacao?.plano) ?? null;
 

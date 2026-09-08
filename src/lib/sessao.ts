@@ -9,6 +9,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ehAcessoInterno } from "@/lib/acesso-interno";
 import type { Organizacao, Usuario } from "@prisma/client";
 
 export type SessaoAtual = {
@@ -78,6 +79,12 @@ export type SituacaoAssinatura = {
  */
 export function situacaoAssinatura(organizacao: Organizacao): SituacaoAssinatura {
   const agora = new Date();
+
+  // Conta interna da Blackbird: não tem assinatura porque não é cliente, e
+  // nunca é barrada por causa disso.
+  if (ehAcessoInterno(organizacao.statusAssinatura)) {
+    return { liberado: true };
+  }
 
   if (organizacao.statusAssinatura === "ATIVA") {
     if (organizacao.assinaturaAte && organizacao.assinaturaAte < agora) {

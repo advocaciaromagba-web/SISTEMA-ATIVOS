@@ -25,6 +25,8 @@ export type AcaoAdmin =
   | "EXCLUIR_DEFINITIVO"
   | "EXPORTAR"
   | "ACESSAR_COMO"
+  /** Entrou numa solução pela conta interna da Blackbird, não pela de um cliente. */
+  | "ACESSO_INTERNO"
   | "ENCERRAR_ACESSO"
   | "CONFIGURAR";
 

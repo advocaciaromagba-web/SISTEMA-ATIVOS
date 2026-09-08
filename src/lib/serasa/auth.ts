@@ -9,6 +9,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { verify as verificarCodigoOtp } from "otplib";
 import { prisma } from "@/lib/prisma";
+import { autorizarAdminNaSolucao } from "@/lib/admin/acesso-total";
 
 const MAX_TENTATIVAS = 5;
 const JANELA_MINUTOS = 15;
@@ -47,6 +48,22 @@ export const authOptionsSerasa: NextAuthOptions = {
         const minutos = await bloqueado(email);
         if (minutos > 0) {
           throw new Error(`Muitas tentativas erradas. Tente novamente em ${minutos} minutos.`);
+        }
+
+        // Administrador da Blackbird: a mesma senha da administracao abre a
+        // solucao inteira, pela conta interna da casa, sem assinatura e sem
+        // limite. Ver `src/lib/admin/acesso-total.ts`. Quem nao for ele — ou
+        // for, mas com a senha errada — segue pelo login normal, abaixo.
+        const interno = await autorizarAdminNaSolucao("CONSULTA_CADASTRAL_SERASA", credentials);
+        if (interno) {
+          await prisma.serasaTentativaLogin.deleteMany({ where: { email } });
+          return {
+            id: interno.id,
+            name: interno.nome,
+            email: interno.email,
+            serasaContaId: interno.contaId,
+            papel: interno.papel,
+          };
         }
 
         const usuario = await prisma.serasaUsuario.findUnique({

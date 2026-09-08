@@ -12,11 +12,13 @@ export function BarraSerasa({
   contaNome,
   usuarioNome,
   saldoCredito,
+  acessoInterno,
 }: {
   marcaNome: string;
   contaNome: string;
   usuarioNome: string;
   saldoCredito: string;
+  acessoInterno?: boolean;
 }) {
   return (
     <header className="faixa-escura border-b-2 border-[color:var(--marca-destaque)]">
@@ -33,7 +35,7 @@ export function BarraSerasa({
 
         <div className="flex items-center gap-3 text-sm">
           <span className="etiqueta border border-white/20 bg-white/10 font-medium text-white/90">
-            saldo {moeda(saldoCredito)}
+            {acessoInterno ? "acesso interno · sem débito" : `saldo ${moeda(saldoCredito)}`}
           </span>
           <Link href="/serasa/painel/seguranca" className="text-white/70 hover:text-white hover:underline">
             Segurança

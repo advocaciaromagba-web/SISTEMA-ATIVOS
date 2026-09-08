@@ -11,6 +11,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { verify as verificarCodigoOtp } from "otplib";
 import { prisma } from "@/lib/prisma";
+import { autorizarAdminNaSolucao } from "@/lib/admin/acesso-total";
 import { registrar } from "@/lib/registro";
 
 const MAX_TENTATIVAS = 5;
@@ -45,6 +46,23 @@ export const authOptions: NextAuthOptions = {
         const minutos = await bloqueado(email);
         if (minutos > 0) {
           throw new Error(`Muitas tentativas erradas. Tente novamente em ${minutos} minutos.`);
+        }
+
+        // Administrador da Blackbird: a mesma senha da administracao abre a
+        // solucao inteira, pela conta interna da casa, sem assinatura e sem
+        // limite. Ver `src/lib/admin/acesso-total.ts`. Quem nao for ele — ou
+        // for, mas com a senha errada — segue pelo login normal, abaixo.
+        const interno = await autorizarAdminNaSolucao("GESTAO_ATIVOS", credentials);
+        if (interno) {
+          await prisma.tentativaLogin.deleteMany({ where: { email } });
+          return {
+            id: interno.id,
+            name: interno.nome,
+            email: interno.email,
+            organizacaoId: interno.contaId,
+            papel: interno.papel,
+            admin: false,
+          };
         }
 
         const usuario = await prisma.usuario.findUnique({

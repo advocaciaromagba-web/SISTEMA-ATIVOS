@@ -1,5 +1,6 @@
 import { exigirSessaoSerasa } from "@/lib/serasa/sessao";
 import { marca } from "@/lib/marca";
+import { ehAcessoInterno } from "@/lib/acesso-interno";
 import { BarraSerasa } from "./barra";
 
 export default async function LayoutPainelSerasa({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export default async function LayoutPainelSerasa({ children }: { children: React
         contaNome={conta.nome}
         usuarioNome={usuario.nome}
         saldoCredito={conta.saldoCredito.toString()}
+        acessoInterno={ehAcessoInterno(conta.statusAssinatura)}
       />
       <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
     </div>
