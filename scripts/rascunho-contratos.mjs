@@ -179,7 +179,7 @@ Cancelada a assinatura, o CONTRATANTE tem até 30 (trinta) dias para solicitar a
 
 Indisponibilidade de fonte externa consultada pelo Serviço não é falha da BLACKBIRD, e o sistema informa quando isso ocorre em vez de devolver resultado incompleto sem aviso.
 
-O suporte é prestado pelos canais indicados na plataforma, em dias úteis. [DECIDIR: se a BLACKBIRD quiser se comprometer com prazo de resposta, informe aqui — por exemplo, "resposta em até 2 dias úteis".]`,
+O suporte é prestado pelos canais indicados na plataforma, em dias úteis, com primeira resposta em até 4 (quatro) horas úteis contadas do registro do chamado. Este prazo é de primeira resposta, não de solução do problema.`,
 
     RESPONSABILIDADE: `A BLACKBIRD não tem nenhuma responsabilidade sobre a utilização dos Dados do Cliente, dos resultados produzidos pelo Serviço e de qualquer decisão tomada com base neles — essa utilização é de responsabilidade exclusiva e integral do CONTRATANTE, conforme já declarado na cláusula 3.
 
