@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import type { Operacao } from "@prisma/client";
 import { salvarOperacao } from "./acoes";
 import type { ResultadoAcao } from "../pessoas/acoes";
@@ -23,7 +23,7 @@ const MERCADORIA = ["COMMODITY", "OURO", "METAIS"];
 const METAL = ["OURO", "METAIS"];
 
 export function FormularioOperacao({ operacao }: { operacao?: Operacao }) {
-  const [estado, acao] = useFormState(salvarOperacao, inicial);
+  const [estado, acao] = useActionState(salvarOperacao, inicial);
   const [tipo, setTipo] = useState(operacao?.tipoAtivo ?? "PRECATORIO");
   const formulario = useRef<HTMLFormElement>(null);
 

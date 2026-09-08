@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { assinar, cancelar, type ResultadoAssinatura } from "./acoes";
 
 const INICIAL: ResultadoAssinatura = {};
@@ -25,7 +25,7 @@ export type PlanoParaEscolha = {
 };
 
 export function FormularioAssinar({ solucao, planos }: { solucao: string; planos: PlanoParaEscolha[] }) {
-  const [estado, acao] = useFormState(assinar, INICIAL);
+  const [estado, acao] = useActionState(assinar, INICIAL);
   const [escolhido, setEscolhido] = useState(planos.find((p) => p.destaque)?.chave ?? planos[0]?.chave ?? "");
   const [ciclo, setCiclo] = useState<"MENSAL" | "ANUAL">("MENSAL");
 
@@ -109,7 +109,7 @@ export function FormularioAssinar({ solucao, planos }: { solucao: string; planos
 
 export function FormularioCancelar({ solucao, rotulo }: { solucao: string; rotulo: string }) {
   const [aberto, setAberto] = useState(false);
-  const [estado, acao] = useFormState(cancelar, INICIAL);
+  const [estado, acao] = useActionState(cancelar, INICIAL);
 
   if (!aberto) {
     return (

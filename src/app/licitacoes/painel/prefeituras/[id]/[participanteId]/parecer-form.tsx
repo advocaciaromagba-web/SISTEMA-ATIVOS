@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarParecer, type ResultadoAcao } from "../../acoes";
 import { BotaoSalvar } from "@/components/campos";
 
@@ -15,7 +15,7 @@ export function FormularioParecer({
   participanteCertameId: string;
   situacaoAtual: string;
 }) {
-  const [estado, acao] = useFormState(salvarParecer, inicial);
+  const [estado, acao] = useActionState(salvarParecer, inicial);
 
   return (
     <form action={acao} className="space-y-3">

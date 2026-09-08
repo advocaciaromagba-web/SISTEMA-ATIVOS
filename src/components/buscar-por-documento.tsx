@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { buscarPorDocumento, type ResultadoBusca } from "@/app/painel/cadastro/acoes";
 import { rotuloDoCampo, valorParaExibir, type Confianca, type Perfil } from "@/lib/ia/leitura";
 import { formatarDocumento, somenteAlfanumerico } from "@/lib/validacao";
@@ -47,7 +48,7 @@ export function BuscarPorDocumento({
   /** Avisa a tela quando a busca revelou que é pessoa física ou jurídica. */
   aoTrocarTipo?: (tipo: "PF" | "PJ") => void;
 }) {
-  const [estado, acao] = useFormState(buscarPorDocumento, inicial);
+  const [estado, acao] = useActionState(buscarPorDocumento, inicial);
   const [documento, setDocumento] = useState("");
   const [descartados, setDescartados] = useState<Set<string>>(new Set());
   const [aplicado, setAplicado] = useState(false);

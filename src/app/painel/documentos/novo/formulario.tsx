@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { gerarEsalvar } from "../acoes";
 import type { ResultadoAcao } from "../../pessoas/acoes";
 import { BotaoSalvar, Secao } from "@/components/campos";
@@ -23,7 +23,7 @@ export function FormularioGeracao({
   exigeTestemunhas: boolean;
   baseLegal: string[];
 }) {
-  const [estado, acao] = useFormState(gerarEsalvar, inicial);
+  const [estado, acao] = useActionState(gerarEsalvar, inicial);
 
   return (
     <form action={acao} className="space-y-5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarPrecoIa, salvarRenovacaoIa, resolverAlerta, type ResultadoCustos } from "./acoes";
 
 const INICIAL: ResultadoCustos = {};
@@ -17,7 +17,7 @@ export function FormularioPreco({
 }: {
   modelos: { modelo: string; entrada: string; saida: string; fonte: string; atualizadoEm: string }[];
 }) {
-  const [estado, acao] = useFormState(salvarPrecoIa, INICIAL);
+  const [estado, acao] = useActionState(salvarPrecoIa, INICIAL);
 
   return (
     <div className="cartao">
@@ -90,7 +90,7 @@ export function FormularioPreco({
 }
 
 export function FormularioRenovacao({ renovacao, saldo }: { renovacao: string; saldo: string }) {
-  const [estado, acao] = useFormState(salvarRenovacaoIa, INICIAL);
+  const [estado, acao] = useActionState(salvarRenovacaoIa, INICIAL);
 
   return (
     <div className="cartao">
@@ -126,7 +126,7 @@ export function FormularioRenovacao({ renovacao, saldo }: { renovacao: string; s
 }
 
 export function BotaoResolver({ id }: { id: string }) {
-  const [estado, acao] = useFormState(resolverAlerta, INICIAL);
+  const [estado, acao] = useActionState(resolverAlerta, INICIAL);
 
   return (
     <>

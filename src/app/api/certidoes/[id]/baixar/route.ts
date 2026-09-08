@@ -10,7 +10,8 @@ import { registrar } from "@/lib/registro";
  * confere que a certidão pertence à organização de quem pede — certidão
  * criminal de terceiro não pode vazar por adivinhação de identificador.
  */
-export async function GET(_pedido: Request, { params }: { params: { id: string } }) {
+export async function GET(_pedido: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const sessao = await sessaoAtual();
   if (!sessao) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
 

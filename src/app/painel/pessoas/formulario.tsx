@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import type { Pessoa } from "@prisma/client";
 import { salvarPessoa, type ResultadoAcao } from "./acoes";
 import { Area, BotaoSalvar, Campo, Marcador, Secao, Selecao } from "@/components/campos";
@@ -19,7 +19,7 @@ const ESTADOS_CIVIS = [
 const inicial: ResultadoAcao = {};
 
 export function FormularioPessoa({ pessoa }: { pessoa?: Pessoa }) {
-  const [estado, acao] = useFormState(salvarPessoa, inicial);
+  const [estado, acao] = useActionState(salvarPessoa, inicial);
   const [tipo, setTipo] = useState<"PF" | "PJ">((pessoa?.tipo as "PF" | "PJ") ?? "PF");
   const formulario = useRef<HTMLFormElement>(null);
 

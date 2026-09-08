@@ -26,7 +26,8 @@ const CORES: Record<string, string> = {
   ENVIAR_ASSINATURA: "bg-amber-100 text-amber-800",
 };
 
-export default async function Auditoria({ searchParams }: { searchParams: { pagina?: string } }) {
+export default async function Auditoria(props: { searchParams: Promise<{ pagina?: string }> }) {
+  const searchParams = await props.searchParams;
   const { organizacao } = await exigirSessao();
 
   const pagina = Math.max(1, Number(searchParams.pagina ?? 1));

@@ -42,7 +42,7 @@ export async function GET(pedido: Request) {
     });
   }
 
-  limparCookiesDeAcesso(acesso.solucao);
+  await limparCookiesDeAcesso(acesso.solucao);
 
   return NextResponse.redirect(new URL("/admin/painel/contas", base));
 }

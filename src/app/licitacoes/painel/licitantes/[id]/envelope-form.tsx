@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { gerarEnvelope, type ResultadoAcao } from "../acoes";
 import { BotaoSalvar } from "@/components/campos";
 import type { EditalInteresse } from "@prisma/client";
@@ -14,7 +14,7 @@ export function FormularioEnvelope({
   licitanteEmpresaId: string;
   editais: EditalInteresse[];
 }) {
-  const [estado, acao] = useFormState(gerarEnvelope, inicial);
+  const [estado, acao] = useActionState(gerarEnvelope, inicial);
 
   if (editais.length === 0) {
     return <p className="text-sm text-slate-500">Cadastre um edital de interesse para poder gerar o envelope.</p>;

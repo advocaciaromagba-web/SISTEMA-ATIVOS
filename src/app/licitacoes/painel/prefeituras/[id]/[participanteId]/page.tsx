@@ -20,11 +20,12 @@ const ROTULO_DOCUMENTO: Record<string, string> = {
   OUTRO: "Outro",
 };
 
-export default async function DetalheParticipante({
-  params,
-}: {
-  params: { id: string; participanteId: string };
-}) {
+export default async function DetalheParticipante(
+  props: {
+    params: Promise<{ id: string; participanteId: string }>;
+  }
+) {
+  const params = await props.params;
   const { conta } = await exigirSessaoLicitacoes();
 
   const certame = await prisma.certame.findFirst({ where: { id: params.id, licitacaoContaId: conta.id } });

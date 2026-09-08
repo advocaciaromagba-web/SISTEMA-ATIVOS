@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { redefinirSenha, type ResultadoRedefinirSenha } from "./acoes";
 
 const inicial: ResultadoRedefinirSenha = {};
 
 export function FormularioRedefinirSenha({ token }: { token: string }) {
-  const [estado, acao] = useFormState(redefinirSenha, inicial);
+  const [estado, acao] = useActionState(redefinirSenha, inicial);
 
   if (estado.redefinida) {
     return (

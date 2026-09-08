@@ -44,7 +44,7 @@ export type AcessoEmCurso = {
  * administrativo em curso. Devolve `null` no caso normal (cliente de verdade).
  */
 export async function acessoAdminEmCurso(): Promise<AcessoEmCurso | null> {
-  const id = cookies().get(COOKIE_ACESSO_ADMIN)?.value;
+  const id = (await cookies()).get(COOKIE_ACESSO_ADMIN)?.value;
   if (!id) return null;
 
   const acesso = await prisma.adminAcesso.findUnique({
@@ -64,8 +64,8 @@ export async function acessoAdminEmCurso(): Promise<AcessoEmCurso | null> {
   };
 }
 
-export function marcarCookieAcesso(acessoId: string, duracaoSegundos: number): void {
-  cookies().set(COOKIE_ACESSO_ADMIN, acessoId, {
+export async function marcarCookieAcesso(acessoId: string, duracaoSegundos: number): Promise<void> {
+  (await cookies()).set(COOKIE_ACESSO_ADMIN, acessoId, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -75,8 +75,8 @@ export function marcarCookieAcesso(acessoId: string, duracaoSegundos: number): v
 }
 
 /** Apaga o cookie da solução e o marcador — o admin volta a ser só o admin. */
-export function limparCookiesDeAcesso(solucao: string): void {
-  const c = cookies();
+export async function limparCookiesDeAcesso(solucao: string): Promise<void> {
+  const c = await cookies();
   const cookieSolucao = COOKIE_DA_SOLUCAO[solucao];
   if (cookieSolucao) c.delete(cookieSolucao);
   c.delete(COOKIE_ACESSO_ADMIN);

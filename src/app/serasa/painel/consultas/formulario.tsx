@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { novaConsulta, type ResultadoAcao } from "./acoes";
 import { BotaoSalvar } from "@/components/campos";
 
 const inicial: ResultadoAcao = {};
 
 export function FormularioNovaConsulta() {
-  const [estado, acao] = useFormState(novaConsulta, inicial);
+  const [estado, acao] = useActionState(novaConsulta, inicial);
   const [tipoPessoa, setTipoPessoa] = useState<"PF" | "PJ">("PJ");
 
   return (

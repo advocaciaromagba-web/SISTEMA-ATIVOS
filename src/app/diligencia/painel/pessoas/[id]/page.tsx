@@ -22,7 +22,8 @@ const COR_IDONEIDADE: Record<string, string> = {
 
 type Apontamento = { titulo: string; detalhe: string };
 
-export default async function DetalhePessoa({ params }: { params: { id: string } }) {
+export default async function DetalhePessoa(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { usuario, conta } = await exigirSessaoDiligencia();
 
   const pessoa = await prisma.diligenciaPessoa.findFirst({

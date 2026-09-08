@@ -6,7 +6,8 @@ import { FormularioRedefinirSenha } from "./formulario";
 
 export const metadata: Metadata = { title: "Redefinir senha — Gestão de Ativos" };
 
-export default function RedefinirSenhaAtivos({ searchParams }: { searchParams: { token?: string } }) {
+export default async function RedefinirSenhaAtivos(props: { searchParams: Promise<{ token?: string }> }) {
+  const searchParams = await props.searchParams;
   const token = searchParams.token ?? "";
 
   return (

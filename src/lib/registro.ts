@@ -31,9 +31,9 @@ type Registro = {
 };
 
 /** Origem da requisição, quando houver uma. */
-function origem(): { ip: string | null; agente: string | null } {
+async function origem(): Promise<{ ip: string | null; agente: string | null }> {
   try {
-    const h = headers();
+    const h = await headers();
     const ip =
       h.get("cf-connecting-ip") ||
       h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -47,7 +47,7 @@ function origem(): { ip: string | null; agente: string | null } {
 }
 
 export async function registrar(dados: Registro): Promise<void> {
-  const { ip, agente } = origem();
+  const { ip, agente } = await origem();
 
   try {
     await prisma.logAuditoria.create({

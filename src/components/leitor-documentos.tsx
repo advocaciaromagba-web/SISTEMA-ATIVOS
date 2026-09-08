@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
+import { useActionState } from "react";
 import { lerArquivos, type ResultadoLeituraAcao } from "@/app/painel/leitura/acoes";
 import { rotuloDoCampo, valorParaExibir, type Confianca, type Perfil } from "@/lib/ia/leitura";
 
@@ -48,7 +49,7 @@ export function LeitorDocumentos({
   /** Recebe os campos aprovados e preenche o formulário da tela. */
   aoAplicar: (campos: Record<string, string>) => void;
 }) {
-  const [estado, acao] = useFormState(lerArquivos, inicial);
+  const [estado, acao] = useActionState(lerArquivos, inicial);
   const [aberto, setAberto] = useState(false);
   const [descartados, setDescartados] = useState<Set<string>>(new Set());
   const [aplicado, setAplicado] = useState(false);

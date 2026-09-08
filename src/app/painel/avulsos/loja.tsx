@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { cancelarPedido, confirmarPagamento, criarPedido } from "./acoes";
 import type { ResultadoAcao } from "../pessoas/acoes";
 import { BotaoSalvar } from "@/components/campos";
@@ -42,8 +42,8 @@ export function Loja({
   pedidos: PedidoResumo[];
   ehDono: boolean;
 }) {
-  const [estado, acao] = useFormState(criarPedido, inicial);
-  const [estadoPagamento, acaoPagamento] = useFormState(confirmarPagamento, inicial);
+  const [estado, acao] = useActionState(criarPedido, inicial);
+  const [estadoPagamento, acaoPagamento] = useActionState(confirmarPagamento, inicial);
   const [escolhido, setEscolhido] = useState<ItemAvulso | null>(null);
   const [quantidade, setQuantidade] = useState(1);
   const [pagando, setPagando] = useState<string | null>(null);

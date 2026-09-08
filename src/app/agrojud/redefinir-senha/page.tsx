@@ -6,7 +6,8 @@ import { FormularioRedefinirSenha } from "./formulario";
 
 export const metadata: Metadata = { title: "Redefinir senha — Agrojud" };
 
-export default function RedefinirSenhaAgro({ searchParams }: { searchParams: { token?: string } }) {
+export default async function RedefinirSenhaAgro(props: { searchParams: Promise<{ token?: string }> }) {
+  const searchParams = await props.searchParams;
   const token = searchParams.token ?? "";
 
   return (

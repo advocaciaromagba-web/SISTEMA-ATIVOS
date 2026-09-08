@@ -8,11 +8,12 @@ import { FormularioGeracao } from "./formulario";
 
 export const dynamic = "force-dynamic";
 
-export default async function NovoDocumento({
-  searchParams,
-}: {
-  searchParams: { operacao?: string; tipo?: string };
-}) {
+export default async function NovoDocumento(
+  props: {
+    searchParams: Promise<{ operacao?: string; tipo?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { organizacao, usuario } = await exigirSessao();
 
   const operacoes = await prisma.operacao.findMany({

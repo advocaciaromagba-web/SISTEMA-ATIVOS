@@ -5,7 +5,8 @@ import { formatarDocumento, formatarTelefone } from "@/lib/validacao";
 
 export const dynamic = "force-dynamic";
 
-export default async function Pessoas({ searchParams }: { searchParams: { busca?: string } }) {
+export default async function Pessoas(props: { searchParams: Promise<{ busca?: string }> }) {
+  const searchParams = await props.searchParams;
   const { organizacao } = await exigirSessao();
   const busca = (searchParams.busca ?? "").trim();
 

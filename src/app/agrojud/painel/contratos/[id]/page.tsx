@@ -30,7 +30,8 @@ function Selo({ valor }: { valor: boolean | "INDETERMINADO" }) {
   return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">Falta dado</span>;
 }
 
-export default async function DetalheContratoAgro({ params }: { params: { id: string } }) {
+export default async function DetalheContratoAgro(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { conta } = await exigirSessaoAgro();
 
   const contrato = await prisma.agroContrato.findFirst({ where: { id: params.id, agroContaId: conta.id } });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { verificarDocumento, type ResultadoAcao } from "./acoes";
 import { BotaoSalvar } from "@/components/campos";
 
@@ -15,7 +15,7 @@ const TIPOS: Array<{ valor: string; nome: string }> = [
 ];
 
 export function FormularioDocumento() {
-  const [estado, acao] = useFormState(verificarDocumento, inicial);
+  const [estado, acao] = useActionState(verificarDocumento, inicial);
 
   return (
     <form action={acao} className="space-y-4">

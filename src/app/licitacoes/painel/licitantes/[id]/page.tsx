@@ -18,7 +18,8 @@ const ROTULO_DOCUMENTO: Record<string, string> = {
   OUTRO: "Outro",
 };
 
-export default async function DetalheLicitante({ params }: { params: { id: string } }) {
+export default async function DetalheLicitante(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { usuario, conta } = await exigirSessaoLicitacoes();
 
   const licitante = await prisma.licitanteEmpresa.findFirst({

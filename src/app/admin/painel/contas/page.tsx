@@ -8,11 +8,12 @@ function data(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString("pt-BR") : "—";
 }
 
-export default async function ContasAdmin({
-  searchParams,
-}: {
-  searchParams: { solucao?: string; busca?: string };
-}) {
+export default async function ContasAdmin(
+  props: {
+    searchParams: Promise<{ solucao?: string; busca?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await exigirSessaoAdmin();
 
   const busca = (searchParams.busca ?? "").trim();

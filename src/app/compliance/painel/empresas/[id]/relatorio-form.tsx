@@ -1,13 +1,13 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { gerarRelatorio, type ResultadoAcao } from "../acoes";
 import { Campo, BotaoSalvar } from "@/components/campos";
 
 const inicial: ResultadoAcao = {};
 
 export function FormularioRelatorio({ complianceEmpresaId, nomeUsuario }: { complianceEmpresaId: string; nomeUsuario: string }) {
-  const [estado, acao] = useFormState(gerarRelatorio, inicial);
+  const [estado, acao] = useActionState(gerarRelatorio, inicial);
 
   return (
     <form action={acao} className="space-y-4">

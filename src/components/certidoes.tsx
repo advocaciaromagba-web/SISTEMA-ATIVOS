@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { emitirCertidaoAutomatica, excluirCertidao, registrarCertidao } from "@/app/painel/auditoria/certidoes-acoes";
 import type { ResultadoAcao } from "@/app/painel/pessoas/acoes";
 import { BotaoSalvar } from "@/components/campos";
@@ -78,7 +78,7 @@ export function Certidoes({
   operacoes: Array<{ id: string; codigo: string; titulo: string }>;
   podeEditar: boolean;
 }) {
-  const [estado, acao] = useFormState(registrarCertidao, inicial);
+  const [estado, acao] = useActionState(registrarCertidao, inicial);
   const [aberto, setAberto] = useState<string | null>(null);
   const [removendo, iniciar] = useTransition();
   const [erro, setErro] = useState("");

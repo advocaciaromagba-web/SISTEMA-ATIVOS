@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarRascunho, publicarContrato, type ResultadoContrato } from "./acoes";
 
 const INICIAL: ResultadoContrato = {};
@@ -27,7 +27,7 @@ export function FormularioRascunho({
   temRascunho: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
-  const [estado, acao] = useFormState(salvarRascunho, INICIAL);
+  const [estado, acao] = useActionState(salvarRascunho, INICIAL);
 
   if (!aberto) {
     return (
@@ -71,7 +71,7 @@ export function FormularioRascunho({
 
 export function FormularioPublicar({ solucao, versao }: { solucao: string; versao: number }) {
   const [aberto, setAberto] = useState(false);
-  const [estado, acao] = useFormState(publicarContrato, INICIAL);
+  const [estado, acao] = useActionState(publicarContrato, INICIAL);
 
   if (!aberto) {
     return (

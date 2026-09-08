@@ -29,9 +29,9 @@ export type AcaoAdmin =
   | "CONFIGURAR";
 
 /** Pega IP e navegador de quem está agindo, quando disponíveis. */
-function origem(): { ip: string | null; agente: string | null } {
+async function origem(): Promise<{ ip: string | null; agente: string | null }> {
   try {
-    const h = headers();
+    const h = await headers();
     const encaminhado = h.get("x-forwarded-for");
     return {
       ip: encaminhado ? encaminhado.split(",")[0].trim() : h.get("x-real-ip"),
@@ -52,7 +52,7 @@ export async function registrarAcaoAdmin(params: {
   alvoId?: string | null;
   detalhe?: unknown;
 }): Promise<void> {
-  const { ip, agente } = origem();
+  const { ip, agente } = await origem();
 
   await prisma.adminAuditoria.create({
     data: {

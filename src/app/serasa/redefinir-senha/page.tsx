@@ -6,7 +6,8 @@ import { FormularioRedefinirSenha } from "./formulario";
 
 export const metadata: Metadata = { title: "Redefinir senha — Consulta Cadastral" };
 
-export default function RedefinirSenhaSerasa({ searchParams }: { searchParams: { token?: string } }) {
+export default async function RedefinirSenhaSerasa(props: { searchParams: Promise<{ token?: string }> }) {
+  const searchParams = await props.searchParams;
   const token = searchParams.token ?? "";
 
   return (

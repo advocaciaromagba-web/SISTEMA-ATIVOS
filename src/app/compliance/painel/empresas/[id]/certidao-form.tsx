@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { anexarCertidao, type ResultadoAcao } from "../acoes";
 import { BotaoSalvar } from "@/components/campos";
 
@@ -15,7 +15,7 @@ const TIPOS = [
 ];
 
 export function FormularioCertidao({ complianceEmpresaId }: { complianceEmpresaId: string }) {
-  const [estado, acao] = useFormState(anexarCertidao, inicial);
+  const [estado, acao] = useActionState(anexarCertidao, inicial);
 
   return (
     <form action={acao} className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">

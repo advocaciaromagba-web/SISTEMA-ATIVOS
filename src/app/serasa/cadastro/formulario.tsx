@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { criarContaSerasa, type ResultadoCadastro } from "./acoes";
 
 const inicial: ResultadoCadastro = {};
 
 export function FormularioCadastroSerasa() {
-  const [estado, acao] = useFormState(criarContaSerasa, inicial);
+  const [estado, acao] = useActionState(criarContaSerasa, inicial);
   const [tipo, setTipo] = useState<"PF" | "PJ">("PJ");
 
   return (

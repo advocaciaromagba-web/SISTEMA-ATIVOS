@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { criarEAnalisarContrato, sugerirLeituraContrato, type ResultadoAcao } from "../acoes";
 import type { RascunhoContrato } from "@/lib/agro/leitura-contrato";
 
@@ -31,7 +31,7 @@ function CampoSimNao({ nome, rotulo, valor, onChange }: { nome: string; rotulo: 
 }
 
 export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean }) {
-  const [estado, acao] = useFormState(criarEAnalisarContrato, inicial);
+  const [estado, acao] = useActionState(criarEAnalisarContrato, inicial);
   const [rodandoIa, iniciarIa] = useTransition();
   const [erroIa, setErroIa] = useState("");
 

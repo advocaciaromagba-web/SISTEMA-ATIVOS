@@ -12,7 +12,8 @@ function data(d: Date | null | undefined): string {
   return d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
 }
 
-export default async function ContaAdmin({ params }: { params: { solucao: string; id: string } }) {
+export default async function ContaAdmin(props: { params: Promise<{ solucao: string; id: string }> }) {
+  const params = await props.params;
   const admin = await exigirSessaoAdmin();
 
   const d = descritor(params.solucao);

@@ -93,7 +93,7 @@ export async function emitirSessaoSolucao(solucao: string, usuario: CamposUsuari
 
   const codificado = await encode({ token, secret, maxAge: OITO_HORAS });
 
-  cookies().set(config.cookieName, codificado, {
+  (await cookies()).set(config.cookieName, codificado, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

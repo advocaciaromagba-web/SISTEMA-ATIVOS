@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { criarContaVerificacao, type ResultadoCadastro } from "./acoes";
 import { DIAS_DE_TESTE, CONSULTAS_GRATIS_TESTE } from "@/lib/planos";
 
@@ -14,7 +14,7 @@ const FORMAS_COBRANCA = [
 ];
 
 export function FormularioCadastroVerificacao() {
-  const [estado, acao] = useFormState(criarContaVerificacao, inicial);
+  const [estado, acao] = useActionState(criarContaVerificacao, inicial);
   const [tipo, setTipo] = useState<"PF" | "PJ">("PJ");
 
   return (

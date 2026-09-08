@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { buscarOportunidades, salvarEditalDoPncp, type ResultadoAcao } from "../acoes";
 import { MODALIDADES_PNCP, UFS, type OportunidadePncp } from "@/lib/licitacoes/pncp";
 import { BotaoSalvar } from "@/components/campos";
@@ -127,7 +127,7 @@ export function BuscaOportunidades({ ufPadrao }: { ufPadrao: string }) {
 const inicial: ResultadoAcao = {};
 
 function CartaoOportunidade({ oportunidade: o }: { oportunidade: OportunidadePncp }) {
-  const [estado, acao] = useFormState(salvarEditalDoPncp, inicial);
+  const [estado, acao] = useActionState(salvarEditalDoPncp, inicial);
 
   return (
     <li className="cartao">

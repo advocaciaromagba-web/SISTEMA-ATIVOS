@@ -6,7 +6,8 @@ import { FormularioOperacao } from "../../formulario";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditarOperacao({ params }: { params: { id: string } }) {
+export default async function EditarOperacao(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { organizacao } = await exigirSessao();
 
   const operacao = await prisma.operacao.findFirst({

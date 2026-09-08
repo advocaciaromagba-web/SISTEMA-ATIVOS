@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import Link from "next/link";
 import { desvincularParte, vincularParte } from "../acoes";
 import type { ResultadoAcao } from "../../pessoas/acoes";
@@ -30,7 +30,7 @@ export function Partes({
   pessoas: PessoaResumo[];
   podeEditar: boolean;
 }) {
-  const [estado, acao] = useFormState(vincularParte, inicial);
+  const [estado, acao] = useActionState(vincularParte, inicial);
   const [abrirForm, setAbrirForm] = useState(false);
   const [removendo, iniciarRemocao] = useTransition();
   const [erroRemocao, setErroRemocao] = useState("");

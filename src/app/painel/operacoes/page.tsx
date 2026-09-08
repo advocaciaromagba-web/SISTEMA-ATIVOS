@@ -17,7 +17,8 @@ const CORES_FASE: Record<string, string> = {
   CANCELADA: "bg-red-100 text-red-800",
 };
 
-export default async function Operacoes({ searchParams }: { searchParams: { fase?: string } }) {
+export default async function Operacoes(props: { searchParams: Promise<{ fase?: string }> }) {
+  const searchParams = await props.searchParams;
   const { organizacao } = await exigirSessao();
   const fase = searchParams.fase;
 

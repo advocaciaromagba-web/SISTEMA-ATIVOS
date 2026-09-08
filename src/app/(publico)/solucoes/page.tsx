@@ -11,7 +11,8 @@ export const metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function Solucoes({ searchParams }: { searchParams?: { s?: string } }) {
+export default async function Solucoes(props: { searchParams?: Promise<{ s?: string }> }) {
+  const searchParams = await props.searchParams;
   return (
     <>
       <section className="faixa-escura border-b-2 border-[color:var(--marca-destaque)]">

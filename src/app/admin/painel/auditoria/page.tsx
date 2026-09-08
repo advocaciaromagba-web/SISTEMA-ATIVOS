@@ -27,11 +27,12 @@ function quando(d: Date): string {
   return new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
 }
 
-export default async function AuditoriaAdmin({
-  searchParams,
-}: {
-  searchParams: { acao?: string; solucao?: string; pagina?: string };
-}) {
+export default async function AuditoriaAdmin(
+  props: {
+    searchParams: Promise<{ acao?: string; solucao?: string; pagina?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   await exigirSessaoAdmin();
 
   const pagina = Math.max(1, Number(searchParams.pagina ?? "1") || 1);

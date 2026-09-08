@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { liberarEmpresaCompliance, rebloquearEmpresaCompliance, type ResultadoAcao } from "../acoes";
 import { BotaoSalvar } from "@/components/campos";
 
@@ -26,7 +26,7 @@ export function LiberacaoEmpresa({
   const [rodando, iniciar] = useTransition();
   const [abrir, setAbrir] = useState(false);
   const [erro, setErro] = useState("");
-  const [estado, acao] = useFormState(liberarEmpresaCompliance, inicial);
+  const [estado, acao] = useActionState(liberarEmpresaCompliance, inicial);
 
   function rebloquear() {
     setErro("");

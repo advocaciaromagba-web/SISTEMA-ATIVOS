@@ -31,7 +31,8 @@ const ROTULO_CERTIDAO: Record<string, string> = {
 
 type Apontamento = { titulo: string; detalhe: string };
 
-export default async function DetalheEmpresa({ params }: { params: { id: string } }) {
+export default async function DetalheEmpresa(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { usuario, conta } = await exigirSessaoCompliance();
 
   const empresa = await prisma.complianceEmpresa.findFirst({

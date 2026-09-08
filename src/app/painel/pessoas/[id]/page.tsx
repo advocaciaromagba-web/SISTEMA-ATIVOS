@@ -17,7 +17,8 @@ import { podeEditar } from "@/lib/sessao";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditarPessoa({ params }: { params: { id: string } }) {
+export default async function EditarPessoa(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { organizacao, usuario } = await exigirSessao();
 
   const pessoa = await prisma.pessoa.findFirst({

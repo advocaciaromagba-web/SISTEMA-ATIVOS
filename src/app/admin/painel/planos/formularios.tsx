@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarPlano, salvarConfiguracao, type ResultadoPlano } from "./acoes";
 
 const INICIAL: ResultadoPlano = {};
@@ -40,7 +40,7 @@ export function FormularioPlano({
   novo?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
-  const [estado, acao] = useFormState(salvarPlano, INICIAL);
+  const [estado, acao] = useActionState(salvarPlano, INICIAL);
 
   if (!aberto) {
     return (
@@ -135,7 +135,7 @@ export function FormularioConfiguracao({
   diasDeTeste: number;
   consultasGratisTeste: number;
 }) {
-  const [estado, acao] = useFormState(salvarConfiguracao, INICIAL);
+  const [estado, acao] = useActionState(salvarConfiguracao, INICIAL);
 
   return (
     <form action={acao} className="flex flex-wrap items-end gap-3">

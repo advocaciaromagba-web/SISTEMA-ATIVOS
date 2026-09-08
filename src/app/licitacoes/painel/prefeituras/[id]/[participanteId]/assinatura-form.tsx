@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { registrarValidacaoAssinatura, type ResultadoAcao } from "../../acoes";
 import { BotaoSalvar } from "@/components/campos";
 import type { ValidacaoAssinatura } from "@prisma/client";
@@ -29,7 +29,7 @@ export function FormularioAssinatura({
   participanteCertameId: string;
   validacao: ValidacaoAssinatura | null;
 }) {
-  const [estado, acao] = useFormState(registrarValidacaoAssinatura, inicial);
+  const [estado, acao] = useActionState(registrarValidacaoAssinatura, inicial);
   const [tipo, setTipo] = useState<"DIGITAL" | "MANUSCRITA">((validacao?.tipo as "DIGITAL" | "MANUSCRITA") ?? "DIGITAL");
 
   return (

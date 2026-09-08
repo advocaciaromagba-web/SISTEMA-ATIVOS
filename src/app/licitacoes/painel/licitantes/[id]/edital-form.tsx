@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarEditalInteresse, type ResultadoAcao } from "../acoes";
 import { Campo, BotaoSalvar } from "@/components/campos";
 
@@ -16,7 +16,7 @@ const MODALIDADES = [
 ];
 
 export function FormularioEdital() {
-  const [estado, acao] = useFormState(salvarEditalInteresse, inicial);
+  const [estado, acao] = useActionState(salvarEditalInteresse, inicial);
 
   return (
     <form action={acao} className="space-y-4">

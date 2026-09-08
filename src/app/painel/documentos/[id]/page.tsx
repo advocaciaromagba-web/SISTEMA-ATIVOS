@@ -13,7 +13,8 @@ type DadosGuardados = {
   partes?: Array<{ papel: string; nome: string; documento: string | null; comissaoPercentual: number | null }>;
 };
 
-export default async function DetalheDocumento({ params }: { params: { id: string } }) {
+export default async function DetalheDocumento(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { organizacao } = await exigirSessao();
 
   const documento = await prisma.documento.findFirst({

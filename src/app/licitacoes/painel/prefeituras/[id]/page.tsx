@@ -28,7 +28,8 @@ const COR_COMPLIANCE: Record<string, string> = {
   RESTRICAO: "bg-red-100 text-red-800",
 };
 
-export default async function DetalheCertame({ params }: { params: { id: string } }) {
+export default async function DetalheCertame(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { conta } = await exigirSessaoLicitacoes();
 
   const certame = await prisma.certame.findFirst({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { useFormState } from "react-dom";
+import { useActionState } from "react";
 import { salvarPessoa, type ResultadoAcao } from "./acoes";
 import { Campo, BotaoSalvar, Secao } from "@/components/campos";
 import { BuscarPorDocumento } from "@/components/buscar-por-documento";
@@ -9,7 +9,7 @@ import { BuscarPorDocumento } from "@/components/buscar-por-documento";
 const inicial: ResultadoAcao = {};
 
 export function FormularioPessoa() {
-  const [estado, acao] = useFormState(salvarPessoa, inicial);
+  const [estado, acao] = useActionState(salvarPessoa, inicial);
   const formulario = useRef<HTMLFormElement>(null);
 
   function aplicarLeitura(campos: Record<string, string>) {

@@ -75,7 +75,7 @@ export async function entrarComoCliente(_anterior: ResultadoAcesso, dados: FormD
     papel: usuario.papel ?? "ADMIN",
   });
 
-  marcarCookieAcesso(acesso.id, OITO_HORAS);
+  await marcarCookieAcesso(acesso.id, OITO_HORAS);
 
   redirect(d.painel);
 }
