@@ -142,9 +142,9 @@ Esta Conta é exclusiva da solução ${nome}. Outras soluções da BLACKBIRD, se
 
 A cobrança é processada pela Asaas Gestão Financeira S.A., instituição de pagamento contratada pela BLACKBIRD. A primeira cobrança ocorre ao fim do período de teste, quando houver.
 
-[DECIDIR: regra de reajuste — sugestão: anual, pelo IPCA ou índice que o substitua, com aviso prévio de 30 dias. Alteração de preço não atinge assinatura em curso.]
+O valor é reajustado anualmente, na data de aniversário da contratação, pelo IPCA (ou índice que o substitua em caso de extinção), mediante aviso prévio de 30 (trinta) dias. O reajuste não se aplica retroativamente a período já cobrado.
 
-O não pagamento na data de vencimento sujeita a Conta à suspensão do acesso após [DECIDIR: prazo de tolerância — sugestão: 5 dias] de atraso, mediante aviso prévio. Os Dados do Cliente são preservados durante a suspensão e pelo prazo da cláusula ${numero.DADOS}, mesmo com o acesso bloqueado.`,
+O não pagamento na data de vencimento sujeita a Conta à suspensão do acesso após 5 (cinco) dias de atraso, mediante aviso prévio. Os Dados do Cliente são preservados durante a suspensão e pelo prazo da cláusula ${numero.DADOS}, mesmo com o acesso bloqueado.`,
 
     PRAZO: `A contratação vigora por prazo indeterminado e pode ser cancelada a qualquer tempo pelo CONTRATANTE, pela própria plataforma, sem multa.
 
@@ -173,7 +173,7 @@ ${
 
 Registros de acesso são mantidos pelo prazo do art. 15 da Lei nº 12.965/2014 (Marco Civil da Internet).
 
-Encerrado o contrato, o CONTRATANTE pode solicitar a exportação dos seus dados. [DECIDIR: prazo de guarda após o encerramento — sugestão: 90 dias para exportação, depois eliminação, ressalvado o que a lei obrigue a manter.]`,
+Cancelada a assinatura, o CONTRATANTE tem até 30 (trinta) dias para solicitar a exportação dos seus dados. Findo esse prazo, a BLACKBIRD pode eliminá-los, ressalvado o que a lei obrigue a manter por mais tempo (por exemplo, o registro de acesso do parágrafo anterior).`,
 
     DISPONIBILIDADE: `A BLACKBIRD empenha-se em manter o Serviço disponível, mas não garante funcionamento ininterrupto nem firma, neste contrato, compromisso formal de nível de serviço (SLA). Manutenções programadas serão avisadas com antecedência sempre que possível.
 
@@ -181,11 +181,11 @@ Indisponibilidade de fonte externa consultada pelo Serviço não é falha da BLA
 
 O suporte é prestado pelos canais indicados na plataforma, em dias úteis. [DECIDIR: se a BLACKBIRD quiser se comprometer com prazo de resposta, informe aqui — por exemplo, "resposta em até 2 dias úteis".]`,
 
-    RESPONSABILIDADE: `A BLACKBIRD responde pelos danos diretos comprovadamente causados por falha do Serviço.
+    RESPONSABILIDADE: `A BLACKBIRD não tem nenhuma responsabilidade sobre a utilização dos Dados do Cliente, dos resultados produzidos pelo Serviço e de qualquer decisão tomada com base neles — essa utilização é de responsabilidade exclusiva e integral do CONTRATANTE, conforme já declarado na cláusula 3.
 
-[DECIDIR: limitação de responsabilidade. Sugestão comum em SaaS: limite ao valor pago nos 12 meses anteriores ao evento, excluídos lucros cessantes e danos indiretos. ATENÇÃO: se a relação for de consumo, cláusula que exonere ou atenue responsabilidade é nula (CDC, art. 51, I) — e parte dos assinantes pode ser profissional autônomo. Convém decidir se o contrato assume relação empresarial, de consumo, ou traz redação que funcione nos dois casos.]
+Fora essa utilização, a BLACKBIRD responde pelos danos diretos comprovadamente causados por falha do próprio Serviço (por exemplo, indisponibilidade imputável a ela, conforme a cláusula ${numero.DISPONIBILIDADE}), limitados ao valor pago pelo CONTRATANTE nos 12 (doze) meses anteriores ao evento, excluídos lucros cessantes e danos indiretos.
 
-A BLACKBIRD não responde por decisão tomada pelo CONTRATANTE com base no material produzido pelo Serviço, cuja conferência é obrigação dele, conforme a cláusula 3.
+[NOTA PARA REVISÃO JURÍDICA — não é mais um ponto em aberto, é um alerta sobre o texto acima: se a relação com o CONTRATANTE for considerada de consumo, cláusula que exclua integralmente a responsabilidade pode ser tida por nula (CDC, art. 51, I), e um juiz pode reduzi-la a uma limitação em vez de afastá-la por completo — isso vale independentemente do que o contrato disser, então remover esta nota não remove o risco, só o esconde de quem revisar depois. Convém registrar, mesmo que informalmente, se a BLACKBIRD está tratando os assinantes desta solução como relação empresarial ou de consumo.]
 
 O CONTRATANTE se obriga a indenizar a BLACKBIRD por perdas decorrentes de uso do Serviço em violação a este contrato ou à lei, inclusive por reclamação de terceiro motivada por dado que o próprio CONTRATANTE inseriu ou por consulta que ele decidiu fazer.`,
 
@@ -213,7 +213,7 @@ Este contrato não é alterado por acordo verbal.`,
 
     FORO: `Este contrato é regido pela lei brasileira.
 
-[DECIDIR: foro. Sugestão: comarca de Guariba/SP, sede da BLACKBIRD, ressalvado o direito do consumidor de demandar no foro do seu domicílio (CDC, art. 101, I), quando a relação for de consumo.]`,
+Fica eleito o foro da comarca de Guariba/SP, sede da BLACKBIRD, para dirimir qualquer controvérsia decorrente deste contrato, ressalvado o direito do consumidor de demandar no foro do seu domicílio, quando a relação for de consumo (CDC, art. 101, I) — regra de ordem pública que se aplica ainda que não escrita aqui.`,
   };
 
   return definicoes.map((d) => `## ${numero[d.chave]}. ${d.titulo}\n\n${CORPOS[d.chave]}`).join("\n\n");
