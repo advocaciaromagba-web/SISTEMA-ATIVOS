@@ -20,6 +20,7 @@ export type ContaLogada = {
   contaId: string;
   contaNome: string;
   emailContato: string;
+  usuarioId: string;
   usuarioEmail: string;
   podeEditar: boolean;
 };
@@ -32,6 +33,7 @@ export async function contaLogadaDaSolucao(solucao: string): Promise<ContaLogada
         contaId: organizacao.id,
         contaNome: organizacao.nome,
         emailContato: organizacao.emailContato ?? usuario.email,
+        usuarioId: usuario.id,
         usuarioEmail: usuario.email,
         podeEditar: usuario.papel !== "LEITOR",
       };
@@ -42,6 +44,7 @@ export async function contaLogadaDaSolucao(solucao: string): Promise<ContaLogada
         contaId: conta.id,
         contaNome: conta.nome,
         emailContato: conta.emailContato ?? usuario.email,
+        usuarioId: usuario.id,
         usuarioEmail: usuario.email,
         podeEditar: usuario.papel !== "LEITOR",
       };
@@ -52,6 +55,7 @@ export async function contaLogadaDaSolucao(solucao: string): Promise<ContaLogada
         contaId: conta.id,
         contaNome: conta.nome,
         emailContato: conta.emailContato ?? usuario.email,
+        usuarioId: usuario.id,
         usuarioEmail: usuario.email,
         podeEditar: usuario.papel !== "LEITOR",
       };
@@ -62,6 +66,7 @@ export async function contaLogadaDaSolucao(solucao: string): Promise<ContaLogada
         contaId: conta.id,
         contaNome: conta.nome,
         emailContato: conta.emailContato ?? usuario.email,
+        usuarioId: usuario.id,
         usuarioEmail: usuario.email,
         podeEditar: usuario.papel !== "LEITOR",
       };
@@ -72,6 +77,7 @@ export async function contaLogadaDaSolucao(solucao: string): Promise<ContaLogada
         contaId: conta.id,
         contaNome: conta.nome,
         emailContato: conta.emailContato ?? usuario.email,
+        usuarioId: usuario.id,
         usuarioEmail: usuario.email,
         podeEditar: usuario.papel !== "LEITOR",
       };
@@ -82,6 +88,7 @@ export async function contaLogadaDaSolucao(solucao: string): Promise<ContaLogada
         contaId: conta.id,
         contaNome: conta.nome,
         emailContato: conta.emailContato ?? usuario.email,
+        usuarioId: usuario.id,
         usuarioEmail: usuario.email,
         podeEditar: usuario.papel !== "LEITOR",
       };

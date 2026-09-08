@@ -33,7 +33,7 @@ export function FormularioLicitante({ licitante }: { licitante?: LicitanteEmpres
 
   return (
     <div className="space-y-5">
-      <BuscarPorDocumento perfil="PESSOA_PJ" aoAplicar={aplicarLeitura} />
+      <BuscarPorDocumento solucao="LICITACOES" perfil="PESSOA_PJ" aoAplicar={aplicarLeitura} />
 
       <form ref={formulario} action={acao} className="space-y-5">
         {licitante && <input type="hidden" name="id" value={licitante.id} />}

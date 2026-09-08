@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useActionState } from "react";
-import { buscarPorDocumento, type ResultadoBusca } from "@/app/painel/cadastro/acoes";
+import { buscarPorDocumento, type ResultadoBusca } from "@/components/acoes-busca-documento";
 import { rotuloDoCampo, valorParaExibir, type Confianca, type Perfil } from "@/lib/ia/leitura";
 import { formatarDocumento, somenteAlfanumerico } from "@/lib/validacao";
 
@@ -39,10 +39,18 @@ function BotaoBuscar() {
  * estado civil e profissão de pessoa física, que a base pública não fornece.
  */
 export function BuscarPorDocumento({
+  solucao,
   perfil,
   aoAplicar,
   aoTrocarTipo,
 }: {
+  /**
+   * De qual solução é a tela que está usando esta busca. A ação confere a
+   * sessão DESTA solução — sem isso, a tela do Compliance acabava exigindo a
+   * sessão da Gestão de ativos e devolvia o usuário para o login no meio do
+   * cadastro.
+   */
+  solucao: "GESTAO_ATIVOS" | "LICITACOES" | "COMPLIANCE_EMPRESA" | "DILIGENCIA_PESSOA";
   perfil: Perfil;
   aoAplicar: (campos: Record<string, string>) => void;
   /** Avisa a tela quando a busca revelou que é pessoa física ou jurídica. */
@@ -104,6 +112,7 @@ export function BuscarPorDocumento({
       </p>
 
       <form action={acao} className="mt-4">
+        <input type="hidden" name="solucao" value={solucao} />
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-64 flex-1">
             <label className="rotulo" htmlFor="documentoBusca">

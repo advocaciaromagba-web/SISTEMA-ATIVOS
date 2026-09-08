@@ -24,7 +24,7 @@ export function FormularioEmpresa() {
 
   return (
     <div className="space-y-5">
-      <BuscarPorDocumento perfil="PESSOA_PJ" aoAplicar={aplicarLeitura} />
+      <BuscarPorDocumento solucao="COMPLIANCE_EMPRESA" perfil="PESSOA_PJ" aoAplicar={aplicarLeitura} />
 
       <form ref={formulario} action={acao} className="space-y-5">
         {estado.erro && <div className="aviso-erro">{estado.erro}</div>}

@@ -58,6 +58,7 @@ export function FormularioPessoa({ pessoa }: { pessoa?: Pessoa }) {
   return (
     <div className="space-y-5">
       <BuscarPorDocumento
+        solucao="GESTAO_ATIVOS"
         perfil={tipo === "PJ" ? "PESSOA_PJ" : "PESSOA_PF"}
         aoAplicar={aplicarLeitura}
         aoTrocarTipo={trocarTipo}
