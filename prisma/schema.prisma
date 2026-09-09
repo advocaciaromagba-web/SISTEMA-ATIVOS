@@ -1992,6 +1992,14 @@ model AgroContrato {
   /// ADIMPLENTE | INADIMPLENTE
   situacaoAdimplencia           String?
   dataInicioInadimplencia       DateTime?
+  /// Requisito da MP 1.376, art. 1º §4º, III: precisa estar inadimplente
+  /// nesta data específica. Já existia no motor de análise (mp1376.ts) sem
+  /// coluna própria — o fato nascia e morria na criação do contrato, sem
+  /// como ser reconferido depois. Corrigido aqui porque o recálculo do
+  /// parecer, disparado quando um anexo completa outro fato, precisa deste
+  /// também para não regredir o enquadramento da MP 1.376 para
+  /// "indeterminado".
+  permaneceInadimplenteEm31Mai2026 Boolean?
   foiRenegociadoOuProrrogado    Boolean?
   dataRenegociacaoOuProrrogacao DateTime?
 
@@ -2069,10 +2077,27 @@ model AgroContrato {
   // ----- dados para as peças (requerimento administrativo e petição inicial) -----
   advogadoNome     String?
   advogadoOab      String?
+  /// CNPJ da instituição financeira ré — usado para buscar razão social e
+  /// endereço reais na Receita (mesma consulta usada no cadastro de
+  /// empresas), em vez de o advogado digitar a qualificação à mão.
+  instituicaoFinanceiraCnpj String?
   enderecoBancoReu String?
   comarcaForo      String?
   varaForo         String?
   valorCausa       Decimal? @db.Decimal(14, 2)
+
+  // ----- capacidade de pagamento (laudo específico, distinto do laudo de
+  // perda de safra) — é o que demonstra o prejuízo concreto para a tese de
+  // alongamento e de revisão contratual. -----
+  /// Resumo do que o laudo conclui — sugestão da IA a partir do anexo,
+  /// revisado pela pessoa antes de entrar em qualquer peça.
+  capacidadePagamentoResumo       String?
+  /// Conclusão objetiva do laudo: a capacidade de pagamento está
+  /// comprometida? Alimenta a tese de dano na petição.
+  capacidadePagamentoComprometida Boolean?
+
+  anexos            AgroAnexo[]
+  documentosGerados AgroDocumentoGerado[]
 
   solicitadoPorId String?
   criadoEm        DateTime  @default(now())
@@ -2081,6 +2106,65 @@ model AgroContrato {
 
   @@index([agroContaId])
   @@index([agroContaId, mutuarioDocumento])
+}
+
+/// Documentos de apoio anexados ao contrato — OAB do advogado, laudo técnico
+/// de frustração de safra, laudo de capacidade de pagamento. Separado do
+/// arquivo do próprio contrato (`AgroContrato.arquivo`) porque são coisas
+/// diferentes: um é a prova do crédito, os outros são prova do prejuízo.
+model AgroAnexo {
+  id             String       @id @default(cuid())
+  agroContratoId String
+  agroContrato   AgroContrato @relation(fields: [agroContratoId], references: [id], onDelete: Cascade)
+
+  /// OAB_ADVOGADO | LAUDO_FRUSTRACAO_SAFRA | LAUDO_CAPACIDADE_PAGAMENTO | OUTRO
+  tipo        String
+  nomeArquivo String
+  arquivo     Bytes
+  arquivoTipo String?
+  hashSha256  String
+
+  /// Rascunho que a IA extraiu deste anexo — sugestão, nunca usada direto:
+  /// alguém revisa e confirma campo a campo antes de qualquer coisa mudar
+  /// no contrato, igual à leitura do contrato em si.
+  leituraIa Json?
+
+  criadoEm DateTime @default(now())
+
+  @@index([agroContratoId])
+}
+
+/// Histórico de cada requerimento/petição gerado para o contrato — o
+/// "dossiê" com o que foi produzido e com que fundamentos. Nunca é
+/// sobrescrito: uma nova geração cria uma linha nova, a anterior continua
+/// disponível.
+model AgroDocumentoGerado {
+  id             String       @id @default(cuid())
+  agroContratoId String
+  agroContrato   AgroContrato @relation(fields: [agroContratoId], references: [id], onDelete: Cascade)
+
+  /// REQUERIMENTO_ADMINISTRATIVO | PETICAO_INICIAL
+  tipo   String
+  /// MODELO_FIXO (motor determinístico de sempre) | IA (redigida pela IA, só
+  /// com os fundamentos e jurisprudência já verificados do próprio sistema)
+  origem String
+
+  nomeArquivo String
+  arquivo     Bytes
+  arquivoTipo String  @default("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+  hashSha256  String
+
+  /// Só quando origem = IA: o texto puro que ela devolveu, para auditoria —
+  /// dá para conferir depois exatamente o que foi escrito e com que fatos.
+  conteudoIa      String?
+  /// Retrato dos fatos e fundamentos passados à IA nesta geração — o que foi
+  /// analisado continua consultável mesmo que o contrato mude depois.
+  contextoAnalise Json?
+
+  geradoPorId String?
+  criadoEm    DateTime @default(now())
+
+  @@index([agroContratoId])
 }
 
 // ---------------------------------------------------------------------

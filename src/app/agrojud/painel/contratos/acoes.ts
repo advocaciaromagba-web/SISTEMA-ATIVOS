@@ -7,10 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { exigirEdicaoAgro } from "@/lib/agro/sessao";
 import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { lerContratoComIa, type RascunhoContrato } from "@/lib/agro/leitura-contrato";
+import { lerAnexoComIa, type RascunhoAnexo, type TipoAnexo } from "@/lib/agro/leitura-anexo";
 import { abrirAlerta } from "@/lib/ia/custo";
-import { analisarEnquadramentoCreditoRural, type FatosCreditoRural } from "@/lib/agro/credito-rural";
-import { analisarEnquadramentoMP1376, type FatosContrato } from "@/lib/agro/mp1376";
-import { analisarAlongamento, type FatosAlongamento, type HipoteseMcr } from "@/lib/agro/alongamento";
+import { analisarContrato } from "@/lib/agro/analise";
+import type { FatosContrato } from "@/lib/agro/mp1376";
+import type { FatosAlongamento, HipoteseMcr } from "@/lib/agro/alongamento";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
 export type ResultadoAcao = {
@@ -134,20 +135,15 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
   const causaPerda = texto(dados, "causaPerda") as FatosContrato["causaPerda"];
   const situacaoAdimplencia = texto(dados, "situacaoAdimplencia") as FatosContrato["situacaoAdimplenciaNaContratacaoNovaLinha"];
 
-  const fatosCreditoRural: FatosCreditoRural = {
+  const { resultadoCreditoRural, resultadoMp1376, resultadoAlongamento } = analisarContrato({
     categoriaOperacao,
     mutuarioEProdutorOuCooperativa: booleano(dados, "mutuarioEProdutorOuCooperativa"),
     finalidadeERural: booleano(dados, "finalidadeERural"),
     fonteRecursos: texto(dados, "fonteRecursos"),
-  };
-  const resultadoCreditoRural = analisarEnquadramentoCreditoRural(fatosCreditoRural);
-
-  const fatosMp1376: FatosContrato = {
-    categoriaOperacao,
-    dataContratacaoOriginal: data(dados, "dataContratacao"),
+    dataContratacao: data(dados, "dataContratacao"),
     foiRenegociadoOuProrrogado: booleano(dados, "foiRenegociadoOuProrrogado"),
     dataRenegociacaoOuProrrogacao: data(dados, "dataRenegociacaoOuProrrogacao"),
-    situacaoAdimplenciaNaContratacaoNovaLinha: situacaoAdimplencia,
+    situacaoAdimplencia,
     dataInicioInadimplencia: data(dados, "dataInicioInadimplencia"),
     permaneceInadimplenteEm31Mai2026: booleano(dados, "permaneceInadimplenteEm31Mai2026"),
     categoriaBeneficiario,
@@ -159,23 +155,15 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
     origemFundoSocial: booleano(dados, "origemFundoSocial"),
     origemMP1314_2025: booleano(dados, "origemMP1314_2025"),
     encaminhadoDividaAtivaUniao: booleano(dados, "encaminhadoDividaAtivaUniao"),
-  };
-  const resultadoMp1376 = analisarEnquadramentoMP1376(fatosMp1376);
-
-  const fatosAlongamento: FatosAlongamento = {
-    dataContratacao: data(dados, "dataContratacao"),
     dataVencimento: data(dados, "dataVencimento"),
     dataPedidoAlongamento: data(dados, "dataPedidoAlongamento"),
     hipotesesMcr: listaTexto(dados, "hipotesesMcr") as HipoteseMcr[],
-    temLaudoTecnico: booleano(dados, "temLaudoTecnico"),
     laudoUnilateral: booleano(dados, "laudoUnilateral"),
     bancoConvidadoParaLaudo: booleano(dados, "bancoConvidadoParaLaudo"),
     houvePedidoAdministrativo: booleano(dados, "houvePedidoAdministrativo"),
     respostaBanco: texto(dados, "respostaBanco") as FatosAlongamento["respostaBanco"],
     recusaFundamentadaPorEscrito: booleano(dados, "recusaFundamentadaPorEscrito"),
-    categoriaBeneficiario,
-  };
-  const resultadoAlongamento = analisarAlongamento(fatosAlongamento);
+  });
 
   const avalistasTexto = texto(dados, "avalistasJson");
   let avalistas: unknown = undefined;
@@ -206,6 +194,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       valorOperacao: numero(dados, "valorOperacao"),
       situacaoAdimplencia,
       dataInicioInadimplencia: data(dados, "dataInicioInadimplencia"),
+      permaneceInadimplenteEm31Mai2026: booleano(dados, "permaneceInadimplenteEm31Mai2026"),
       foiRenegociadoOuProrrogado: booleano(dados, "foiRenegociadoOuProrrogado"),
       dataRenegociacaoOuProrrogacao: data(dados, "dataRenegociacaoOuProrrogacao"),
 
@@ -264,6 +253,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
 
       advogadoNome: texto(dados, "advogadoNome"),
       advogadoOab: texto(dados, "advogadoOab"),
+      instituicaoFinanceiraCnpj: texto(dados, "instituicaoFinanceiraCnpj"),
       enderecoBancoReu: texto(dados, "enderecoBancoReu"),
       comarcaForo: texto(dados, "comarcaForo"),
       varaForo: texto(dados, "varaForo"),
@@ -294,5 +284,199 @@ export async function excluirContrato(id: string): Promise<ResultadoAcao> {
 
   await prisma.agroContrato.delete({ where: { id } });
   revalidatePath("/agrojud/painel/contratos");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// Anexos: OAB do advogado, laudo de frustração de safra, laudo de
+// capacidade de pagamento.
+// ---------------------------------------------------------------------
+
+/**
+ * Recalcula o parecer a partir dos fatos atuais do contrato — usado depois
+ * de um anexo completar um fato que faltava (perda de safra, laudo,
+ * pedido/resposta administrativa).
+ *
+ * Só toca no enquadramento da MP 1.376 e no alongamento: o enquadramento
+ * como CRÉDITO RURAL (Lei 4.829/65) depende de "mutuário é produtor?" e
+ * "finalidade é rural?" — dois fatos que só existem no formulário na hora
+ * da criação, não ficam guardados como coluna própria no contrato. Refazer
+ * esse cálculo aqui, sem eles, regrediria um "atende" confirmado para
+ * "indeterminado". Nenhum anexo hoje (OAB, laudo de safra, laudo de
+ * capacidade de pagamento) traz fato novo para ESSE enquadramento — por
+ * isso ele fica de fora do recálculo, de propósito.
+ */
+async function reanalisar(contratoId: string): Promise<void> {
+  const c = await prisma.agroContrato.findUniqueOrThrow({ where: { id: contratoId } });
+
+  const { resultadoMp1376, resultadoAlongamento } = analisarContrato({
+    categoriaOperacao: c.categoriaOperacao as FatosContrato["categoriaOperacao"],
+    mutuarioEProdutorOuCooperativa: null, // não usado nesta chamada — ver comentário acima
+    finalidadeERural: null,
+    fonteRecursos: c.fonteRecursos,
+    dataContratacao: c.dataContratacao,
+    foiRenegociadoOuProrrogado: c.foiRenegociadoOuProrrogado,
+    dataRenegociacaoOuProrrogacao: c.dataRenegociacaoOuProrrogacao,
+    situacaoAdimplencia: c.situacaoAdimplencia as FatosContrato["situacaoAdimplenciaNaContratacaoNovaLinha"],
+    dataInicioInadimplencia: c.dataInicioInadimplencia,
+    permaneceInadimplenteEm31Mai2026: c.permaneceInadimplenteEm31Mai2026,
+    categoriaBeneficiario: c.categoriaBeneficiario as FatosContrato["categoriaBeneficiario"],
+    valorOperacao: c.valorOperacao ? Number(c.valorOperacao) : null,
+    numeroSafrasComPerda: c.numeroSafrasComPerda,
+    percentualReducaoRenda: c.percentualReducaoRenda ? Number(c.percentualReducaoRenda) : null,
+    causaPerda: c.causaPerda as FatosContrato["causaPerda"],
+    temLaudoTecnico: c.temLaudoTecnico,
+    origemFundoSocial: c.origemFundoSocial,
+    origemMP1314_2025: c.origemMP1314_2025,
+    encaminhadoDividaAtivaUniao: c.encaminhadoDividaAtivaUniao,
+    dataVencimento: c.dataVencimento,
+    dataPedidoAlongamento: c.dataPedidoAlongamento,
+    hipotesesMcr: (c.hipotesesMcr as HipoteseMcr[] | null) ?? [],
+    laudoUnilateral: c.laudoUnilateral,
+    bancoConvidadoParaLaudo: c.bancoConvidadoParaLaudo,
+    houvePedidoAdministrativo: c.houvePedidoAdministrativo,
+    respostaBanco: c.respostaBanco as FatosAlongamento["respostaBanco"],
+    recusaFundamentadaPorEscrito: c.recusaFundamentadaPorEscrito,
+  });
+
+  await prisma.agroContrato.update({
+    where: { id: contratoId },
+    data: {
+      resultadoMp1376: (resultadoMp1376 as unknown) as never,
+      resultadoAlongamento: (resultadoAlongamento as unknown) as never,
+      analisadoEm: new Date(),
+    },
+  });
+}
+
+export type ResultadoAnexo = { erro?: string; ok?: boolean; anexoId?: string };
+
+/** Lê um anexo por IA sem salvar nada — mesmo formato de `sugerirLeituraContrato`. */
+export async function sugerirLeituraAnexo(
+  tipo: TipoAnexo,
+  dados: FormData
+): Promise<{ ok: true; dados: RascunhoAnexo } | { ok: false; erro: string }> {
+  const { conta } = await exigirEdicaoAgro();
+
+  const arquivo = dados.get("arquivo");
+  if (!arquivoComConteudo(arquivo)) return { ok: false, erro: "Selecione um arquivo primeiro." };
+  if (arquivo.size > 15 * 1024 * 1024) return { ok: false, erro: "Arquivo maior que 15 MB." };
+
+  try {
+    const bytes = Buffer.from(await arquivo.arrayBuffer());
+    const { dados: rascunho, erro } = await lerAnexoComIa(tipo, bytes, arquivo.type || null, conta.id);
+    if (!rascunho) return { ok: false, erro: erro ?? "A IA não conseguiu ler o arquivo." };
+    return { ok: true, dados: rascunho };
+  } catch (falha) {
+    const mensagem = falha instanceof Error ? `${falha.name}: ${falha.message}` : String(falha);
+    await abrirAlerta({
+      tipo: "IA_FALHANDO",
+      gravidade: "ATENCAO",
+      titulo: "Falha ao ler anexo por IA",
+      detalhe: `A leitura do anexo quebrou antes de terminar. Detalhe técnico: ${mensagem.slice(0, 500)}. Tipo: ${tipo}. Conta: ${conta.id}.`,
+    });
+    return {
+      ok: false,
+      erro: "Não foi possível ler este arquivo agora. O preenchimento manual continua funcionando, e a falha foi registrada para a equipe.",
+    };
+  }
+}
+
+/** Salva o anexo no contrato — a leitura da IA (se houve) já revisada e confirmada. */
+export async function anexarDocumento(_anterior: ResultadoAnexo, dados: FormData): Promise<ResultadoAnexo> {
+  const { conta } = await exigirEdicaoAgro();
+
+  const contratoId = texto(dados, "contratoId");
+  if (!contratoId) return { erro: "Contrato não identificado." };
+  const contrato = await prisma.agroContrato.findFirst({ where: { id: contratoId, agroContaId: conta.id } });
+  if (!contrato) return { erro: "Contrato não encontrado." };
+
+  const tipo = (texto(dados, "tipo") ?? "OUTRO") as TipoAnexo;
+  const arquivo = dados.get("arquivo");
+  if (!arquivoComConteudo(arquivo)) return { erro: "Selecione um arquivo." };
+  if (arquivo.size > 15 * 1024 * 1024) return { erro: "Arquivo maior que 15 MB." };
+
+  const bytes = Buffer.from(await arquivo.arrayBuffer());
+  const hashSha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+
+  const leituraTexto = texto(dados, "leituraIaJson");
+  let leituraIa: unknown = undefined;
+  if (leituraTexto) {
+    try {
+      leituraIa = JSON.parse(leituraTexto);
+    } catch {
+      leituraIa = undefined;
+    }
+  }
+
+  const anexo = await prisma.agroAnexo.create({
+    data: {
+      agroContratoId: contratoId,
+      tipo,
+      nomeArquivo: arquivo.name,
+      arquivo: bytes,
+      arquivoTipo: arquivo.type || null,
+      hashSha256,
+      leituraIa: (leituraIa as never) ?? undefined,
+    },
+  });
+
+  // Os campos já foram confirmados pela pessoa e chegam junto no mesmo
+  // envio (ver formulário) — aplica e recalcula o parecer numa só ida ao
+  // banco, para a tela nunca mostrar um parecer desatualizado por um
+  // instante sequer.
+  const camposTexto = texto(dados, "camposConfirmadosJson");
+  if (camposTexto) {
+    try {
+      const campos = JSON.parse(camposTexto) as RascunhoAnexo;
+      await aplicarCamposDoAnexo(contratoId, tipo, campos);
+    } catch {
+      /* leitura não confirmada — anexo fica salvo, campos não mudam */
+    }
+  }
+
+  revalidatePath(`/agrojud/painel/contratos/${contratoId}`);
+  return { ok: true, anexoId: anexo.id };
+}
+
+/** Escreve no contrato só os campos que vieram confirmados, e recalcula o parecer. */
+async function aplicarCamposDoAnexo(contratoId: string, tipo: TipoAnexo, campos: RascunhoAnexo): Promise<void> {
+  const dados: Record<string, unknown> = {};
+  if (campos.advogadoNome !== undefined) dados.advogadoNome = campos.advogadoNome;
+  if (campos.advogadoOab !== undefined) dados.advogadoOab = campos.advogadoOab;
+  if (campos.numeroSafrasComPerda !== undefined) dados.numeroSafrasComPerda = Math.trunc(campos.numeroSafrasComPerda);
+  if (campos.anosSafrasComPerda !== undefined) dados.anosSafrasComPerda = campos.anosSafrasComPerda as never;
+  if (campos.percentualReducaoRenda !== undefined) dados.percentualReducaoRenda = campos.percentualReducaoRenda;
+  if (campos.causaPerda !== undefined) dados.causaPerda = campos.causaPerda;
+  if (campos.eventosClimaticos !== undefined) dados.eventosClimaticos = campos.eventosClimaticos as never;
+  if (campos.profissionalHabilitadoNome !== undefined) dados.profissionalHabilitadoNome = campos.profissionalHabilitadoNome;
+  if (campos.profissionalHabilitadoRegistro !== undefined) dados.profissionalHabilitadoRegistro = campos.profissionalHabilitadoRegistro;
+  if (campos.capacidadePagamentoComprometida !== undefined) dados.capacidadePagamentoComprometida = campos.capacidadePagamentoComprometida;
+  if (campos.capacidadePagamentoResumo !== undefined) dados.capacidadePagamentoResumo = campos.capacidadePagamentoResumo;
+
+  // Só o laudo de frustração de safra prova, por si, que existe laudo
+  // técnico — anexar a OAB do advogado ou o laudo de capacidade de
+  // pagamento não pode marcar isto (são documentos diferentes).
+  if (tipo === "LAUDO_FRUSTRACAO_SAFRA" && Object.keys(dados).length > 0) {
+    dados.temLaudoTecnico = true;
+  }
+
+  if (Object.keys(dados).length === 0) return;
+
+  await prisma.agroContrato.update({ where: { id: contratoId }, data: dados as never });
+  await reanalisar(contratoId);
+}
+
+export async function excluirAnexo(id: string): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoAgro();
+
+  const anexo = await prisma.agroAnexo.findFirst({
+    where: { id, agroContrato: { agroContaId: conta.id } },
+    select: { id: true, agroContratoId: true },
+  });
+  if (!anexo) return { erro: "Anexo não encontrado." };
+
+  await prisma.agroAnexo.delete({ where: { id } });
+  revalidatePath(`/agrojud/painel/contratos/${anexo.agroContratoId}`);
   return { ok: true };
 }

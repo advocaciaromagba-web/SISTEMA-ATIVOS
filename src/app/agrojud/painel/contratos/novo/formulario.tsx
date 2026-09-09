@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { criarEAnalisarContrato, sugerirLeituraContrato, type ResultadoAcao } from "../acoes";
 import type { RascunhoContrato } from "@/lib/agro/leitura-contrato";
+import { BuscarPorDocumento } from "@/components/buscar-por-documento";
 
 type ResultadoLote = { nomeArquivo: string; contratoId?: string; erro?: string };
 
@@ -86,6 +87,7 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
 
   const [advogadoNome, setAdvogadoNome] = useState("");
   const [advogadoOab, setAdvogadoOab] = useState("");
+  const [instituicaoFinanceiraCnpj, setInstituicaoFinanceiraCnpj] = useState("");
   const [enderecoBancoReu, setEnderecoBancoReu] = useState("");
   const [comarcaForo, setComarcaForo] = useState("");
   const [varaForo, setVaraForo] = useState("");
@@ -150,6 +152,28 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
     if (r.riscosIdentificados?.length) setRiscosIdentificados(r.riscosIdentificados.join(", "));
   }
 
+  /**
+   * Aplica o resultado da busca por CNPJ à qualificação do banco — reaproveita
+   * a mesma consulta à Receita já usada no cadastro de empresas (Compliance),
+   * só que aqui os campos vão para a instituição financeira ré, não para o
+   * mutuário. O endereço vem em pedaços (rua, número, bairro...) e a peça
+   * usa um único campo de texto, então é montado aqui.
+   */
+  function aplicarQualificacaoBanco(campos: Record<string, string>) {
+    if (campos.documento) setInstituicaoFinanceiraCnpj(campos.documento);
+    if (campos.nome) setInstituicaoFinanceira(campos.nome);
+    const endereco = [
+      [campos.enderecoRua, campos.enderecoNumero].filter(Boolean).join(", "),
+      campos.enderecoComplemento,
+      campos.enderecoBairro,
+      [campos.enderecoCidade, campos.enderecoUf].filter(Boolean).join("/"),
+      campos.enderecoCep,
+    ]
+      .filter(Boolean)
+      .join(" — ");
+    if (endereco) setEnderecoBancoReu(endereco);
+  }
+
   function preencherComIa(arquivoInput: HTMLInputElement | null) {
     setErroIa("");
     const arquivo = arquivoInput?.files?.[0];
@@ -209,6 +233,7 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
     setRecusaFundamentadaPorEscrito("");
     setAdvogadoNome("");
     setAdvogadoOab("");
+    setInstituicaoFinanceiraCnpj("");
     setEnderecoBancoReu("");
     setComarcaForo("");
     setVaraForo("");
@@ -311,6 +336,20 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   }, [estado]);
 
   return (
+    <div className="space-y-8">
+      {/*
+        Fora do <form> de propósito: BuscarPorDocumento renderiza o próprio
+        <form>, e HTML não aceita formulário dentro de formulário — o
+        navegador desfaz o aninhamento sozinho, silenciosamente, e o botão
+        "Buscar" para de funcionar (erro de hidratação no console, sem
+        nenhum aviso na tela). O mesmo padrão já usado em Compliance,
+        Licitações e Due diligence.
+      */}
+      <div className="cartao space-y-2">
+        <h2 className="text-sm font-semibold text-slate-900">Instituição financeira (para o requerimento e a petição)</h2>
+        <BuscarPorDocumento solucao="AGROJUD" perfil="PESSOA_PJ" aoAplicar={aplicarQualificacaoBanco} />
+      </div>
+
     <form action={acao} className="space-y-8">
       <input type="hidden" name="modoLote" value={emLote ? "1" : "0"} />
 
@@ -826,11 +865,14 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
             </label>
             <input id="advogadoOab" name="advogadoOab" className="campo" value={advogadoOab} onChange={(e) => setAdvogadoOab(e.target.value)} />
           </div>
+          <input type="hidden" name="instituicaoFinanceiraCnpj" value={instituicaoFinanceiraCnpj} />
+
           <div className="sm:col-span-2">
             <label className="rotulo" htmlFor="enderecoBancoReu">
               Endereço da instituição financeira (para o requerimento)
             </label>
             <input id="enderecoBancoReu" name="enderecoBancoReu" className="campo" value={enderecoBancoReu} onChange={(e) => setEnderecoBancoReu(e.target.value)} />
+            {instituicaoFinanceiraCnpj && <p className="ajuda">CNPJ: {instituicaoFinanceiraCnpj}</p>}
           </div>
           <div>
             <label className="rotulo" htmlFor="comarcaForo">
@@ -864,5 +906,6 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
         )}
       </div>
     </form>
+    </div>
   );
 }

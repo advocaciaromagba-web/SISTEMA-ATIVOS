@@ -52,7 +52,7 @@ export function BuscarPorDocumento({
    * sessão da Gestão de ativos e devolvia o usuário para o login no meio do
    * cadastro.
    */
-  solucao: "GESTAO_ATIVOS" | "LICITACOES" | "COMPLIANCE_EMPRESA" | "DILIGENCIA_PESSOA";
+  solucao: "GESTAO_ATIVOS" | "LICITACOES" | "COMPLIANCE_EMPRESA" | "DILIGENCIA_PESSOA" | "AGROJUD";
   perfil: Perfil;
   aoAplicar: (campos: Record<string, string>) => void;
   /** Avisa a tela quando a busca revelou que é pessoa física ou jurídica. */

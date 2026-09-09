@@ -6,6 +6,7 @@ import { moeda } from "@/lib/formato";
 import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
 import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
 import { BotaoExcluir } from "./botao-excluir";
+import { Anexos } from "./anexos";
 
 const ROTULO_MODALIDADE: Record<string, string> = {
   GERAL: "Modalidade geral (2+ safras, ≥30%)",
@@ -34,7 +35,10 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
   const params = await props.params;
   const { conta } = await exigirSessaoAgro();
 
-  const contrato = await prisma.agroContrato.findFirst({ where: { id: params.id, agroContaId: conta.id } });
+  const contrato = await prisma.agroContrato.findFirst({
+    where: { id: params.id, agroContaId: conta.id },
+    include: { anexos: { orderBy: { criadoEm: "desc" } } },
+  });
   if (!contrato) notFound();
 
   const resultado = contrato.resultadoMp1376 as ResultadoMp1376 | null;
@@ -207,6 +211,24 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
         <p className="text-xs text-slate-400">Fonte: Lei nº 4.829/65, art. 3º; Manual de Crédito Rural (Bacen).</p>
       </div>
 
+      {(contrato.capacidadePagamentoResumo || contrato.capacidadePagamentoComprometida !== null) && (
+        <div className="cartao space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Capacidade de pagamento</h2>
+            {contrato.capacidadePagamentoComprometida !== null && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  contrato.capacidadePagamentoComprometida ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                }`}
+              >
+                {contrato.capacidadePagamentoComprometida ? "comprometida" : "não comprometida"}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">{contrato.capacidadePagamentoResumo ?? "Sem laudo anexado ainda."}</p>
+        </div>
+      )}
+
       <div className="grid gap-6 sm:grid-cols-2">
         <div className="cartao space-y-2">
           <h2 className="text-sm font-semibold text-slate-900">Taxas</h2>
@@ -268,6 +290,16 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
       {eventosClimaticos.length > 0 && (
         <p className="text-xs text-slate-400">Eventos climáticos declarados: {eventosClimaticos.join(", ")}.</p>
       )}
+
+      <Anexos
+        contratoId={contrato.id}
+        anexos={contrato.anexos.map((a) => ({
+          id: a.id,
+          tipo: a.tipo,
+          nomeArquivo: a.nomeArquivo,
+          criadoEm: a.criadoEm.toISOString(),
+        }))}
+      />
     </div>
   );
 }
