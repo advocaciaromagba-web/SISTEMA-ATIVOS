@@ -66,6 +66,22 @@ const nextConfig = {
   // Next tenta empacotá-la para o navegador e a build quebra.
   serverExternalPackages: ["docx", "@prisma/client", "bcryptjs", "otplib"],
 
+  experimental: {
+    // O Next recusa, por padrão, qualquer Server Action com corpo maior que
+    // 1 MB — antes mesmo do código da ação rodar, com "Body exceeded 1 MB
+    // limit" (HTTP 413), sem chegar no try/catch de ninguém. Toda tela de
+    // upload deste sistema (contrato do Agrojud, certidão do Compliance,
+    // edital de Licitações, documento de Verificação...) já validava um
+    // limite próprio de 10 a 20 MB no código — mas esse código nunca era
+    // alcançado para qualquer arquivo acima de 1 MB, porque o Next barrava
+    // antes. Um PDF de contrato escaneado passa de 1 MB com facilidade; daí
+    // o "This page couldn't load" ao carregar o contrato. 20 MB cobre o
+    // maior limite já declarado no código (edital de licitação).
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
+  },
+
   // Some com o cabeçalho "X-Powered-By: Next.js". Não protege nada sozinho,
   // mas também não há motivo para anunciar de graça, para quem for procurar
   // falha conhecida do framework, qual framework e versão o site roda.
