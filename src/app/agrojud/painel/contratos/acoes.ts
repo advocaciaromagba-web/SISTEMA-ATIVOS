@@ -13,7 +13,12 @@ import { analisarEnquadramentoMP1376, type FatosContrato } from "@/lib/agro/mp13
 import { analisarAlongamento, type FatosAlongamento, type HipoteseMcr } from "@/lib/agro/alongamento";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 
-export type ResultadoAcao = { erro?: string; ok?: boolean };
+export type ResultadoAcao = {
+  erro?: string;
+  ok?: boolean;
+  /** Só vem preenchido quando `modoLote=1` — é o gancho que a tela usa para avançar ao próximo arquivo sem navegar. */
+  contratoId?: string;
+};
 
 const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() ?? "").trim() || null;
 const numero = (dados: FormData, chave: string) => {
@@ -269,6 +274,15 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
   });
 
   revalidatePath("/agrojud/painel/contratos");
+
+  // Envio em lote (vários contratos, um PDF de cada vez): a tela mantém a
+  // fila em memória e avança sozinha para o próximo arquivo — navegar para o
+  // contrato recém-criado perderia essa fila. Fora do lote, o comportamento
+  // de sempre continua: vai direto para o contrato criado.
+  if (texto(dados, "modoLote") === "1") {
+    return { ok: true, contratoId: contrato.id };
+  }
+
   redirect(`/agrojud/painel/contratos/${contrato.id}`);
 }
 

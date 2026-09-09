@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useActionState } from "react";
 import { criarEAnalisarContrato, sugerirLeituraContrato, type ResultadoAcao } from "../acoes";
 import type { RascunhoContrato } from "@/lib/agro/leitura-contrato";
+
+type ResultadoLote = { nomeArquivo: string; contratoId?: string; erro?: string };
+
+/** Nome do arquivo sem extensão, para um título de rascunho antes da IA responder. */
+function tituloPeloNomeDoArquivo(nomeArquivo: string): string {
+  return nomeArquivo.replace(/\.[^.]+$/, "").trim() || nomeArquivo;
+}
 
 const inicial: ResultadoAcao = {};
 
@@ -105,6 +112,21 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   const [riscosIdentificados, setRiscosIdentificados] = useState("");
   const [desequilibrioContratual, setDesequilibrioContratual] = useState("");
 
+  // ---- envio em lote: vários contratos, um PDF de cada vez ----
+  // Não existe hoje uma tela para editar um contrato depois de criado — só
+  // criar e excluir. Por isso o lote não cria nada sozinho: ele automatiza
+  // só o que já era repetitivo (anexar o próximo arquivo, clicar em
+  // "Preencher com IA"), e o formulário de sempre continua exigindo revisão
+  // humana antes de salvar cada um. A fila fica em memória do navegador —
+  // não sobrevive a um F5 no meio do lote.
+  const [emLote, setEmLote] = useState(false);
+  const [filaLote, setFilaLote] = useState<File[]>([]);
+  const [posicaoLote, setPosicaoLote] = useState(0);
+  const [totalLote, setTotalLote] = useState(0);
+  const [nomeArquivoAtualLote, setNomeArquivoAtualLote] = useState<string | null>(null);
+  const [resultadosLote, setResultadosLote] = useState<ResultadoLote[]>([]);
+  const ultimoContratoIdTratado = useRef<string | null>(null);
+
   function aplicarSugestao(r: RascunhoContrato) {
     if (r.mutuarioNome) setMutuarioNome(r.mutuarioNome);
     if (r.mutuarioDocumento) setMutuarioDocumento(r.mutuarioDocumento);
@@ -147,8 +169,151 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
     });
   }
 
+  /** Volta todos os campos ao vazio — usado entre um arquivo e o próximo do lote. */
+  function reiniciarCampos() {
+    setTitulo("");
+    setMutuarioNome("");
+    setMutuarioDocumento("");
+    setInstituicaoFinanceira("");
+    setNumeroContrato("");
+    setDataContratacao("");
+    setCategoriaOperacao("");
+    setFonteRecursos("");
+    setMutuarioEProdutorOuCooperativa("");
+    setFinalidadeERural("");
+    setCategoriaBeneficiario("");
+    setValorOperacao("");
+    setSituacaoAdimplencia("");
+    setDataInicioInadimplencia("");
+    setFoiRenegociadoOuProrrogado("");
+    setDataRenegociacaoOuProrrogacao("");
+    setPermaneceInadimplenteEm31Mai2026("");
+    setNumeroSafrasComPerda("");
+    setAnosSafrasComPerda("");
+    setPercentualReducaoRenda("");
+    setCausaPerda("");
+    setEventosClimaticos("");
+    setTemLaudoTecnico("");
+    setProfissionalHabilitadoNome("");
+    setProfissionalHabilitadoRegistro("");
+    setOrigemFundoSocial("");
+    setOrigemMP1314("");
+    setEncaminhadoDividaAtiva("");
+    setDataVencimento("");
+    setDataPedidoAlongamento("");
+    setHipotesesMcr([]);
+    setLaudoUnilateral("");
+    setBancoConvidadoParaLaudo("");
+    setHouvePedidoAdministrativo("");
+    setRespostaBanco("");
+    setRecusaFundamentadaPorEscrito("");
+    setAdvogadoNome("");
+    setAdvogadoOab("");
+    setEnderecoBancoReu("");
+    setComarcaForo("");
+    setVaraForo("");
+    setValorCausa("");
+    setTaxaJurosContratual("");
+    setIndexador("");
+    setEncargosMoratorios("");
+    setTiposGarantia("");
+    setGarantiasDescricao("");
+    setValorGarantia("");
+    setAvalistas([]);
+    setTemSeguroRural("");
+    setSeguradora("");
+    setApoliceNumero("");
+    setCoberturas("");
+    setVigenciaInicio("");
+    setVigenciaFim("");
+    setTemProagro("");
+    setIndenizacaoRecebida("");
+    setRiscosIdentificados("");
+    setDesequilibrioContratual("");
+  }
+
+  /** Anexa o arquivo ao input nativo, como se a pessoa tivesse escolhido — é ele que vai no envio do formulário. */
+  function carregarArquivoNoInputNativo(arquivo: File) {
+    const input = document.getElementById("arquivo") as HTMLInputElement | null;
+    if (!input) return;
+    const dt = new DataTransfer();
+    dt.items.add(arquivo);
+    input.files = dt.files;
+  }
+
+  /** Prepara a tela para revisar um arquivo do lote: limpa o formulário, anexa o arquivo e já dispara a leitura por IA. */
+  function processarArquivoDoLote(arquivo: File) {
+    reiniciarCampos();
+    setErroIa("");
+    setNomeArquivoAtualLote(arquivo.name);
+    setTitulo(tituloPeloNomeDoArquivo(arquivo.name));
+    carregarArquivoNoInputNativo(arquivo);
+
+    const fd = new FormData();
+    fd.set("arquivo", arquivo);
+    iniciarIa(async () => {
+      const r = await sugerirLeituraContrato(fd);
+      if (!r.ok) {
+        setErroIa(r.erro);
+        return;
+      }
+      aplicarSugestao(r.dados);
+      if (r.dados.mutuarioNome) setTitulo(r.dados.mutuarioNome);
+    });
+  }
+
+  /** Começa o lote com os arquivos escolhidos de uma vez. */
+  function iniciarLote(arquivos: File[]) {
+    if (arquivos.length === 0) return;
+    const [primeiro, ...resto] = arquivos;
+    setResultadosLote([]);
+    setTotalLote(arquivos.length);
+    setPosicaoLote(1);
+    setFilaLote(resto);
+    setEmLote(true);
+    processarArquivoDoLote(primeiro);
+  }
+
+  /**
+   * Registra o resultado do arquivo atual e passa para o próximo da fila, se
+   * houver. Lê `filaLote` direto (não por atualizador de estado): disparar a
+   * leitura por IA de dentro de um atualizador rodaria em dobro no modo
+   * estrito do React em desenvolvimento — um atualizador precisa ser puro.
+   */
+  function avancarLote(resultado: ResultadoLote) {
+    setResultadosLote((atual) => [...atual, resultado]);
+    if (filaLote.length === 0) {
+      setEmLote(false);
+      setNomeArquivoAtualLote(null);
+      return;
+    }
+    const [proximo, ...resto] = filaLote;
+    setFilaLote(resto);
+    setPosicaoLote((p) => p + 1);
+    processarArquivoDoLote(proximo);
+  }
+
+  function pularArquivoDoLote() {
+    avancarLote({ nomeArquivo: nomeArquivoAtualLote ?? "arquivo", erro: "Pulado sem salvar." });
+  }
+
+  // Reage ao resultado do envio: fora do lote o servidor já redireciona
+  // sozinho para o contrato criado, então isto só importa em modo lote —
+  // é o sinal de que pode passar para o próximo arquivo.
+  useEffect(() => {
+    if (!emLote || !estado.ok || !estado.contratoId) return;
+    if (ultimoContratoIdTratado.current === estado.contratoId) return;
+    ultimoContratoIdTratado.current = estado.contratoId;
+    avancarLote({ nomeArquivo: nomeArquivoAtualLote ?? "arquivo", contratoId: estado.contratoId });
+    // avancarLote e nomeArquivoAtualLote mudam a cada render; seguir só o
+    // resultado do envio, como o efeito de aplicarSugestao acima já faz.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estado]);
+
   return (
     <form action={acao} className="space-y-8">
+      <input type="hidden" name="modoLote" value={emLote ? "1" : "0"} />
+
       {estado.erro && <div className="aviso-erro">{estado.erro}</div>}
 
       <div className="cartao space-y-4">
@@ -167,6 +332,60 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
           <p className="ajuda">Leitura por IA não configurada — preencha os campos manualmente.</p>
         )}
         {erroIa && <div className="aviso-erro text-xs">{erroIa}</div>}
+
+        {iaDisponivel && !emLote && (
+          <div className="border-t border-slate-100 pt-4">
+            <label className="rotulo" htmlFor="arquivosLote">
+              Ou envie vários contratos de uma vez
+            </label>
+            <input
+              id="arquivosLote"
+              type="file"
+              accept="application/pdf,image/*"
+              multiple
+              className="campo"
+              onChange={(e) => {
+                const arquivos = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (arquivos.length > 0) iniciarLote(arquivos);
+              }}
+            />
+            <p className="ajuda">
+              Um contrato é criado por arquivo. A IA lê cada um e preenche a tela — você revisa e salva, e o
+              próximo já vem carregado sozinho. Nenhum contrato é criado sem você conferir e clicar em salvar.
+            </p>
+          </div>
+        )}
+
+        {(emLote || resultadosLote.length > 0) && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+            {emLote && (
+              <p className="font-medium text-slate-900">
+                Arquivo {posicaoLote} de {totalLote}
+                {nomeArquivoAtualLote ? ` — ${nomeArquivoAtualLote}` : ""}
+              </p>
+            )}
+            {resultadosLote.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {resultadosLote.map((r, i) => (
+                  <li key={i} className="flex items-center justify-between gap-2">
+                    <span className="truncate text-slate-600">{r.nomeArquivo}</span>
+                    {r.contratoId ? (
+                      <a href={`/agrojud/painel/contratos/${r.contratoId}`} className="shrink-0 font-medium text-emerald-700 underline">
+                        criado
+                      </a>
+                    ) : (
+                      <span className="shrink-0 text-amber-700">{r.erro}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!emLote && filaLote.length === 0 && resultadosLote.length > 0 && (
+              <p className="mt-2 text-slate-500">Lote concluído.</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="cartao space-y-4">
@@ -634,9 +853,16 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
         </div>
       </div>
 
-      <button type="submit" className="botao-principal w-full">
-        Salvar e gerar parecer
-      </button>
+      <div className="flex gap-2">
+        <button type="submit" className="botao-principal w-full">
+          {emLote ? `Salvar e ir para o próximo (${posicaoLote} de ${totalLote})` : "Salvar e gerar parecer"}
+        </button>
+        {emLote && (
+          <button type="button" onClick={pularArquivoDoLote} className="botao-secundario shrink-0">
+            Pular este
+          </button>
+        )}
+      </div>
     </form>
   );
 }
