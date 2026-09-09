@@ -90,6 +90,8 @@ export async function perguntarJson<T>(params: {
       content?: Array<{ type: string; text?: string }>;
       model?: string;
       usage?: Record<string, number>;
+      /** "max_tokens" aqui é a própria API confirmando que cortou a resposta no meio — não é suposição. */
+      stop_reason?: string;
     };
 
     // Os tokens vêm da resposta: são medidos, não estimados.
@@ -100,7 +102,33 @@ export async function perguntarJson<T>(params: {
       .join("\n")
       .trim();
 
-    if (!texto) return { ok: false, erro: "A IA respondeu vazio." };
+    // A API confirma, pelo stop_reason, se cortou a resposta por falta de
+    // espaço — não precisa adivinhar. Verificado contra a API real: com o
+    // limite baixo demais, o orçamento de tokens pode ser todo consumido
+    // pensando, e o texto sai vazio — não só malformado. Por isso este
+    // sinal é conferido antes de decidir "respondeu vazio" ou "formato
+    // inesperado", não só no meio do parse.
+    const cortada = dados.stop_reason === "max_tokens";
+
+    if (!texto) {
+      if (cortada) {
+        await abrirAlerta({
+          tipo: "IA_RESPOSTA_CORTADA",
+          gravidade: "ATENCAO",
+          titulo: "IA cortou a resposta antes de escrever qualquer texto",
+          detalhe:
+            `${params.contexto?.referencia ?? "Chamada sem referência"} (solução ${params.contexto?.solucao ?? "?"}). ` +
+            `max_tokens pedido: ${params.maxTokens ?? 4000}. O orçamento de tokens foi consumido antes de gerar texto.`,
+        });
+        return {
+          ok: false,
+          erro:
+            "Este documento é longo demais para o espaço de resposta configurado — a IA não teve espaço nem para " +
+            "começar a responder. Avisamos a equipe para ajustar o limite; por ora, preencha os campos à mão.",
+        };
+      }
+      return { ok: false, erro: "A IA respondeu vazio." };
+    }
 
     // O modelo às vezes embrulha o JSON em cerca de código; tiramos antes de ler.
     const limpo = texto
@@ -121,7 +149,25 @@ export async function perguntarJson<T>(params: {
           /* cai no erro abaixo */
         }
       }
-      return { ok: false, erro: "A IA respondeu num formato que o sistema não conseguiu ler." };
+
+      // Sem isto, o texto que a IA de fato respondeu se perdia — ninguém
+      // conseguia saber depois se foi corte, alucinação ou outra coisa.
+      await abrirAlerta({
+        tipo: cortada ? "IA_RESPOSTA_CORTADA" : "IA_FORMATO_INESPERADO",
+        gravidade: "ATENCAO",
+        titulo: cortada ? "IA cortou a resposta antes de terminar o JSON" : "IA respondeu fora do formato esperado",
+        detalhe:
+          `${params.contexto?.referencia ?? "Chamada sem referência"} (solução ${params.contexto?.solucao ?? "?"}). ` +
+          `max_tokens pedido: ${params.maxTokens ?? 4000}. Resposta (primeiros 800 caracteres): ${limpo.slice(0, 800)}`,
+      });
+
+      return {
+        ok: false,
+        erro: cortada
+          ? "Este documento é longo demais para o espaço de resposta configurado — a leitura foi cortada no meio. " +
+            "Avisamos a equipe para ajustar o limite; por ora, preencha os campos à mão."
+          : "A IA respondeu num formato que o sistema não conseguiu ler.",
+      };
     }
   } catch (erro) {
     return { ok: false, erro: `Falha ao consultar a IA: ${(erro as Error).message}` };

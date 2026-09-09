@@ -59,7 +59,13 @@ export async function lerContratoComIa(
       "que pareçam desequilibradas, onerosas ou incomuns, descritas objetivamente).",
     conteudo: [bloco],
     contexto: { solucao: "AGROJUD", contaId: contaId ?? null, referencia: "Leitura de contrato de crédito rural" },
-    maxTokens: 4000,
+    // Cédula de crédito rural real pode ter dezenas de avalistas e cláusulas
+    // de garantia longas — 4000 tokens (o padrão do sistema) cortava a
+    // resposta no meio do JSON antes de terminar, e a leitura falhava com
+    // "formato que o sistema não conseguiu ler". O modelo aceita até 128 mil
+    // tokens de saída; 16000 dá folga generosa sem custo extra (só paga pelo
+    // que o modelo de fato escrever, não pelo teto).
+    maxTokens: 16000,
   });
 
   if (!resposta.ok) return { dados: null, erro: resposta.erro };
