@@ -17,6 +17,11 @@ export type RascunhoContrato = {
   taxaJurosContratual?: number;
   indexador?: string;
   encargosMoratorios?: string;
+  temClausulaCapitalizacao?: boolean;
+  periodicidadeCapitalizacao?: "MENSAL" | "SEMESTRAL" | "ANUAL" | "OUTRA";
+  multaMoratoriaPercentual?: number;
+  temComissaoPermanencia?: boolean;
+  comissaoPermanenciaCumulada?: boolean;
   tiposGarantia?: string[];
   garantiasDescricao?: string;
   avalistas?: Array<{ nome?: string; documento?: string; patrimonioDescrito?: string }>;
@@ -52,11 +57,16 @@ export async function lerContratoComIa(
       "(não invente valor). Responda só em JSON com os campos: mutuarioNome, mutuarioDocumento (CPF/CNPJ), " +
       "instituicaoFinanceira, numeroContrato, dataContratacao (YYYY-MM-DD), categoriaOperacao (CUSTEIO| " +
       "COMERCIALIZACAO|INDUSTRIALIZACAO|INVESTIMENTO, só se estiver explícito), valorOperacao (número), " +
-      "taxaJurosContratual (número, % ao ano), indexador (texto), encargosMoratorios (texto), tiposGarantia " +
-      "(lista de texto: HIPOTECA, PENHOR, ALIENACAO_FIDUCIARIA, AVAL, FIANCA, CPR ou OUTRA), garantiasDescricao " +
-      "(texto), avalistas (lista de {nome, documento, patrimonioDescrito}), temSeguroRural (booleano), " +
-      "seguradora, apoliceNumero, coberturas (lista de texto), riscosIdentificados (lista de texto — cláusulas " +
-      "que pareçam desequilibradas, onerosas ou incomuns, descritas objetivamente).",
+      "taxaJurosContratual (número, % ao ano), indexador (texto), encargosMoratorios (texto), " +
+      "temClausulaCapitalizacao (booleano — há cláusula expressa de capitalização de juros?), " +
+      "periodicidadeCapitalizacao (MENSAL|SEMESTRAL|ANUAL|OUTRA, só se a periodicidade estiver explícita), " +
+      "multaMoratoriaPercentual (número, % de multa em caso de mora/cobrança), temComissaoPermanencia " +
+      "(booleano — há cobrança de comissão de permanência?), comissaoPermanenciaCumulada (booleano — a comissão " +
+      "de permanência está cumulada com correção monetária e/ou juros remuneratórios? só se estiver claro no " +
+      "texto), tiposGarantia (lista de texto: HIPOTECA, PENHOR, ALIENACAO_FIDUCIARIA, AVAL, FIANCA, CPR ou " +
+      "OUTRA), garantiasDescricao (texto), avalistas (lista de {nome, documento, patrimonioDescrito}), " +
+      "temSeguroRural (booleano), seguradora, apoliceNumero, coberturas (lista de texto), riscosIdentificados " +
+      "(lista de texto — cláusulas que pareçam desequilibradas, onerosas ou incomuns, descritas objetivamente).",
     conteudo: [bloco],
     contexto: { solucao: "AGROJUD", contaId: contaId ?? null, referencia: "Leitura de contrato de crédito rural" },
     // Cédula de crédito rural real pode ter dezenas de avalistas e cláusulas

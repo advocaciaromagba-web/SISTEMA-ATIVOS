@@ -96,6 +96,11 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   const [taxaJurosContratual, setTaxaJurosContratual] = useState("");
   const [indexador, setIndexador] = useState("");
   const [encargosMoratorios, setEncargosMoratorios] = useState("");
+  const [temClausulaCapitalizacao, setTemClausulaCapitalizacao] = useState("");
+  const [periodicidadeCapitalizacao, setPeriodicidadeCapitalizacao] = useState("");
+  const [multaMoratoriaPercentual, setMultaMoratoriaPercentual] = useState("");
+  const [temComissaoPermanencia, setTemComissaoPermanencia] = useState("");
+  const [comissaoPermanenciaCumulada, setComissaoPermanenciaCumulada] = useState("");
 
   const [tiposGarantia, setTiposGarantia] = useState("");
   const [garantiasDescricao, setGarantiasDescricao] = useState("");
@@ -140,6 +145,11 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
     if (r.taxaJurosContratual !== undefined) setTaxaJurosContratual(String(r.taxaJurosContratual));
     if (r.indexador) setIndexador(r.indexador);
     if (r.encargosMoratorios) setEncargosMoratorios(r.encargosMoratorios);
+    if (r.temClausulaCapitalizacao !== undefined) setTemClausulaCapitalizacao(r.temClausulaCapitalizacao ? "sim" : "nao");
+    if (r.periodicidadeCapitalizacao) setPeriodicidadeCapitalizacao(r.periodicidadeCapitalizacao);
+    if (r.multaMoratoriaPercentual !== undefined) setMultaMoratoriaPercentual(String(r.multaMoratoriaPercentual));
+    if (r.temComissaoPermanencia !== undefined) setTemComissaoPermanencia(r.temComissaoPermanencia ? "sim" : "nao");
+    if (r.comissaoPermanenciaCumulada !== undefined) setComissaoPermanenciaCumulada(r.comissaoPermanenciaCumulada ? "sim" : "nao");
     if (r.tiposGarantia?.length) setTiposGarantia(r.tiposGarantia.join(", "));
     if (r.garantiasDescricao) setGarantiasDescricao(r.garantiasDescricao);
     if (r.avalistas?.length) {
@@ -241,6 +251,11 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
     setTaxaJurosContratual("");
     setIndexador("");
     setEncargosMoratorios("");
+    setTemClausulaCapitalizacao("");
+    setPeriodicidadeCapitalizacao("");
+    setMultaMoratoriaPercentual("");
+    setTemComissaoPermanencia("");
+    setComissaoPermanenciaCumulada("");
     setTiposGarantia("");
     setGarantiasDescricao("");
     setValorGarantia("");
@@ -648,6 +663,55 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
             </label>
             <input id="encargosMoratorios" name="encargosMoratorios" className="campo" value={encargosMoratorios} onChange={(e) => setEncargosMoratorios(e.target.value)} />
           </div>
+        </div>
+      </div>
+
+      <div className="cartao space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900">Verificação de abusividade (DL 167/67 e comparação com o Banco Central)</h2>
+        <p className="ajuda">
+          Comparamos a taxa contratual com a taxa média do Banco Central para crédito rural, e conferimos a
+          capitalização de juros, a multa moratória e a comissão de permanência contra o Decreto-Lei nº 167/67 e as
+          Súmulas 93 e 30 do STJ.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <CampoSimNao nome="temClausulaCapitalizacao" rotulo="Há cláusula de capitalização de juros?" valor={temClausulaCapitalizacao} onChange={setTemClausulaCapitalizacao} />
+          <div>
+            <label className="rotulo" htmlFor="periodicidadeCapitalizacao">
+              Periodicidade pactuada
+            </label>
+            <select
+              id="periodicidadeCapitalizacao"
+              name="periodicidadeCapitalizacao"
+              className="campo"
+              value={periodicidadeCapitalizacao}
+              onChange={(e) => setPeriodicidadeCapitalizacao(e.target.value)}
+            >
+              <option value="">Não informado</option>
+              <option value="MENSAL">Mensal</option>
+              <option value="SEMESTRAL">Semestral</option>
+              <option value="ANUAL">Anual</option>
+              <option value="OUTRA">Outra</option>
+            </select>
+          </div>
+          <div>
+            <label className="rotulo" htmlFor="multaMoratoriaPercentual">
+              Multa moratória contratada (%)
+            </label>
+            <input
+              id="multaMoratoriaPercentual"
+              name="multaMoratoriaPercentual"
+              className="campo"
+              value={multaMoratoriaPercentual}
+              onChange={(e) => setMultaMoratoriaPercentual(e.target.value)}
+            />
+          </div>
+          <CampoSimNao nome="temComissaoPermanencia" rotulo="Há cobrança de comissão de permanência?" valor={temComissaoPermanencia} onChange={setTemComissaoPermanencia} />
+          <CampoSimNao
+            nome="comissaoPermanenciaCumulada"
+            rotulo="Cumulada com correção monetária ou juros?"
+            valor={comissaoPermanenciaCumulada}
+            onChange={setComissaoPermanenciaCumulada}
+          />
         </div>
       </div>
 

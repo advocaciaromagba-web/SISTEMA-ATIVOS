@@ -2024,6 +2024,19 @@ model AgroContrato {
   indexador           String?
   encargosMoratorios  String?
 
+  // ----- verificação de abusividade (Decreto-Lei 167/67; Súmulas 93 e 30/STJ;
+  // comparação com a taxa média do Banco Central) -----
+  temClausulaCapitalizacao Boolean?
+  /// MENSAL | SEMESTRAL | ANUAL | OUTRA
+  periodicidadeCapitalizacao String?
+  multaMoratoriaPercentual  Decimal? @db.Decimal(5, 2)
+  temComissaoPermanencia    Boolean?
+  /// A comissão de permanência está cumulada com correção monetária e/ou juros remuneratórios (Súmula 30/STJ).
+  comissaoPermanenciaCumulada Boolean?
+  /// Preenchido por analisarTaxasEEncargos() — comparação com a taxa média do
+  /// Banco Central (SGS) e checklist de conformidade com o DL 167/67.
+  resultadoTaxas Json?
+
   // ----- garantias e avalistas -----
   tiposGarantia      Json? // ex.: ["HIPOTECA", "AVAL"]
   garantiasDescricao String?

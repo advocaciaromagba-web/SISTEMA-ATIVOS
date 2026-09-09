@@ -16,6 +16,8 @@ import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 import { gerarPeticaoIaCompleta, type TipoPeticaoIa } from "@/lib/agro/peticao-ia";
 import { obterAcompanhamentoMp } from "@/lib/agro/acompanhamento";
 import { avisoParaPeca } from "@/lib/agro/vigencia-mp";
+import { buscarTaxaMediaBcbRural } from "@/lib/agro/bcb";
+import { analisarTaxasEEncargos, type PeriodicidadeCapitalizacao } from "@/lib/agro/taxas";
 
 export type ResultadoAcao = {
   erro?: string;
@@ -168,6 +170,21 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
     recusaFundamentadaPorEscrito: booleano(dados, "recusaFundamentadaPorEscrito"),
   });
 
+  const mutuarioDocumento = texto(dados, "mutuarioDocumento");
+  const taxaMediaBcb = await buscarTaxaMediaBcbRural((mutuarioDocumento ?? "").replace(/\D/g, "").length === 14);
+  const resultadoTaxas = analisarTaxasEEncargos(
+    {
+      mutuarioDocumento,
+      taxaJurosContratual: numero(dados, "taxaJurosContratual"),
+      temClausulaCapitalizacao: booleano(dados, "temClausulaCapitalizacao"),
+      periodicidadeCapitalizacao: texto(dados, "periodicidadeCapitalizacao") as PeriodicidadeCapitalizacao | null,
+      multaMoratoriaPercentual: numero(dados, "multaMoratoriaPercentual"),
+      temComissaoPermanencia: booleano(dados, "temComissaoPermanencia"),
+      comissaoPermanenciaCumulada: booleano(dados, "comissaoPermanenciaCumulada"),
+    },
+    taxaMediaBcb
+  );
+
   const avalistasTexto = texto(dados, "avalistasJson");
   let avalistas: unknown = undefined;
   if (avalistasTexto) {
@@ -183,7 +200,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       agroContaId: conta.id,
       titulo,
       mutuarioNome: texto(dados, "mutuarioNome"),
-      mutuarioDocumento: texto(dados, "mutuarioDocumento"),
+      mutuarioDocumento,
       instituicaoFinanceira: texto(dados, "instituicaoFinanceira"),
       numeroContrato: texto(dados, "numeroContrato"),
       dataContratacao: data(dados, "dataContratacao"),
@@ -217,6 +234,13 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       taxaJurosContratual: numero(dados, "taxaJurosContratual"),
       indexador: texto(dados, "indexador"),
       encargosMoratorios: texto(dados, "encargosMoratorios"),
+
+      temClausulaCapitalizacao: booleano(dados, "temClausulaCapitalizacao"),
+      periodicidadeCapitalizacao: texto(dados, "periodicidadeCapitalizacao"),
+      multaMoratoriaPercentual: numero(dados, "multaMoratoriaPercentual"),
+      temComissaoPermanencia: booleano(dados, "temComissaoPermanencia"),
+      comissaoPermanenciaCumulada: booleano(dados, "comissaoPermanenciaCumulada"),
+      resultadoTaxas: (resultadoTaxas as unknown) as never,
 
       tiposGarantia: (listaTexto(dados, "tiposGarantia") as unknown) as never,
       garantiasDescricao: texto(dados, "garantiasDescricao"),
@@ -342,11 +366,29 @@ async function reanalisar(contratoId: string): Promise<void> {
     recusaFundamentadaPorEscrito: c.recusaFundamentadaPorEscrito,
   });
 
+  // A comparação com o Banco Central usa dado vivo (a taxa média do mês
+  // corrente) — refazer aqui garante que ela nunca fica presa ao valor do
+  // dia da criação do contrato.
+  const taxaMediaBcb = await buscarTaxaMediaBcbRural((c.mutuarioDocumento ?? "").replace(/\D/g, "").length === 14);
+  const resultadoTaxas = analisarTaxasEEncargos(
+    {
+      mutuarioDocumento: c.mutuarioDocumento,
+      taxaJurosContratual: c.taxaJurosContratual ? Number(c.taxaJurosContratual) : null,
+      temClausulaCapitalizacao: c.temClausulaCapitalizacao,
+      periodicidadeCapitalizacao: c.periodicidadeCapitalizacao as PeriodicidadeCapitalizacao | null,
+      multaMoratoriaPercentual: c.multaMoratoriaPercentual ? Number(c.multaMoratoriaPercentual) : null,
+      temComissaoPermanencia: c.temComissaoPermanencia,
+      comissaoPermanenciaCumulada: c.comissaoPermanenciaCumulada,
+    },
+    taxaMediaBcb
+  );
+
   await prisma.agroContrato.update({
     where: { id: contratoId },
     data: {
       resultadoMp1376: (resultadoMp1376 as unknown) as never,
       resultadoAlongamento: (resultadoAlongamento as unknown) as never,
+      resultadoTaxas: (resultadoTaxas as unknown) as never,
       analisadoEm: new Date(),
     },
   });

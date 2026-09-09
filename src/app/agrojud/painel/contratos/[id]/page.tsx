@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { moeda } from "@/lib/formato";
 import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
 import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
+import type { ResultadoTaxas } from "@/lib/agro/taxas";
 import { BotaoExcluir } from "./botao-excluir";
 import { Anexos } from "./anexos";
 import { DocumentosGerados } from "./documentos-gerados";
@@ -47,6 +48,7 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
 
   const resultado = contrato.resultadoMp1376 as ResultadoMp1376 | null;
   const resultadoAlongamento = contrato.resultadoAlongamento as ResultadoAlongamento | null;
+  const resultadoTaxas = contrato.resultadoTaxas as ResultadoTaxas | null;
   const avalistas = (contrato.avalistas as Array<{ nome?: string; documento?: string; patrimonioDescrito?: string }> | null) ?? [];
   const coberturas = (contrato.coberturas as string[] | null) ?? [];
   const riscos = (contrato.riscosIdentificados as string[] | null) ?? [];
@@ -230,6 +232,66 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
             )}
           </div>
           <p className="text-sm text-slate-600">{contrato.capacidadePagamentoResumo ?? "Sem laudo anexado ainda."}</p>
+        </div>
+      )}
+
+      {resultadoTaxas && (
+        <div className="cartao space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">Verificação de abusividade — DL 167/67 e comparação com o Banco Central</h2>
+
+          <div className="flex flex-wrap gap-3 text-sm">
+            {resultadoTaxas.taxaMediaBcb ? (
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                Taxa média do Banco Central: {resultadoTaxas.taxaMediaBcb.valor}% a.a. (referência {resultadoTaxas.taxaMediaBcb.periodoReferencia})
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                Não foi possível consultar a taxa média do Banco Central nesta análise.
+              </span>
+            )}
+            {resultadoTaxas.diferencaPontosPercentuais !== null && (
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                Diferença: {resultadoTaxas.diferencaPontosPercentuais > 0 ? "+" : ""}
+                {resultadoTaxas.diferencaPontosPercentuais.toFixed(2)} p.p.
+              </span>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Checklist</h3>
+            <ul className="mt-2 space-y-3">
+              {resultadoTaxas.checklist.map((item, i) => (
+                <li key={i} className="rounded-lg border border-slate-200 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">{item.requisito}</div>
+                      <div className="mt-0.5 text-xs font-medium text-slate-500">{item.artigo}</div>
+                    </div>
+                    <Selo valor={item.atende} />
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">{item.observacao}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {resultadoTaxas.alertas.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alertas</h3>
+              <ul className="mt-2 space-y-2">
+                {resultadoTaxas.alertas.map((a, i) => (
+                  <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium text-slate-900">{a.titulo}</div>
+                      <span className="text-xs font-semibold uppercase text-slate-500">{ROTULO_GRAVIDADE[a.gravidade]}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">{a.texto}</p>
+                    <p className="mt-1 text-xs text-slate-400">Fonte: {a.fonte}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
