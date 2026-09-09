@@ -7,6 +7,7 @@ import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
 import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
 import { BotaoExcluir } from "./botao-excluir";
 import { Anexos } from "./anexos";
+import { DocumentosGerados } from "./documentos-gerados";
 
 const ROTULO_MODALIDADE: Record<string, string> = {
   GERAL: "Modalidade geral (2+ safras, ≥30%)",
@@ -37,7 +38,10 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
 
   const contrato = await prisma.agroContrato.findFirst({
     where: { id: params.id, agroContaId: conta.id },
-    include: { anexos: { orderBy: { criadoEm: "desc" } } },
+    include: {
+      anexos: { orderBy: { criadoEm: "desc" } },
+      documentosGerados: { orderBy: { criadoEm: "desc" } },
+    },
   });
   if (!contrato) notFound();
 
@@ -298,6 +302,17 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
           tipo: a.tipo,
           nomeArquivo: a.nomeArquivo,
           criadoEm: a.criadoEm.toISOString(),
+        }))}
+      />
+
+      <DocumentosGerados
+        contratoId={contrato.id}
+        documentos={contrato.documentosGerados.map((d) => ({
+          id: d.id,
+          tipo: d.tipo,
+          origem: d.origem,
+          nomeArquivo: d.nomeArquivo,
+          criadoEm: d.criadoEm.toISOString(),
         }))}
       />
     </div>

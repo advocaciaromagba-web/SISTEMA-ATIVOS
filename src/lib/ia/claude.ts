@@ -25,19 +25,33 @@ export type BlocoConteudo =
   | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
   | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
 
-/**
- * Pede uma resposta em JSON, com formato fixo.
- *
- * O `esquema` é descrito no prompt e conferido na volta: modelo de linguagem
- * erra formato, e um JSON quebrado não pode derrubar a auditoria.
- */
-export async function perguntarJson<T>(params: {
+type ParametrosPergunta = {
   instrucao: string;
   conteudo: string | BlocoConteudo[];
   maxTokens?: number;
   /** De quem é este gasto — para a administração conseguir separar depois. */
   contexto?: ContextoUsoIa;
-}): Promise<{ ok: true; dados: T } | { ok: false; erro: string }> {
+  /**
+   * A leitura de um documento (poucos milhares de tokens de saída) cabe no
+   * padrão de 90s. Uma peça inteira redigida livremente, com `maxTokens` na
+   * casa de 12000, pode legitimamente passar disso — visto ao vivo: uma
+   * petição real levou 91s e estourou o padrão por pouco, sem nenhum alerta
+   * (porque "IA respondeu com erro" e "IA excedeu o tempo" caem no mesmo
+   * `catch`, e só o segundo é esperado aqui). Quem pede algo mais longo pede
+   * também mais tempo.
+   */
+  tempoLimiteMs?: number;
+};
+
+/**
+ * O que há de comum entre pedir JSON e pedir texto livre: a chamada HTTP, a
+ * medição de custo, e o tratamento de erro — inclusive a resposta cortada
+ * por falta de espaço, que a API confirma pelo `stop_reason` (não é
+ * suposição). Quem chama decide o que fazer com o texto bruto devolvido.
+ */
+async function chamarAnthropic(
+  params: ParametrosPergunta
+): Promise<{ ok: true; texto: string; cortada: boolean } | { ok: false; erro: string }> {
   const chave = (process.env.ANTHROPIC_API_KEY ?? "").trim();
   if (!chave) return { ok: false, erro: "Inteligência artificial não configurada (ANTHROPIC_API_KEY)." };
 
@@ -60,7 +74,7 @@ export async function perguntarJson<T>(params: {
         system: params.instrucao,
         messages: [{ role: "user", content: conteudo }],
       }),
-      signal: AbortSignal.timeout(TEMPO_LIMITE),
+      signal: AbortSignal.timeout(params.tempoLimiteMs ?? TEMPO_LIMITE),
     });
 
     if (!resposta.ok) {
@@ -102,12 +116,6 @@ export async function perguntarJson<T>(params: {
       .join("\n")
       .trim();
 
-    // A API confirma, pelo stop_reason, se cortou a resposta por falta de
-    // espaço — não precisa adivinhar. Verificado contra a API real: com o
-    // limite baixo demais, o orçamento de tokens pode ser todo consumido
-    // pensando, e o texto sai vazio — não só malformado. Por isso este
-    // sinal é conferido antes de decidir "respondeu vazio" ou "formato
-    // inesperado", não só no meio do parse.
     const cortada = dados.stop_reason === "max_tokens";
 
     if (!texto) {
@@ -124,52 +132,78 @@ export async function perguntarJson<T>(params: {
           ok: false,
           erro:
             "Este documento é longo demais para o espaço de resposta configurado — a IA não teve espaço nem para " +
-            "começar a responder. Avisamos a equipe para ajustar o limite; por ora, preencha os campos à mão.",
+            "começar a responder. Avisamos a equipe para ajustar o limite.",
         };
       }
       return { ok: false, erro: "A IA respondeu vazio." };
     }
 
-    // O modelo às vezes embrulha o JSON em cerca de código; tiramos antes de ler.
-    const limpo = texto
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
-
-    try {
-      return { ok: true, dados: JSON.parse(limpo) as T };
-    } catch {
-      // Última tentativa: pegar o primeiro objeto JSON que aparecer no texto.
-      const inicio = limpo.indexOf("{");
-      const fim = limpo.lastIndexOf("}");
-      if (inicio >= 0 && fim > inicio) {
-        try {
-          return { ok: true, dados: JSON.parse(limpo.slice(inicio, fim + 1)) as T };
-        } catch {
-          /* cai no erro abaixo */
-        }
-      }
-
-      // Sem isto, o texto que a IA de fato respondeu se perdia — ninguém
-      // conseguia saber depois se foi corte, alucinação ou outra coisa.
-      await abrirAlerta({
-        tipo: cortada ? "IA_RESPOSTA_CORTADA" : "IA_FORMATO_INESPERADO",
-        gravidade: "ATENCAO",
-        titulo: cortada ? "IA cortou a resposta antes de terminar o JSON" : "IA respondeu fora do formato esperado",
-        detalhe:
-          `${params.contexto?.referencia ?? "Chamada sem referência"} (solução ${params.contexto?.solucao ?? "?"}). ` +
-          `max_tokens pedido: ${params.maxTokens ?? 4000}. Resposta (primeiros 800 caracteres): ${limpo.slice(0, 800)}`,
-      });
-
-      return {
-        ok: false,
-        erro: cortada
-          ? "Este documento é longo demais para o espaço de resposta configurado — a leitura foi cortada no meio. " +
-            "Avisamos a equipe para ajustar o limite; por ora, preencha os campos à mão."
-          : "A IA respondeu num formato que o sistema não conseguiu ler.",
-      };
-    }
+    return { ok: true, texto, cortada };
   } catch (erro) {
     return { ok: false, erro: `Falha ao consultar a IA: ${(erro as Error).message}` };
   }
+}
+
+/**
+ * Pede uma resposta em JSON, com formato fixo.
+ *
+ * O `esquema` é descrito no prompt e conferido na volta: modelo de linguagem
+ * erra formato, e um JSON quebrado não pode derrubar a auditoria.
+ */
+export async function perguntarJson<T>(params: ParametrosPergunta): Promise<{ ok: true; dados: T } | { ok: false; erro: string }> {
+  const resultado = await chamarAnthropic(params);
+  if (!resultado.ok) return resultado;
+  const { texto, cortada } = resultado;
+
+  // O modelo às vezes embrulha o JSON em cerca de código; tiramos antes de ler.
+  const limpo = texto
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  try {
+    return { ok: true, dados: JSON.parse(limpo) as T };
+  } catch {
+    // Última tentativa: pegar o primeiro objeto JSON que aparecer no texto.
+    const inicio = limpo.indexOf("{");
+    const fim = limpo.lastIndexOf("}");
+    if (inicio >= 0 && fim > inicio) {
+      try {
+        return { ok: true, dados: JSON.parse(limpo.slice(inicio, fim + 1)) as T };
+      } catch {
+        /* cai no erro abaixo */
+      }
+    }
+
+    // Sem isto, o texto que a IA de fato respondeu se perdia — ninguém
+    // conseguia saber depois se foi corte, alucinação ou outra coisa.
+    await abrirAlerta({
+      tipo: cortada ? "IA_RESPOSTA_CORTADA" : "IA_FORMATO_INESPERADO",
+      gravidade: "ATENCAO",
+      titulo: cortada ? "IA cortou a resposta antes de terminar o JSON" : "IA respondeu fora do formato esperado",
+      detalhe:
+        `${params.contexto?.referencia ?? "Chamada sem referência"} (solução ${params.contexto?.solucao ?? "?"}). ` +
+        `max_tokens pedido: ${params.maxTokens ?? 4000}. Resposta (primeiros 800 caracteres): ${limpo.slice(0, 800)}`,
+    });
+
+    return {
+      ok: false,
+      erro: cortada
+        ? "Este documento é longo demais para o espaço de resposta configurado — a leitura foi cortada no meio. " +
+          "Avisamos a equipe para ajustar o limite; por ora, preencha os campos à mão."
+        : "A IA respondeu num formato que o sistema não conseguiu ler.",
+    };
+  }
+}
+
+/**
+ * Pede uma resposta em texto livre — para quando o que se quer da IA é
+ * prosa (uma minuta, um resumo), não um dado estruturado. Mesma medição de
+ * custo e mesmo tratamento de corte de resposta do `perguntarJson`, sem a
+ * tentativa de interpretar como JSON.
+ */
+export async function perguntarTexto(params: ParametrosPergunta): Promise<{ ok: true; texto: string } | { ok: false; erro: string }> {
+  const resultado = await chamarAnthropic(params);
+  if (!resultado.ok) return resultado;
+  return { ok: true, texto: resultado.texto };
 }

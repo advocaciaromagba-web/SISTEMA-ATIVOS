@@ -87,7 +87,8 @@ function nomeArquivo(base: string): string {
   return `${base}-${data}.docx`;
 }
 
-async function empacotar(secoes: (Paragraph)[], tituloDoc: string, subtituloDoc?: string): Promise<{ buffer: Buffer; hashSha256: string }> {
+/** Exportado para o gerador da petição por IA (`peticao-ia.ts`), que monta o mesmo tipo de .docx a partir de texto livre em vez dos parágrafos fixos daqui. */
+export async function empacotar(secoes: (Paragraph)[], tituloDoc: string, subtituloDoc?: string): Promise<{ buffer: Buffer; hashSha256: string }> {
   const construir = (codigo?: string) =>
     new Document({
       title: tituloDoc,

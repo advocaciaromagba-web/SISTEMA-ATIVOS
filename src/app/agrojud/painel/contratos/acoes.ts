@@ -13,6 +13,9 @@ import { analisarContrato } from "@/lib/agro/analise";
 import type { FatosContrato } from "@/lib/agro/mp1376";
 import type { FatosAlongamento, HipoteseMcr } from "@/lib/agro/alongamento";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
+import { gerarPeticaoIaCompleta, type TipoPeticaoIa } from "@/lib/agro/peticao-ia";
+import { obterAcompanhamentoMp } from "@/lib/agro/acompanhamento";
+import { avisoParaPeca } from "@/lib/agro/vigencia-mp";
 
 export type ResultadoAcao = {
   erro?: string;
@@ -478,5 +481,81 @@ export async function excluirAnexo(id: string): Promise<ResultadoAcao> {
 
   await prisma.agroAnexo.delete({ where: { id } });
   revalidatePath(`/agrojud/painel/contratos/${anexo.agroContratoId}`);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// Peça redigida livremente pela IA (requerimento administrativo ou
+// petição inicial) — escolha explícita do cliente. Cada geração fica
+// arquivada como um `AgroDocumentoGerado`, com o texto bruto da IA e o
+// contexto de fatos que ela recebeu, formando o dossiê do caso.
+// ---------------------------------------------------------------------
+
+export type ResultadoDocumentoGerado = { erro?: string; ok?: boolean; documentoId?: string };
+
+export async function gerarPeticaoComIa(contratoId: string, tipo: TipoPeticaoIa): Promise<ResultadoDocumentoGerado> {
+  const { usuario, conta } = await exigirEdicaoAgro();
+
+  const contrato = await prisma.agroContrato.findFirst({
+    where: { id: contratoId, agroContaId: conta.id },
+    include: { anexos: true },
+  });
+  if (!contrato) return { erro: "Contrato não encontrado." };
+  if (!contrato.resultadoAlongamento) return { erro: "Este contrato ainda não tem análise de alongamento." };
+
+  try {
+    const acompanhamento = await obterAcompanhamentoMp();
+    const resultado = await gerarPeticaoIaCompleta(
+      tipo,
+      contrato,
+      contrato.anexos.map((a) => ({ tipo: a.tipo, nomeArquivo: a.nomeArquivo })),
+      avisoParaPeca(acompanhamento.vigencia),
+      conta.id
+    );
+
+    if (!resultado.ok) return { erro: resultado.erro };
+
+    const documento = await prisma.agroDocumentoGerado.create({
+      data: {
+        agroContratoId: contratoId,
+        tipo,
+        origem: "IA",
+        nomeArquivo: resultado.nomeArquivo,
+        arquivo: resultado.buffer,
+        hashSha256: resultado.hashSha256,
+        conteudoIa: resultado.texto,
+        contextoAnalise: resultado.contexto as never,
+        geradoPorId: usuario.id,
+      },
+    });
+
+    revalidatePath(`/agrojud/painel/contratos/${contratoId}`);
+    return { ok: true, documentoId: documento.id };
+  } catch (falha) {
+    const mensagem = falha instanceof Error ? `${falha.name}: ${falha.message}` : String(falha);
+    await abrirAlerta({
+      tipo: "IA_FALHANDO",
+      gravidade: "ATENCAO",
+      titulo: "Falha ao gerar peça por IA",
+      detalhe: `A geração da peça quebrou antes de terminar. Detalhe técnico: ${mensagem.slice(0, 500)}. Tipo: ${tipo}. Contrato: ${contratoId}.`,
+    });
+    return {
+      ok: false,
+      erro: "Não foi possível gerar a peça agora. A falha foi registrada para a equipe — tente novamente em alguns instantes.",
+    };
+  }
+}
+
+export async function excluirDocumentoGerado(id: string): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoAgro();
+
+  const documento = await prisma.agroDocumentoGerado.findFirst({
+    where: { id, agroContrato: { agroContaId: conta.id } },
+    select: { id: true, agroContratoId: true },
+  });
+  if (!documento) return { erro: "Documento não encontrado." };
+
+  await prisma.agroDocumentoGerado.delete({ where: { id } });
+  revalidatePath(`/agrojud/painel/contratos/${documento.agroContratoId}`);
   return { ok: true };
 }
