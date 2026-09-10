@@ -2037,6 +2037,19 @@ model AgroContrato {
   /// Banco Central (SGS) e checklist de conformidade com o DL 167/67.
   resultadoTaxas Json?
 
+  // ----- venda casada e tarifas (CDC art. 39, I; Tema 972/STJ; Súmulas 565 e 566/STJ) -----
+  creditoCondicionadoASeguroOuProduto Boolean?
+  seguroOuProdutoVinculadoMesmoGrupo  Boolean?
+  houveOpcaoDeEscolhaOuRecusa         Boolean?
+  descricaoProdutoVinculado           String?
+  temTarifaAberturaCreditoOuEmissaoCarne Boolean?
+  temTarifaCadastro                      Boolean?
+  tarifaCadastroCobradaApenasNoInicio    Boolean?
+  temTarifaRegistroGravame               Boolean?
+  /// Preenchido por analisarCobrancasEVendaCasada() — venda casada de
+  /// seguro/produto e conformidade das tarifas com a jurisprudência do STJ.
+  resultadoCobrancas Json?
+
   // ----- garantias e avalistas -----
   tiposGarantia      Json? // ex.: ["HIPOTECA", "AVAL"]
   garantiasDescricao String?

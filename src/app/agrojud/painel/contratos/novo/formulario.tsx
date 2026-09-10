@@ -101,6 +101,14 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   const [multaMoratoriaPercentual, setMultaMoratoriaPercentual] = useState("");
   const [temComissaoPermanencia, setTemComissaoPermanencia] = useState("");
   const [comissaoPermanenciaCumulada, setComissaoPermanenciaCumulada] = useState("");
+  const [creditoCondicionadoASeguroOuProduto, setCreditoCondicionadoASeguroOuProduto] = useState("");
+  const [seguroOuProdutoVinculadoMesmoGrupo, setSeguroOuProdutoVinculadoMesmoGrupo] = useState("");
+  const [houveOpcaoDeEscolhaOuRecusa, setHouveOpcaoDeEscolhaOuRecusa] = useState("");
+  const [descricaoProdutoVinculado, setDescricaoProdutoVinculado] = useState("");
+  const [temTarifaAberturaCreditoOuEmissaoCarne, setTemTarifaAberturaCreditoOuEmissaoCarne] = useState("");
+  const [temTarifaCadastro, setTemTarifaCadastro] = useState("");
+  const [tarifaCadastroCobradaApenasNoInicio, setTarifaCadastroCobradaApenasNoInicio] = useState("");
+  const [temTarifaRegistroGravame, setTemTarifaRegistroGravame] = useState("");
 
   const [tiposGarantia, setTiposGarantia] = useState("");
   const [garantiasDescricao, setGarantiasDescricao] = useState("");
@@ -150,6 +158,14 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
     if (r.multaMoratoriaPercentual !== undefined) setMultaMoratoriaPercentual(String(r.multaMoratoriaPercentual));
     if (r.temComissaoPermanencia !== undefined) setTemComissaoPermanencia(r.temComissaoPermanencia ? "sim" : "nao");
     if (r.comissaoPermanenciaCumulada !== undefined) setComissaoPermanenciaCumulada(r.comissaoPermanenciaCumulada ? "sim" : "nao");
+    if (r.creditoCondicionadoASeguroOuProduto !== undefined) setCreditoCondicionadoASeguroOuProduto(r.creditoCondicionadoASeguroOuProduto ? "sim" : "nao");
+    if (r.seguroOuProdutoVinculadoMesmoGrupo !== undefined) setSeguroOuProdutoVinculadoMesmoGrupo(r.seguroOuProdutoVinculadoMesmoGrupo ? "sim" : "nao");
+    if (r.houveOpcaoDeEscolhaOuRecusa !== undefined) setHouveOpcaoDeEscolhaOuRecusa(r.houveOpcaoDeEscolhaOuRecusa ? "sim" : "nao");
+    if (r.descricaoProdutoVinculado) setDescricaoProdutoVinculado(r.descricaoProdutoVinculado);
+    if (r.temTarifaAberturaCreditoOuEmissaoCarne !== undefined) setTemTarifaAberturaCreditoOuEmissaoCarne(r.temTarifaAberturaCreditoOuEmissaoCarne ? "sim" : "nao");
+    if (r.temTarifaCadastro !== undefined) setTemTarifaCadastro(r.temTarifaCadastro ? "sim" : "nao");
+    if (r.tarifaCadastroCobradaApenasNoInicio !== undefined) setTarifaCadastroCobradaApenasNoInicio(r.tarifaCadastroCobradaApenasNoInicio ? "sim" : "nao");
+    if (r.temTarifaRegistroGravame !== undefined) setTemTarifaRegistroGravame(r.temTarifaRegistroGravame ? "sim" : "nao");
     if (r.tiposGarantia?.length) setTiposGarantia(r.tiposGarantia.join(", "));
     if (r.garantiasDescricao) setGarantiasDescricao(r.garantiasDescricao);
     if (r.avalistas?.length) {
@@ -256,6 +272,14 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
     setMultaMoratoriaPercentual("");
     setTemComissaoPermanencia("");
     setComissaoPermanenciaCumulada("");
+    setCreditoCondicionadoASeguroOuProduto("");
+    setSeguroOuProdutoVinculadoMesmoGrupo("");
+    setHouveOpcaoDeEscolhaOuRecusa("");
+    setDescricaoProdutoVinculado("");
+    setTemTarifaAberturaCreditoOuEmissaoCarne("");
+    setTemTarifaCadastro("");
+    setTarifaCadastroCobradaApenasNoInicio("");
+    setTemTarifaRegistroGravame("");
     setTiposGarantia("");
     setGarantiasDescricao("");
     setValorGarantia("");
@@ -711,6 +735,66 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
             rotulo="Cumulada com correção monetária ou juros?"
             valor={comissaoPermanenciaCumulada}
             onChange={setComissaoPermanenciaCumulada}
+          />
+        </div>
+      </div>
+
+      <div className="cartao space-y-4">
+        <h2 className="text-sm font-semibold text-slate-900">Venda casada e tarifas (CDC art. 39, I; Tema 972/STJ; Súmulas 565 e 566/STJ)</h2>
+        <p className="ajuda">
+          Verificamos se o crédito foi condicionado à contratação de seguro ou produto do próprio banco (venda
+          casada), e se a TAC/TEC, a tarifa de cadastro e a tarifa de registro de contrato/gravame têm amparo na
+          jurisprudência do STJ.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <CampoSimNao
+            nome="creditoCondicionadoASeguroOuProduto"
+            rotulo="O crédito foi condicionado a seguro/produto?"
+            valor={creditoCondicionadoASeguroOuProduto}
+            onChange={setCreditoCondicionadoASeguroOuProduto}
+          />
+          <CampoSimNao
+            nome="seguroOuProdutoVinculadoMesmoGrupo"
+            rotulo="Esse produto é do banco ou do mesmo grupo?"
+            valor={seguroOuProdutoVinculadoMesmoGrupo}
+            onChange={setSeguroOuProdutoVinculadoMesmoGrupo}
+          />
+          <CampoSimNao
+            nome="houveOpcaoDeEscolhaOuRecusa"
+            rotulo="Houve opção de escolha ou recusa?"
+            valor={houveOpcaoDeEscolhaOuRecusa}
+            onChange={setHouveOpcaoDeEscolhaOuRecusa}
+          />
+          <div className="sm:col-span-3">
+            <label className="rotulo" htmlFor="descricaoProdutoVinculado">
+              Descrição do produto/seguro vinculado
+            </label>
+            <input
+              id="descricaoProdutoVinculado"
+              name="descricaoProdutoVinculado"
+              className="campo"
+              value={descricaoProdutoVinculado}
+              onChange={(e) => setDescricaoProdutoVinculado(e.target.value)}
+            />
+          </div>
+          <CampoSimNao
+            nome="temTarifaAberturaCreditoOuEmissaoCarne"
+            rotulo="Há tarifa de abertura de crédito (TAC) ou de emissão de carnê (TEC)?"
+            valor={temTarifaAberturaCreditoOuEmissaoCarne}
+            onChange={setTemTarifaAberturaCreditoOuEmissaoCarne}
+          />
+          <CampoSimNao nome="temTarifaCadastro" rotulo="Há tarifa de cadastro?" valor={temTarifaCadastro} onChange={setTemTarifaCadastro} />
+          <CampoSimNao
+            nome="tarifaCadastroCobradaApenasNoInicio"
+            rotulo="Cobrada só no início do relacionamento com o banco?"
+            valor={tarifaCadastroCobradaApenasNoInicio}
+            onChange={setTarifaCadastroCobradaApenasNoInicio}
+          />
+          <CampoSimNao
+            nome="temTarifaRegistroGravame"
+            rotulo="Há repasse de tarifa de registro do contrato/gravame?"
+            valor={temTarifaRegistroGravame}
+            onChange={setTemTarifaRegistroGravame}
           />
         </div>
       </div>

@@ -18,6 +18,7 @@ import { obterAcompanhamentoMp } from "@/lib/agro/acompanhamento";
 import { avisoParaPeca } from "@/lib/agro/vigencia-mp";
 import { buscarTaxaMediaBcbRural } from "@/lib/agro/bcb";
 import { analisarTaxasEEncargos, type PeriodicidadeCapitalizacao } from "@/lib/agro/taxas";
+import { analisarCobrancasEVendaCasada } from "@/lib/agro/cobrancas";
 
 export type ResultadoAcao = {
   erro?: string;
@@ -185,6 +186,18 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
     taxaMediaBcb
   );
 
+  const resultadoCobrancas = analisarCobrancasEVendaCasada({
+    dataContratacao: data(dados, "dataContratacao"),
+    creditoCondicionadoASeguroOuProduto: booleano(dados, "creditoCondicionadoASeguroOuProduto"),
+    seguroOuProdutoVinculadoMesmoGrupo: booleano(dados, "seguroOuProdutoVinculadoMesmoGrupo"),
+    houveOpcaoDeEscolhaOuRecusa: booleano(dados, "houveOpcaoDeEscolhaOuRecusa"),
+    descricaoProdutoVinculado: texto(dados, "descricaoProdutoVinculado"),
+    temTarifaAberturaCreditoOuEmissaoCarne: booleano(dados, "temTarifaAberturaCreditoOuEmissaoCarne"),
+    temTarifaCadastro: booleano(dados, "temTarifaCadastro"),
+    tarifaCadastroCobradaApenasNoInicio: booleano(dados, "tarifaCadastroCobradaApenasNoInicio"),
+    temTarifaRegistroGravame: booleano(dados, "temTarifaRegistroGravame"),
+  });
+
   const avalistasTexto = texto(dados, "avalistasJson");
   let avalistas: unknown = undefined;
   if (avalistasTexto) {
@@ -241,6 +254,16 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       temComissaoPermanencia: booleano(dados, "temComissaoPermanencia"),
       comissaoPermanenciaCumulada: booleano(dados, "comissaoPermanenciaCumulada"),
       resultadoTaxas: (resultadoTaxas as unknown) as never,
+
+      creditoCondicionadoASeguroOuProduto: booleano(dados, "creditoCondicionadoASeguroOuProduto"),
+      seguroOuProdutoVinculadoMesmoGrupo: booleano(dados, "seguroOuProdutoVinculadoMesmoGrupo"),
+      houveOpcaoDeEscolhaOuRecusa: booleano(dados, "houveOpcaoDeEscolhaOuRecusa"),
+      descricaoProdutoVinculado: texto(dados, "descricaoProdutoVinculado"),
+      temTarifaAberturaCreditoOuEmissaoCarne: booleano(dados, "temTarifaAberturaCreditoOuEmissaoCarne"),
+      temTarifaCadastro: booleano(dados, "temTarifaCadastro"),
+      tarifaCadastroCobradaApenasNoInicio: booleano(dados, "tarifaCadastroCobradaApenasNoInicio"),
+      temTarifaRegistroGravame: booleano(dados, "temTarifaRegistroGravame"),
+      resultadoCobrancas: (resultadoCobrancas as unknown) as never,
 
       tiposGarantia: (listaTexto(dados, "tiposGarantia") as unknown) as never,
       garantiasDescricao: texto(dados, "garantiasDescricao"),
@@ -383,12 +406,25 @@ async function reanalisar(contratoId: string): Promise<void> {
     taxaMediaBcb
   );
 
+  const resultadoCobrancas = analisarCobrancasEVendaCasada({
+    dataContratacao: c.dataContratacao,
+    creditoCondicionadoASeguroOuProduto: c.creditoCondicionadoASeguroOuProduto,
+    seguroOuProdutoVinculadoMesmoGrupo: c.seguroOuProdutoVinculadoMesmoGrupo,
+    houveOpcaoDeEscolhaOuRecusa: c.houveOpcaoDeEscolhaOuRecusa,
+    descricaoProdutoVinculado: c.descricaoProdutoVinculado,
+    temTarifaAberturaCreditoOuEmissaoCarne: c.temTarifaAberturaCreditoOuEmissaoCarne,
+    temTarifaCadastro: c.temTarifaCadastro,
+    tarifaCadastroCobradaApenasNoInicio: c.tarifaCadastroCobradaApenasNoInicio,
+    temTarifaRegistroGravame: c.temTarifaRegistroGravame,
+  });
+
   await prisma.agroContrato.update({
     where: { id: contratoId },
     data: {
       resultadoMp1376: (resultadoMp1376 as unknown) as never,
       resultadoAlongamento: (resultadoAlongamento as unknown) as never,
       resultadoTaxas: (resultadoTaxas as unknown) as never,
+      resultadoCobrancas: (resultadoCobrancas as unknown) as never,
       analisadoEm: new Date(),
     },
   });

@@ -6,6 +6,7 @@ import { moeda } from "@/lib/formato";
 import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
 import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
 import type { ResultadoTaxas } from "@/lib/agro/taxas";
+import type { ResultadoCobrancas } from "@/lib/agro/cobrancas";
 import { BotaoExcluir } from "./botao-excluir";
 import { Anexos } from "./anexos";
 import { DocumentosGerados } from "./documentos-gerados";
@@ -49,6 +50,7 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
   const resultado = contrato.resultadoMp1376 as ResultadoMp1376 | null;
   const resultadoAlongamento = contrato.resultadoAlongamento as ResultadoAlongamento | null;
   const resultadoTaxas = contrato.resultadoTaxas as ResultadoTaxas | null;
+  const resultadoCobrancas = contrato.resultadoCobrancas as ResultadoCobrancas | null;
   const avalistas = (contrato.avalistas as Array<{ nome?: string; documento?: string; patrimonioDescrito?: string }> | null) ?? [];
   const coberturas = (contrato.coberturas as string[] | null) ?? [];
   const riscos = (contrato.riscosIdentificados as string[] | null) ?? [];
@@ -280,6 +282,48 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alertas</h3>
               <ul className="mt-2 space-y-2">
                 {resultadoTaxas.alertas.map((a, i) => (
+                  <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium text-slate-900">{a.titulo}</div>
+                      <span className="text-xs font-semibold uppercase text-slate-500">{ROTULO_GRAVIDADE[a.gravidade]}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-600">{a.texto}</p>
+                    <p className="mt-1 text-xs text-slate-400">Fonte: {a.fonte}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {resultadoCobrancas && (
+        <div className="cartao space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">Venda casada e tarifas — CDC, Tema 972/STJ e Súmulas 565/566</h2>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Checklist</h3>
+            <ul className="mt-2 space-y-3">
+              {resultadoCobrancas.checklist.map((item, i) => (
+                <li key={i} className="rounded-lg border border-slate-200 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">{item.requisito}</div>
+                      <div className="mt-0.5 text-xs font-medium text-slate-500">{item.artigo}</div>
+                    </div>
+                    <Selo valor={item.atende} />
+                  </div>
+                  <p className="mt-2 text-sm text-slate-600">{item.observacao}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {resultadoCobrancas.alertas.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alertas</h3>
+              <ul className="mt-2 space-y-2">
+                {resultadoCobrancas.alertas.map((a, i) => (
                   <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-sm font-medium text-slate-900">{a.titulo}</div>

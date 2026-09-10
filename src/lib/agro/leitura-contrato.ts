@@ -22,6 +22,14 @@ export type RascunhoContrato = {
   multaMoratoriaPercentual?: number;
   temComissaoPermanencia?: boolean;
   comissaoPermanenciaCumulada?: boolean;
+  creditoCondicionadoASeguroOuProduto?: boolean;
+  seguroOuProdutoVinculadoMesmoGrupo?: boolean;
+  houveOpcaoDeEscolhaOuRecusa?: boolean;
+  descricaoProdutoVinculado?: string;
+  temTarifaAberturaCreditoOuEmissaoCarne?: boolean;
+  temTarifaCadastro?: boolean;
+  tarifaCadastroCobradaApenasNoInicio?: boolean;
+  temTarifaRegistroGravame?: boolean;
   tiposGarantia?: string[];
   garantiasDescricao?: string;
   avalistas?: Array<{ nome?: string; documento?: string; patrimonioDescrito?: string }>;
@@ -63,7 +71,16 @@ export async function lerContratoComIa(
       "multaMoratoriaPercentual (número, % de multa em caso de mora/cobrança), temComissaoPermanencia " +
       "(booleano — há cobrança de comissão de permanência?), comissaoPermanenciaCumulada (booleano — a comissão " +
       "de permanência está cumulada com correção monetária e/ou juros remuneratórios? só se estiver claro no " +
-      "texto), tiposGarantia (lista de texto: HIPOTECA, PENHOR, ALIENACAO_FIDUCIARIA, AVAL, FIANCA, CPR ou " +
+      "texto), creditoCondicionadoASeguroOuProduto (booleano — a liberação do crédito ficou condicionada à " +
+      "contratação de algum seguro ou outro produto?), seguroOuProdutoVinculadoMesmoGrupo (booleano — esse " +
+      "produto é do próprio financiador ou de empresa do mesmo grupo econômico, ou foi indicado por ele?), " +
+      "houveOpcaoDeEscolhaOuRecusa (booleano — o contrato registra alguma opção de escolher outra seguradora ou " +
+      "de recusar o produto?), descricaoProdutoVinculado (texto — qual produto/seguro e qual fornecedora), " +
+      "temTarifaAberturaCreditoOuEmissaoCarne (booleano — há cobrança de TAC, TEC ou tarifa equivalente sob " +
+      "outro nome?), temTarifaCadastro (booleano), tarifaCadastroCobradaApenasNoInicio (booleano — só se o " +
+      "contrato deixar claro que é ou não a primeira operação do cliente com o banco), temTarifaRegistroGravame " +
+      "(booleano — há repasse ao cliente de tarifa de registro do contrato ou de gravame?), tiposGarantia " +
+      "(lista de texto: HIPOTECA, PENHOR, ALIENACAO_FIDUCIARIA, AVAL, FIANCA, CPR ou " +
       "OUTRA), garantiasDescricao (texto), avalistas (lista de {nome, documento, patrimonioDescrito}), " +
       "temSeguroRural (booleano), seguradora, apoliceNumero, coberturas (lista de texto), riscosIdentificados " +
       "(lista de texto — cláusulas que pareçam desequilibradas, onerosas ou incomuns, descritas objetivamente).",
