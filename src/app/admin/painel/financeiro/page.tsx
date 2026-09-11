@@ -1,11 +1,20 @@
+import Link from "next/link";
 import { exigirSessaoAdmin } from "@/lib/admin/sessao";
 import { prisma } from "@/lib/prisma";
 import { SOLUCOES_ADMIN, modelo } from "@/lib/admin/solucoes";
 import { todosOsPlanosDaSolucao } from "@/lib/planos-solucao";
 import { moeda } from "@/lib/formato";
 import { asaasConfigurado } from "@/lib/asaas/cliente";
+import { custoIaPorSolucaoDesde } from "@/lib/ia/custo";
 
 export const dynamic = "force-dynamic";
+
+/** Custo de IA é em dólar (é assim que Anthropic e OpenAI cobram) — nunca convertido para real, pra não fingir uma cotação. */
+function usd(v: number | null): string {
+  if (v === null) return "não calculado";
+  if (v > 0 && v < 1) return `US$ ${v.toFixed(4)}`;
+  return `US$ ${v.toFixed(2)}`;
+}
 
 /** Consultas pagas a terceiros, por solução. O modelo de cada uma é diferente. */
 const MODELOS_CONSULTA: { rotulo: string; modelo: string }[] = [
@@ -30,6 +39,9 @@ export default async function FinanceiroAdmin() {
     prisma.pedido.aggregate({ _sum: { valorTotal: true }, _count: true, where: { situacao: "AGUARDANDO_PAGAMENTO" } }),
     prisma.pedido.aggregate({ _sum: { valorTotal: true }, _count: true, where: { situacao: "PAGO", pagoEm: { gte: inicioDoMes } } }),
   ]);
+
+  // ----- Custo de IA no mês, por solução (todos os provedores somados) -----
+  const custoIaPorSolucao = await custoIaPorSolucaoDesde(inicioDoMes);
 
   // ----- Assinaturas por plano, em cada solução -----
   const assinaturas = await Promise.all(
@@ -59,8 +71,9 @@ export default async function FinanceiroAdmin() {
       );
 
       const mensal = porPlano.reduce((soma, p) => soma + p.assinantes * p.precoMensal, 0);
+      const custoIa = custoIaPorSolucao[s.chave] ?? null;
 
-      return { ...s, porPlano, teste, inadimplentes, ativas, mensal };
+      return { ...s, porPlano, teste, inadimplentes, ativas, mensal, custoIa };
     })
   );
 
@@ -152,38 +165,57 @@ export default async function FinanceiroAdmin() {
                 <th className="px-4 py-3">Em teste</th>
                 <th className="px-4 py-3">Inadimplentes</th>
                 <th className="px-4 py-3">Recorrente/mês</th>
+                <th className="px-4 py-3">Custo de IA/mês</th>
+                <th className="px-4 py-3">Margem estimada</th>
               </tr>
             </thead>
             <tbody>
-              {assinaturas.map((a) => (
-                <tr key={a.chave} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-3 font-medium text-slate-900">
-                    {a.rotulo}
-                    {!a.temPlano && <span className="ml-1.5 text-xs font-normal text-slate-400">saldo pré-pago</span>}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{a.ativas}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {a.porPlano.length === 0 ? (
-                      <span className="text-slate-400">—</span>
-                    ) : (
-                      <span className="text-xs">
-                        {a.porPlano.map((p) => `${p.nome}: ${p.assinantes}`).join(" · ")}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{a.teste}</td>
-                  <td className="px-4 py-3">
-                    {a.inadimplentes > 0 ? (
-                      <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                        {a.inadimplentes}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{a.mensal > 0 ? moeda(a.mensal) : "—"}</td>
-                </tr>
-              ))}
+              {assinaturas.map((a) => {
+                const custoUsd = a.custoIa?.custoUsd ?? null;
+                const temCustoParcial = custoUsd !== null && a.custoIa && a.custoIa.semPreco > 0;
+                return (
+                  <tr key={a.chave} className="border-b border-slate-100 last:border-0">
+                    <td className="px-4 py-3 font-medium text-slate-900">
+                      {a.rotulo}
+                      {!a.temPlano && <span className="ml-1.5 text-xs font-normal text-slate-400">saldo pré-pago</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{a.ativas}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {a.porPlano.length === 0 ? (
+                        <span className="text-slate-400">—</span>
+                      ) : (
+                        <span className="text-xs">
+                          {a.porPlano.map((p) => `${p.nome}: ${p.assinantes}`).join(" · ")}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{a.teste}</td>
+                    <td className="px-4 py-3">
+                      {a.inadimplentes > 0 ? (
+                        <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                          {a.inadimplentes}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{a.mensal > 0 ? moeda(a.mensal) : "—"}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {usd(custoUsd)}
+                      {temCustoParcial && <span className="ml-1 text-xs text-amber-600">(parcial)</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {custoUsd === null || a.mensal === 0 ? (
+                        <span className="text-slate-400">—</span>
+                      ) : (
+                        <span className="text-xs">
+                          {moeda(a.mensal)} − {usd(custoUsd)}*
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -191,6 +223,17 @@ export default async function FinanceiroAdmin() {
           O valor recorrente é calculado multiplicando as assinaturas ativas de cada solução pelo preço cadastrado
           naquela solução. Não é extrato do Asaas: descontos, atrasos e cobranças em aberto não estão refletidos
           aqui.
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          * A margem mistura duas moedas de propósito (recorrente em real, custo de IA em dólar — a Anthropic e a
+          OpenAI cobram em dólar, e converter aqui exigiria uma cotação que o sistema não guarda) e só desconta o
+          custo de IA — hospedagem, consultas a terceiros, folha e demais custos operacionais não entram nessa
+          conta. Serve para comparar ordem de grandeza, não como margem real do negócio. Para o detalhe por
+          provedor de IA (Anthropic × OpenAI), veja{" "}
+          <Link href="/admin/painel/custos" className="underline">
+            Custos do sistema
+          </Link>
+          .
         </p>
       </div>
 

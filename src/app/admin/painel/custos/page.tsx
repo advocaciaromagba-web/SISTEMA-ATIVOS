@@ -1,6 +1,7 @@
 import { exigirSessaoAdmin } from "@/lib/admin/sessao";
 import { prisma } from "@/lib/prisma";
 import { SOLUCOES_ADMIN } from "@/lib/admin/solucoes";
+import { provedorDoModelo, type ProvedorIa } from "@/lib/ia/provedores";
 import { BotaoResolver, FormularioPreco, FormularioRenovacao } from "./formularios";
 import { CHAVE_RENOVACAO_IA, CHAVE_SALDO_IA } from "./chaves";
 
@@ -67,6 +68,24 @@ export default async function CustosAdmin() {
 
   const rotulo = (chave: string) => SOLUCOES_ADMIN.find((s) => s.chave === chave)?.rotulo ?? chave;
 
+  // Anthropic × OpenAI — mesma fonte de dados de cima, só reagrupada por
+  // provedor em vez de solução. O provedor sai do nome do modelo gravado em
+  // cada chamada, não de configuração: reflete o que de fato rodou, mesmo
+  // que IA_PROVEDOR tenha mudado no meio do mês.
+  const porProvedor = new Map<ProvedorIa, { chamadas: number; entrada: number; saida: number; custo: number; semPreco: number }>();
+  for (const u of comSucesso) {
+    const chave = provedorDoModelo(u.modelo);
+    const atual = porProvedor.get(chave) ?? { chamadas: 0, entrada: 0, saida: 0, custo: 0, semPreco: 0 };
+    atual.chamadas += 1;
+    atual.entrada += u.tokensEntrada + u.tokensCacheCriacao + u.tokensCacheLeitura;
+    atual.saida += u.tokensSaida;
+    if (u.custoUsd === null) atual.semPreco += 1;
+    else atual.custo += Number(u.custoUsd);
+    porProvedor.set(chave, atual);
+  }
+  const ordemProvedor: ProvedorIa[] = ["Anthropic", "OpenAI", "Outro"];
+  const comparacaoProvedor = ordemProvedor.map((p) => ({ provedor: p, ...( porProvedor.get(p) ?? { chamadas: 0, entrada: 0, saida: 0, custo: 0, semPreco: 0 }) })).filter((p) => p.chamadas > 0);
+
   // Dias até a renovação anotada
   let diasParaRenovar: number | null = null;
   if (renovacao) {
@@ -132,6 +151,52 @@ export default async function CustosAdmin() {
           acabado ou chave revogada.
         </p>
       )}
+
+      <div>
+        <h2 className="mb-2 text-sm font-semibold text-slate-900">Anthropic × OpenAI</h2>
+        <p className="mb-2 text-xs text-slate-500">
+          O provedor é lido do nome do modelo que respondeu cada chamada (guardado em cada registro), não de uma
+          configuração — então esta comparação vale mesmo que o provedor ativo (variável <code>IA_PROVEDOR</code>)
+          tenha mudado no meio do mês.
+        </p>
+        {comparacaoProvedor.length === 0 ? (
+          <div className="cartao text-sm text-slate-500">Nenhuma chamada de IA registrada neste mês.</div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Provedor</th>
+                  <th className="px-4 py-3">Chamadas</th>
+                  <th className="px-4 py-3">Tokens entrada</th>
+                  <th className="px-4 py-3">Tokens saída</th>
+                  <th className="px-4 py-3">Custo no mês</th>
+                  <th className="px-4 py-3">Custo médio/chamada</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparacaoProvedor.map((p) => (
+                  <tr key={p.provedor} className="border-b border-slate-100 last:border-0">
+                    <td className="px-4 py-3 font-medium text-slate-900">{p.provedor}</td>
+                    <td className="px-4 py-3 text-slate-600">{p.chamadas}</td>
+                    <td className="px-4 py-3 text-slate-600">{p.entrada.toLocaleString("pt-BR")}</td>
+                    <td className="px-4 py-3 text-slate-600">{p.saida.toLocaleString("pt-BR")}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {p.semPreco === p.chamadas ? <span className="text-slate-400">falta o preço</span> : usd(p.custo)}
+                      {p.semPreco > 0 && p.semPreco < p.chamadas && (
+                        <span className="ml-1 text-xs text-amber-600">({p.semPreco} sem preço)</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {p.semPreco === p.chamadas ? <span className="text-slate-400">—</span> : usd(p.custo / (p.chamadas - p.semPreco))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">

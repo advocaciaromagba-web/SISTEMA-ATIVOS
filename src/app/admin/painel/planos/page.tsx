@@ -1,19 +1,35 @@
+import Link from "next/link";
 import { exigirSessaoAdmin } from "@/lib/admin/sessao";
-import { SOLUCOES_ADMIN } from "@/lib/admin/solucoes";
+import { SOLUCOES_ADMIN, modelo } from "@/lib/admin/solucoes";
 import { todosOsPlanosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { moeda } from "@/lib/formato";
+import { custoIaPorSolucaoDesde } from "@/lib/ia/custo";
 import { FormularioPlano, FormularioConfiguracao } from "./formularios";
 
 export const dynamic = "force-dynamic";
 
+/** Custo de IA é em dólar — nunca convertido para real aqui, pra não fingir uma cotação que o sistema não guarda. */
+function usd(v: number | null): string {
+  if (v === null) return "não calculado";
+  if (v > 0 && v < 1) return `US$ ${v.toFixed(4)}`;
+  return `US$ ${v.toFixed(2)}`;
+}
+
 export default async function PlanosAdmin() {
   await exigirSessaoAdmin();
+
+  const inicioDoMes = new Date();
+  inicioDoMes.setDate(1);
+  inicioDoMes.setHours(0, 0, 0, 0);
+  const custoIaPorSolucao = await custoIaPorSolucaoDesde(inicioDoMes);
 
   const solucoes = await Promise.all(
     SOLUCOES_ADMIN.map(async (s) => ({
       ...s,
       planos: await todosOsPlanosDaSolucao(s.chave),
       config: await configuracaoDaSolucao(s.chave),
+      assinantesAtivos: await modelo(s.modeloConta).count({ where: { statusAssinatura: "ATIVA" } }),
+      custoIa: custoIaPorSolucao[s.chave] ?? null,
     }))
   );
 
@@ -42,6 +58,40 @@ export default async function PlanosAdmin() {
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-2">
             <h2 className="text-base font-semibold text-slate-900">{s.rotulo}</h2>
             <span className="text-xs text-slate-400">{s.chave}</span>
+          </div>
+
+          <div className="cartao">
+            <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Custo de IA desta solução, para ajudar a decidir o preço</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-slate-500">Assinantes ativos</p>
+                <p className="text-lg font-semibold text-slate-900">{s.assinantesAtivos}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Custo de IA no mês</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {usd(s.custoIa?.custoUsd ?? null)}
+                  {s.custoIa && s.custoIa.semPreco > 0 && <span className="ml-1 text-xs font-normal text-amber-600">(parcial)</span>}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Custo médio de IA por assinante</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {s.custoIa?.custoUsd !== null && s.custoIa?.custoUsd !== undefined && s.assinantesAtivos > 0
+                    ? usd(s.custoIa.custoUsd / s.assinantesAtivos)
+                    : "—"}
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">
+              Em dólar (é como Anthropic e OpenAI cobram) — compare com o preço em real abaixo, sem conversão
+              automática. Não inclui hospedagem, consultas a terceiros nem demais custos operacionais. Detalhe por
+              provedor de IA em{" "}
+              <Link href="/admin/painel/custos" className="underline">
+                Custos do sistema
+              </Link>
+              .
+            </p>
           </div>
 
           <div className="cartao">

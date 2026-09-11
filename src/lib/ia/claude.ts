@@ -5,19 +5,44 @@
  * confirma. Nada que sai daqui vira dado oficial sozinho — vai para a tela
  * marcado como sugestão, e alguém aprova. Número, data e cálculo nunca são
  * pedidos à IA; são conferidos em código.
+ *
+ * PROVEDOR: o sistema fala com duas IAs possíveis — Anthropic (padrão) ou
+ * OpenAI — escolhida pela variável `IA_PROVEDOR` ("anthropic" ou "openai").
+ * `perguntarJson`/`perguntarTexto` são o mesmo contrato para quem chama,
+ * qualquer que seja o provedor ativo — nenhum dos módulos que já usa este
+ * arquivo (leitura de contrato, anexos, petição por IA) precisa saber qual
+ * IA está por trás.
  */
 
-import { abrirAlerta, classificarFalhaIa, lerUso, registrarUsoIa, type ContextoUsoIa } from "./custo";
+import {
+  abrirAlerta,
+  classificarFalhaIa,
+  classificarFalhaIaOpenAI,
+  lerUso,
+  registrarUsoIa,
+  type ContextoUsoIa,
+} from "./custo";
 
 const URL_ANTHROPIC = "https://api.anthropic.com/v1/messages";
+const URL_OPENAI = "https://api.openai.com/v1/responses";
 const TEMPO_LIMITE = 90_000;
 
+function provedorAtivo(): "anthropic" | "openai" {
+  return (process.env.IA_PROVEDOR ?? "").trim().toLowerCase() === "openai" ? "openai" : "anthropic";
+}
+
 export function iaConfigurada(): boolean {
-  return Boolean((process.env.ANTHROPIC_API_KEY ?? "").trim());
+  return provedorAtivo() === "openai"
+    ? Boolean((process.env.OPENAI_API_KEY ?? "").trim())
+    : Boolean((process.env.ANTHROPIC_API_KEY ?? "").trim());
 }
 
 function modelo(): string {
   return (process.env.ANTHROPIC_MODEL ?? "").trim() || "claude-opus-5";
+}
+
+function modeloOpenAI(): string {
+  return (process.env.OPENAI_MODEL ?? "").trim() || "gpt-4o";
 }
 
 export type BlocoConteudo =
@@ -144,6 +169,131 @@ async function chamarAnthropic(
   }
 }
 
+/** Converte o bloco de conteúdo (formato Anthropic, já usado por todo chamador deste arquivo) para o formato de content parts da Responses API da OpenAI. */
+function blocoParaOpenAI(bloco: BlocoConteudo): Record<string, unknown> {
+  if (bloco.type === "text") return { type: "input_text", text: bloco.text };
+  if (bloco.type === "document") {
+    return { type: "input_file", filename: "documento.pdf", file_data: `data:application/pdf;base64,${bloco.source.data}` };
+  }
+  return { type: "input_image", image_url: `data:${bloco.source.media_type};base64,${bloco.source.data}` };
+}
+
+/**
+ * Mesmo contrato de `chamarAnthropic`, para a Responses API da OpenAI
+ * (`/v1/responses` — não a Chat Completions, mais antiga). Formato de
+ * requisição e resposta conferidos na documentação oficial em 10/09/2026:
+ * conteúdo de arquivo por `input_file`/`file_data` (base64 com prefixo
+ * `data:`), imagem por `input_image`/`image_url`, texto de saída dentro de
+ * `output[]` nos itens `type: "message"` (nunca só em `output[0]` — a API
+ * pode intercalar itens de raciocínio antes da mensagem), e corte de
+ * resposta sinalizado por `status: "incomplete"` com
+ * `incomplete_details.reason === "max_output_tokens"` — mesmo cuidado já
+ * tomado para a Anthropic (`stop_reason`), porque o mesmo tipo de bug (IA
+ * cortada sem aviso) já apareceu uma vez neste sistema.
+ */
+async function chamarOpenAI(
+  params: ParametrosPergunta
+): Promise<{ ok: true; texto: string; cortada: boolean } | { ok: false; erro: string }> {
+  const chave = (process.env.OPENAI_API_KEY ?? "").trim();
+  if (!chave) return { ok: false, erro: "Inteligência artificial não configurada (OPENAI_API_KEY)." };
+
+  const modeloPedido = modeloOpenAI();
+
+  const conteudo: BlocoConteudo[] =
+    typeof params.conteudo === "string" ? [{ type: "text", text: params.conteudo }] : params.conteudo;
+
+  try {
+    const resposta = await fetch(URL_OPENAI, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${chave}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modeloPedido,
+        max_output_tokens: params.maxTokens ?? 4000,
+        input: [
+          { role: "system", content: params.instrucao },
+          { role: "user", content: conteudo.map(blocoParaOpenAI) },
+        ],
+      }),
+      signal: AbortSignal.timeout(params.tempoLimiteMs ?? TEMPO_LIMITE),
+    });
+
+    if (!resposta.ok) {
+      const corpo = await resposta.text().catch(() => "");
+
+      const falha = classificarFalhaIaOpenAI(resposta.status, corpo);
+      await registrarUsoIa({
+        uso: { modelo: modeloPedido, tokensEntrada: 0, tokensSaida: 0, tokensCacheCriacao: 0, tokensCacheLeitura: 0 },
+        contexto: params.contexto,
+        erro: `HTTP ${resposta.status}: ${corpo.slice(0, 300)}`,
+      });
+      if (falha) {
+        await abrirAlerta({
+          tipo: falha.tipo,
+          gravidade: falha.tipo === "IA_SEM_CREDITO" ? "CRITICO" : "ATENCAO",
+          titulo: falha.titulo,
+          detalhe: falha.detalhe,
+        });
+      }
+
+      return { ok: false, erro: `IA respondeu HTTP ${resposta.status}: ${corpo.slice(0, 300)}` };
+    }
+
+    const dados = (await resposta.json()) as {
+      model?: string;
+      status?: string;
+      incomplete_details?: { reason?: string };
+      usage?: Record<string, unknown>;
+      output?: Array<{ type: string; content?: Array<{ type: string; text?: string }> }>;
+    };
+
+    await registrarUsoIa({ uso: lerUso(dados, modeloPedido), contexto: params.contexto });
+
+    const texto = (dados.output ?? [])
+      .filter((item) => item.type === "message")
+      .flatMap((item) => item.content ?? [])
+      .filter((parte) => parte.type === "output_text")
+      .map((parte) => parte.text ?? "")
+      .join("\n")
+      .trim();
+
+    const cortada = dados.status === "incomplete" && dados.incomplete_details?.reason === "max_output_tokens";
+
+    if (!texto) {
+      if (cortada) {
+        await abrirAlerta({
+          tipo: "IA_RESPOSTA_CORTADA",
+          gravidade: "ATENCAO",
+          titulo: "IA cortou a resposta antes de escrever qualquer texto",
+          detalhe:
+            `${params.contexto?.referencia ?? "Chamada sem referência"} (solução ${params.contexto?.solucao ?? "?"}). ` +
+            `max_output_tokens pedido: ${params.maxTokens ?? 4000}. O orçamento de tokens foi consumido antes de gerar texto.`,
+        });
+        return {
+          ok: false,
+          erro:
+            "Este documento é longo demais para o espaço de resposta configurado — a IA não teve espaço nem para " +
+            "começar a responder. Avisamos a equipe para ajustar o limite.",
+        };
+      }
+      return { ok: false, erro: "A IA respondeu vazio." };
+    }
+
+    return { ok: true, texto, cortada };
+  } catch (erro) {
+    return { ok: false, erro: `Falha ao consultar a IA: ${(erro as Error).message}` };
+  }
+}
+
+/** Encaminha para o provedor ativo — ver `IA_PROVEDOR` no cabeçalho do arquivo. */
+async function chamarIA(
+  params: ParametrosPergunta
+): Promise<{ ok: true; texto: string; cortada: boolean } | { ok: false; erro: string }> {
+  return provedorAtivo() === "openai" ? chamarOpenAI(params) : chamarAnthropic(params);
+}
+
 /**
  * Pede uma resposta em JSON, com formato fixo.
  *
@@ -151,7 +301,7 @@ async function chamarAnthropic(
  * erra formato, e um JSON quebrado não pode derrubar a auditoria.
  */
 export async function perguntarJson<T>(params: ParametrosPergunta): Promise<{ ok: true; dados: T } | { ok: false; erro: string }> {
-  const resultado = await chamarAnthropic(params);
+  const resultado = await chamarIA(params);
   if (!resultado.ok) return resultado;
   const { texto, cortada } = resultado;
 
@@ -203,7 +353,7 @@ export async function perguntarJson<T>(params: ParametrosPergunta): Promise<{ ok
  * tentativa de interpretar como JSON.
  */
 export async function perguntarTexto(params: ParametrosPergunta): Promise<{ ok: true; texto: string } | { ok: false; erro: string }> {
-  const resultado = await chamarAnthropic(params);
+  const resultado = await chamarIA(params);
   if (!resultado.ok) return resultado;
   return { ok: true, texto: resultado.texto };
 }

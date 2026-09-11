@@ -30,12 +30,23 @@ export type UsoMedido = {
   tokensCacheLeitura: number;
 };
 
-/** Formato do campo `usage` devolvido pela API de mensagens. */
+/**
+ * Formato do campo `usage` devolvido pela API de mensagens.
+ *
+ * `input_tokens`/`output_tokens` valem para as duas IAs que o sistema usa
+ * (Anthropic e OpenAI — mesma nomenclatura, coincidência conveniente). O
+ * resto do formato de cache diverge: a Anthropic separa criação e leitura
+ * de cache (`cache_creation_input_tokens`/`cache_read_input_tokens`); a
+ * OpenAI só expõe tokens já em cache, aninhados em `input_tokens_details`
+ * — por isso `tokensCacheCriacao` fica sempre zero para chamadas à OpenAI,
+ * o que é o dado real (ela não cobra separado por criar cache).
+ */
 type UsageApi = {
   input_tokens?: number;
   output_tokens?: number;
   cache_creation_input_tokens?: number;
   cache_read_input_tokens?: number;
+  input_tokens_details?: { cached_tokens?: number };
 };
 
 export function lerUso(dados: { model?: string; usage?: UsageApi } | null, modeloPedido: string): UsoMedido {
@@ -45,7 +56,7 @@ export function lerUso(dados: { model?: string; usage?: UsageApi } | null, model
     tokensEntrada: u.input_tokens ?? 0,
     tokensSaida: u.output_tokens ?? 0,
     tokensCacheCriacao: u.cache_creation_input_tokens ?? 0,
-    tokensCacheLeitura: u.cache_read_input_tokens ?? 0,
+    tokensCacheLeitura: u.cache_read_input_tokens ?? u.input_tokens_details?.cached_tokens ?? 0,
   };
 }
 
@@ -98,6 +109,41 @@ export async function registrarUsoIa(params: {
 }
 
 // ---------------------------------------------------------------------
+// Custo de IA por solução — usado pelo painel de custos e pelo painel de
+// planos/financeiro, para o administrador ver o gasto de IA bem ao lado de
+// onde ele decide o preço da assinatura.
+// ---------------------------------------------------------------------
+
+export type CustoIaDaSolucao = { chamadas: number; custoUsd: number | null; semPreco: number };
+
+/**
+ * Custo de IA de cada solução num período — todas as chamadas com sucesso,
+ * de qualquer provedor. `custoUsd` fica `null` quando NENHUMA chamada
+ * daquela solução tinha preço informado (nunca um zero fingido); havendo ao
+ * menos uma com preço, o valor somado aparece, e `semPreco` avisa quantas
+ * ficaram de fora — parcial é melhor que escondido, mas nenhum dos dois pode
+ * ser um número redondo por acaso.
+ */
+export async function custoIaPorSolucaoDesde(desde: Date): Promise<Record<string, CustoIaDaSolucao>> {
+  const usos = await prisma.usoIa.findMany({
+    where: { criadoEm: { gte: desde }, erro: null },
+    select: { solucao: true, custoUsd: true },
+  });
+
+  const porSolucao: Record<string, CustoIaDaSolucao> = {};
+  for (const u of usos) {
+    const chave = u.solucao ?? "(sem solução informada)";
+    const atual = porSolucao[chave] ?? { chamadas: 0, custoUsd: null, semPreco: 0 };
+    atual.chamadas += 1;
+    if (u.custoUsd === null) atual.semPreco += 1;
+    else atual.custoUsd = (atual.custoUsd ?? 0) + Number(u.custoUsd);
+    porSolucao[chave] = atual;
+  }
+
+  return porSolucao;
+}
+
+// ---------------------------------------------------------------------
 // Alertas
 // ---------------------------------------------------------------------
 
@@ -139,6 +185,50 @@ export function classificarFalhaIa(status: number, corpo: string): { tipo: strin
       detalhe:
         "A API respondeu 429 (limite atingido). Pode ser pico de uso ou limite da conta. " +
         "Se persistir, confira os limites em console.anthropic.com.",
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Mesma ideia de `classificarFalhaIa`, para a OpenAI — que reaproveita o
+ * HTTP 429 tanto para "crédito acabou" (`error.code === "insufficient_quota"`)
+ * quanto para "limite de chamadas por minuto" (`rate_limit_exceeded`); só o
+ * corpo da resposta distingue os dois, então checar antes de decidir o texto
+ * do alerta evita avisar "sem crédito" quando é só um pico passageiro.
+ */
+export function classificarFalhaIaOpenAI(status: number, corpo: string): { tipo: string; titulo: string; detalhe: string } | null {
+  const texto = corpo.toLowerCase();
+
+  if (texto.includes("insufficient_quota")) {
+    return {
+      tipo: "IA_SEM_CREDITO",
+      titulo: "Crédito da OpenAI acabou — a leitura de documentos parou",
+      detalhe:
+        "A OpenAI recusou a chamada por saldo insuficiente (insufficient_quota). Recarregue o crédito ou confira " +
+        "o limite de gastos em platform.openai.com/settings/billing. Enquanto isso, a leitura por IA fica " +
+        "indisponível; o preenchimento manual continua funcionando.",
+    };
+  }
+
+  if (status === 401 || texto.includes("invalid_api_key")) {
+    return {
+      tipo: "IA_SEM_CREDITO",
+      titulo: "Chave da OpenAI recusada — a leitura de documentos parou",
+      detalhe:
+        "A chave OPENAI_API_KEY foi recusada. Ela pode ter sido revogada ou trocada. Gere uma nova em " +
+        "platform.openai.com/api-keys e atualize a variável no Railway e no .env.",
+    };
+  }
+
+  if (status === 429) {
+    return {
+      tipo: "IA_FALHANDO",
+      titulo: "OpenAI recusando chamadas por limite de uso",
+      detalhe:
+        "A API respondeu 429 (limite atingido, rate_limit_exceeded). Pode ser pico de uso; se persistir, confira " +
+        "os limites do projeto em platform.openai.com/settings/limits.",
     };
   }
 
