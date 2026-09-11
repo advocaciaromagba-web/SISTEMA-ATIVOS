@@ -6,6 +6,7 @@ import { todosOsPlanosDaSolucao } from "@/lib/planos-solucao";
 import { moeda } from "@/lib/formato";
 import { asaasConfigurado } from "@/lib/asaas/cliente";
 import { custoIaPorSolucaoDesde } from "@/lib/ia/custo";
+import { cotacaoDolarComCache } from "@/lib/cambio";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ export default async function FinanceiroAdmin() {
 
   // ----- Custo de IA no mês, por solução (todos os provedores somados) -----
   const custoIaPorSolucao = await custoIaPorSolucaoDesde(inicioDoMes);
+  const cotacao = await cotacaoDolarComCache();
 
   // ----- Assinaturas por plano, em cada solução -----
   const assinaturas = await Promise.all(
@@ -207,10 +209,13 @@ export default async function FinanceiroAdmin() {
                     <td className="px-4 py-3 text-slate-600">
                       {custoUsd === null || a.mensal === 0 ? (
                         <span className="text-slate-400">—</span>
+                      ) : cotacao ? (
+                        <>
+                          {moeda(a.mensal - custoUsd * cotacao.valor)}
+                          {cotacao.desatualizada && <span className="ml-1 text-xs text-amber-600">(câmbio desatualizado)</span>}
+                        </>
                       ) : (
-                        <span className="text-xs">
-                          {moeda(a.mensal)} − {usd(custoUsd)}*
-                        </span>
+                        <span className="text-xs text-slate-400">câmbio indisponível</span>
                       )}
                     </td>
                   </tr>
@@ -225,10 +230,18 @@ export default async function FinanceiroAdmin() {
           aqui.
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          * A margem mistura duas moedas de propósito (recorrente em real, custo de IA em dólar — a Anthropic e a
-          OpenAI cobram em dólar, e converter aqui exigiria uma cotação que o sistema não guarda) e só desconta o
-          custo de IA — hospedagem, consultas a terceiros, folha e demais custos operacionais não entram nessa
-          conta. Serve para comparar ordem de grandeza, não como margem real do negócio. Para o detalhe por
+          A margem converte o custo de IA para real pela cotação de venda do dólar (PTAX, Banco Central) do último
+          pregão —{" "}
+          {cotacao ? (
+            <>
+              {moeda(cotacao.valor)} em {new Date(`${cotacao.dataCotacao}T12:00:00-03:00`).toLocaleDateString("pt-BR")},
+              consultada em {cotacao.consultadoEm.toLocaleString("pt-BR")}, fonte: {cotacao.fonte}
+            </>
+          ) : (
+            "não foi possível consultar a cotação agora, e não há nenhuma em cache — a coluna de margem fica em branco enquanto isso."
+          )}
+          . Só desconta o custo de IA — hospedagem, consultas a terceiros, folha e demais custos operacionais não
+          entram nessa conta, então é uma margem estimada, não o lucro real do negócio. Para o detalhe por
           provedor de IA (Anthropic × OpenAI), veja{" "}
           <Link href="/admin/painel/custos" className="underline">
             Custos do sistema

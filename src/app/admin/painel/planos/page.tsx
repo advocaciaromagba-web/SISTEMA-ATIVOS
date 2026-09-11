@@ -4,6 +4,7 @@ import { SOLUCOES_ADMIN, modelo } from "@/lib/admin/solucoes";
 import { todosOsPlanosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { moeda } from "@/lib/formato";
 import { custoIaPorSolucaoDesde } from "@/lib/ia/custo";
+import { cotacaoDolarComCache } from "@/lib/cambio";
 import { FormularioPlano, FormularioConfiguracao } from "./formularios";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function PlanosAdmin() {
   inicioDoMes.setDate(1);
   inicioDoMes.setHours(0, 0, 0, 0);
   const custoIaPorSolucao = await custoIaPorSolucaoDesde(inicioDoMes);
+  const cotacao = await cotacaoDolarComCache();
 
   const solucoes = await Promise.all(
     SOLUCOES_ADMIN.map(async (s) => ({
@@ -62,7 +64,7 @@ export default async function PlanosAdmin() {
 
           <div className="cartao">
             <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Custo de IA desta solução, para ajudar a decidir o preço</p>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-4">
               <div>
                 <p className="text-xs text-slate-500">Assinantes ativos</p>
                 <p className="text-lg font-semibold text-slate-900">{s.assinantesAtivos}</p>
@@ -82,11 +84,29 @@ export default async function PlanosAdmin() {
                     : "—"}
                 </p>
               </div>
+              <div>
+                <p className="text-xs text-slate-500">Mesmo custo, em real</p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {s.custoIa?.custoUsd !== null && s.custoIa?.custoUsd !== undefined && s.assinantesAtivos > 0 && cotacao
+                    ? moeda((s.custoIa.custoUsd / s.assinantesAtivos) * cotacao.valor)
+                    : "—"}
+                </p>
+              </div>
             </div>
             <p className="mt-2 text-xs text-slate-400">
-              Em dólar (é como Anthropic e OpenAI cobram) — compare com o preço em real abaixo, sem conversão
-              automática. Não inclui hospedagem, consultas a terceiros nem demais custos operacionais. Detalhe por
-              provedor de IA em{" "}
+              Compare a coluna "em real" com o preço mensal do plano abaixo.
+              {cotacao ? (
+                <>
+                  {" "}
+                  Convertido pela cotação de venda do dólar (PTAX, Banco Central) de {moeda(cotacao.valor)} em{" "}
+                  {new Date(`${cotacao.dataCotacao}T12:00:00-03:00`).toLocaleDateString("pt-BR")}
+                  {cotacao.desatualizada ? ", desatualizada — não foi possível consultar uma cotação mais recente" : ""}.
+                </>
+              ) : (
+                " Não foi possível consultar a cotação do dólar agora, e não há nenhuma em cache."
+              )}{" "}
+              Não inclui hospedagem, consultas a terceiros nem demais custos operacionais. Detalhe por provedor de
+              IA em{" "}
               <Link href="/admin/painel/custos" className="underline">
                 Custos do sistema
               </Link>
