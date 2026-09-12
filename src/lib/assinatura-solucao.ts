@@ -55,6 +55,17 @@ type ContaParaCobranca = {
   statusAssinatura: string | null;
 };
 
+/**
+ * Toda conta guarda o CPF/CNPJ num campo chamado `documento` — MENOS a
+ * Organizacao (Gestão de Ativos), a solução mais antiga, que usa `cnpj` por
+ * ser anterior a essa convenção. `linha.documento` sozinho voltaria sempre
+ * `undefined` para ela, obrigando a pedir o documento de novo a cada
+ * assinatura mesmo quando o CNPJ já estava cadastrado.
+ */
+function campoDocumento(modeloConta: string): "documento" | "cnpj" {
+  return modeloConta === "organizacao" ? "cnpj" : "documento";
+}
+
 async function lerConta(solucao: string, contaId: string): Promise<ContaParaCobranca | null> {
   const dest = CONTA_DA_SOLUCAO[solucao];
   if (!dest) return null;
@@ -64,7 +75,7 @@ async function lerConta(solucao: string, contaId: string): Promise<ContaParaCobr
   return {
     id: String(linha.id),
     nome: String(linha.nome ?? ""),
-    documento: (linha.documento as string | null) ?? null,
+    documento: (linha[campoDocumento(dest.modelo)] as string | null) ?? null,
     emailContato: (linha.emailContato as string | null) ?? null,
     asaasCustomerId: (linha.asaasCustomerId as string | null) ?? null,
     asaasSubscriptionId: (linha.asaasSubscriptionId as string | null) ?? null,
@@ -147,7 +158,7 @@ export async function assinarSolucao(params: {
   await modelo(dest.modelo).update({
     where: { id: conta.id },
     data: {
-      documento,
+      [campoDocumento(dest.modelo)]: documento,
       asaasCustomerId,
       asaasSubscriptionId: assinatura.dados.id,
       plano: plano.chave,

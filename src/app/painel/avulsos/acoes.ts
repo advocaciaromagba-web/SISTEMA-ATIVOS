@@ -6,9 +6,26 @@ import { exigirEdicao, exigirSessao } from "@/lib/sessao";
 import { registrar } from "@/lib/registro";
 import { AVULSO_POR_CHAVE, competenciaAtual, prazoDeEntrega } from "@/lib/avulsos";
 import { PLANO_POR_CHAVE } from "@/lib/planos";
+import {
+  asaasConfigurado,
+  criarClienteAsaas,
+  criarCobrancaAvulsaAsaas,
+  cancelarCobrancaAvulsaAsaas,
+  type FormaPagamentoAvulso,
+} from "@/lib/asaas/cliente";
 import type { ResultadoAcao } from "../pessoas/acoes";
 
 const texto = (d: FormData, chave: string) => (d.get(chave)?.toString() ?? "").trim() || null;
+
+function somenteDigitos(v: string): string {
+  return v.replace(/\D/g, "");
+}
+
+/** CPF ou CNPJ pelo tamanho. O Asaas confere o resto. */
+function documentoValido(v: string): boolean {
+  const d = somenteDigitos(v);
+  return d.length === 11 || d.length === 14;
+}
 
 /** Próximo número do pedido: PD-0001, PD-0002... */
 async function proximoNumero(organizacaoId: string): Promise<string> {
@@ -23,15 +40,19 @@ async function proximoNumero(organizacaoId: string): Promise<string> {
 }
 
 /**
- * Cria um pedido avulso.
+ * Cria um pedido avulso e já gera a cobrança de verdade no Asaas.
  *
  * O pedido nasce aguardando pagamento e NÃO executa nada até ser pago. É de
  * propósito: serviço entregue antes de pago vira cobrança difícil, e consulta
  * paga por unidade não pode ser disparada por engano.
  *
- * A ligação com o meio de pagamento entra em `linkPagamento` — hoje preenchido
- * à mão pelo operador; quando o Asaas for configurado, é aqui que a cobrança
- * passa a ser criada sozinha.
+ * A cobrança usa a MESMA conta Asaas da assinatura da organização, mas é uma
+ * cobrança avulsa (endpoint `/payments`, não `/subscriptions`), com
+ * referência própria (`AVULSO:GESTAO_ATIVOS:<pedidoId>`) — assim o Asaas, o
+ * webhook e o extrato financeiro sempre sabem que aquele recebimento é de um
+ * pedido específico desta solução, nunca da mensalidade nem de outra conta.
+ * Se o Asaas não estiver configurado (ambiente local sem chave), o pedido
+ * continua sendo criado do jeito antigo, para confirmação manual.
  */
 export async function criarPedido(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
   const { usuario, organizacao } = await exigirEdicao();
@@ -65,6 +86,34 @@ export async function criarPedido(_anterior: ResultadoAcao, dados: FormData): Pr
 
   const valorTotal = item.preco * quantidade;
 
+  // Antes de criar o pedido: garante o cliente Asaas da organização, se a
+  // cobrança automática estiver ligada. Falhar aqui é melhor que falhar
+  // depois de já ter criado o pedido.
+  let asaasCustomerId = organizacao.asaasCustomerId;
+  let cnpjParaSalvar: string | null = null;
+
+  if (asaasConfigurado() && !asaasCustomerId) {
+    let documento = organizacao.cnpj;
+    if (!documento) {
+      const informado = texto(dados, "documento");
+      if (!informado || !documentoValido(informado)) {
+        return { erro: "Informe um CPF ou CNPJ válido para gerar a cobrança." };
+      }
+      documento = somenteDigitos(informado);
+    }
+
+    const criado = await criarClienteAsaas({
+      nome: organizacao.nome,
+      email: organizacao.emailContato || usuario.email,
+      documento,
+      referenciaExterna: `GESTAO_ATIVOS:${organizacao.id}`,
+    });
+    if (!criado.ok) return { erro: `Não foi possível cadastrar o pagamento: ${criado.erro}` };
+
+    asaasCustomerId = criado.dados.id;
+    cnpjParaSalvar = documento;
+  }
+
   const pedido = await prisma.pedido.create({
     data: {
       organizacaoId: organizacao.id,
@@ -84,6 +133,40 @@ export async function criarPedido(_anterior: ResultadoAcao, dados: FormData): Pr
     },
   });
 
+  if (asaasConfigurado() && asaasCustomerId) {
+    const vencimento = new Date();
+    vencimento.setDate(vencimento.getDate() + 3);
+
+    const cobranca = await criarCobrancaAvulsaAsaas({
+      asaasCustomerId,
+      valor: valorTotal,
+      formaPagamento: (texto(dados, "formaPagamento") as FormaPagamentoAvulso | null) || "PIX",
+      vencimentoEm: vencimento.toISOString().slice(0, 10),
+      descricao: `${pedido.numero} — ${item.nome}${quantidade > 1 ? ` (${quantidade}x)` : ""}`,
+      referenciaExterna: `AVULSO:GESTAO_ATIVOS:${pedido.id}`,
+    });
+
+    if (!cobranca.ok) {
+      // Sem cobrança gerada, o pedido fica sem jeito de ser pago sozinho —
+      // melhor desfazer e deixar tentar de novo do que deixar um pedido
+      // parado sem link de pagamento nenhum.
+      await prisma.pedido.delete({ where: { id: pedido.id } });
+      return { erro: `Não foi possível gerar a cobrança: ${cobranca.erro}` };
+    }
+
+    await prisma.pedido.update({
+      where: { id: pedido.id },
+      data: { asaasCobrancaId: cobranca.dados.id, linkPagamento: cobranca.dados.invoiceUrl },
+    });
+
+    if (cnpjParaSalvar || organizacao.asaasCustomerId !== asaasCustomerId) {
+      await prisma.organizacao.update({
+        where: { id: organizacao.id },
+        data: { asaasCustomerId, ...(cnpjParaSalvar ? { cnpj: cnpjParaSalvar } : {}) },
+      });
+    }
+  }
+
   await registrar({
     acao: "CRIAR",
     organizacaoId: organizacao.id,
@@ -98,11 +181,50 @@ export async function criarPedido(_anterior: ResultadoAcao, dados: FormData): Pr
 }
 
 /**
- * Marca o pedido como pago.
+ * Marca o pedido como pago — o miolo que tanto a confirmação manual quanto o
+ * webhook do Asaas usam.
  *
- * Hoje é confirmação manual de quem opera a plataforma. Quando o Asaas estiver
- * ligado, o webhook de pagamento chama esta mesma função — por isso ela já
- * registra a forma de pagamento e a data.
+ * Idempotente de propósito: o Asaas pode reenviar o mesmo evento mais de uma
+ * vez, e um pedido que já saiu de AGUARDANDO_PAGAMENTO não deve ser tocado de
+ * novo — por isso devolve `false` sem fazer nada, em vez de sobrescrever.
+ */
+export async function aplicarPagamentoPedido(
+  pedidoId: string,
+  formaPagamento: string | null,
+  usuarioId: string | null = null
+): Promise<boolean> {
+  const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+  if (!pedido || pedido.situacao !== "AGUARDANDO_PAGAMENTO") return false;
+
+  const item = AVULSO_POR_CHAVE[pedido.item];
+
+  await prisma.pedido.update({
+    where: { id: pedidoId },
+    data: {
+      situacao: item?.prazoUteis && item.prazoUteis > 0 ? "EM_EXECUCAO" : "PAGO",
+      formaPagamento,
+      pagoEm: new Date(),
+      // O prazo passa a contar do pagamento, não do pedido.
+      prometidoAte: item?.prazoUteis ? prazoDeEntrega(item.prazoUteis) : null,
+    },
+  });
+
+  await registrar({
+    acao: "EDITAR",
+    organizacaoId: pedido.organizacaoId,
+    usuarioId,
+    entidade: "Pedido",
+    entidadeId: pedidoId,
+    detalhe: { numero: pedido.numero, pagamentoConfirmado: true, valor: Number(pedido.valorTotal), formaPagamento },
+  });
+
+  return true;
+}
+
+/**
+ * Confirmação MANUAL — exceção para quando o pagamento aconteceu fora do
+ * Asaas (depósito, dinheiro) ou a cobrança automática falhou. O caminho
+ * normal, hoje, é o webhook em `/api/webhooks/asaas` confirmar sozinho.
  */
 export async function confirmarPagamento(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
   const { usuario, organizacao } = await exigirEdicao();
@@ -118,27 +240,14 @@ export async function confirmarPagamento(_anterior: ResultadoAcao, dados: FormDa
   if (!pedido) return { erro: "Pedido não encontrado." };
   if (pedido.situacao !== "AGUARDANDO_PAGAMENTO") return { erro: "Este pedido não está aguardando pagamento." };
 
-  const item = AVULSO_POR_CHAVE[pedido.item];
+  const aplicado = await aplicarPagamentoPedido(pedidoId, texto(dados, "formaPagamento"), usuario.id);
+  if (!aplicado) return { erro: "Este pedido não está mais aguardando pagamento." };
 
-  await prisma.pedido.update({
-    where: { id: pedidoId },
-    data: {
-      situacao: item?.prazoUteis && item.prazoUteis > 0 ? "EM_EXECUCAO" : "PAGO",
-      formaPagamento: texto(dados, "formaPagamento"),
-      pagoEm: new Date(),
-      // O prazo passa a contar do pagamento, não do pedido.
-      prometidoAte: item?.prazoUteis ? prazoDeEntrega(item.prazoUteis) : null,
-    },
-  });
-
-  await registrar({
-    acao: "EDITAR",
-    organizacaoId: organizacao.id,
-    usuarioId: usuario.id,
-    entidade: "Pedido",
-    entidadeId: pedidoId,
-    detalhe: { numero: pedido.numero, pagamentoConfirmado: true, valor: Number(pedido.valorTotal) },
-  });
+  // Confirmar por fora encerra também a cobrança automática, se existir —
+  // sem isso o Asaas continuaria cobrando por um pedido já pago de outro jeito.
+  if (pedido.asaasCobrancaId) {
+    await cancelarCobrancaAvulsaAsaas(pedido.asaasCobrancaId).catch(() => {});
+  }
 
   revalidatePath("/painel/avulsos");
   return { ok: true };
@@ -152,6 +261,12 @@ export async function cancelarPedido(pedidoId: string): Promise<ResultadoAcao> {
 
   if (pedido.situacao === "ENTREGUE") {
     return { erro: "Pedido já entregue não pode ser cancelado. Peça o estorno pelo suporte." };
+  }
+
+  // Cancela a cobrança pendente no Asaas também — sem isso, o cliente
+  // continuaria vendo (e podendo pagar) uma fatura de um pedido cancelado.
+  if (pedido.asaasCobrancaId && pedido.situacao === "AGUARDANDO_PAGAMENTO") {
+    await cancelarCobrancaAvulsaAsaas(pedido.asaasCobrancaId).catch(() => {});
   }
 
   await prisma.pedido.update({ where: { id: pedidoId }, data: { situacao: "CANCELADO" } });

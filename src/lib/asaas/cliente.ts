@@ -124,3 +124,32 @@ export type CobrancaAsaas = { id: string; invoiceUrl: string; status: string; du
 export async function buscarCobrancasDaAssinatura(asaasSubscriptionId: string) {
   return chamar<{ data: CobrancaAsaas[] }>("GET", `/payments?subscription=${asaasSubscriptionId}&limit=1`);
 }
+
+// ---------------------------------------------------------------------
+// Cobrança avulsa (pagamento único — pedido, não assinatura)
+// ---------------------------------------------------------------------
+
+export type FormaPagamentoAvulso = "PIX" | "BOLETO" | "CREDIT_CARD";
+
+export async function criarCobrancaAvulsaAsaas(params: {
+  asaasCustomerId: string;
+  valor: number;
+  formaPagamento: FormaPagamentoAvulso;
+  /// Data (YYYY-MM-DD) de vencimento da cobrança.
+  vencimentoEm: string;
+  descricao: string;
+  referenciaExterna: string;
+}) {
+  return chamar<CobrancaAsaas>("POST", "/payments", {
+    customer: params.asaasCustomerId,
+    billingType: params.formaPagamento,
+    value: params.valor,
+    dueDate: params.vencimentoEm,
+    description: params.descricao,
+    externalReference: params.referenciaExterna,
+  });
+}
+
+export async function cancelarCobrancaAvulsaAsaas(asaasCobrancaId: string) {
+  return chamar<{ deleted: boolean }>("DELETE", `/payments/${asaasCobrancaId}`);
+}

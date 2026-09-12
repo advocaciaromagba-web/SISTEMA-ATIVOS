@@ -29,6 +29,7 @@ export type PedidoResumo = {
   referente: string | null;
   prometidoAte: string | null;
   criadoEm: string;
+  linkPagamento: string | null;
 };
 
 export function Loja({
@@ -36,11 +37,14 @@ export function Loja({
   operacoes,
   pedidos,
   ehDono,
+  pedeDocumento,
 }: {
   pessoas: Array<{ id: string; nome: string }>;
   operacoes: Array<{ id: string; codigo: string; titulo: string }>;
   pedidos: PedidoResumo[];
   ehDono: boolean;
+  /** A organização ainda não tem CNPJ/CPF cadastrado para a cobrança — pede uma vez, na primeira compra. */
+  pedeDocumento: boolean;
 }) {
   const [estado, acao] = useActionState(criarPedido, inicial);
   const [estadoPagamento, acaoPagamento] = useActionState(confirmarPagamento, inicial);
@@ -182,6 +186,27 @@ export function Loja({
                 </div>
               )}
 
+              <div>
+                <label className="rotulo" htmlFor="formaPagamento">
+                  Forma de pagamento
+                </label>
+                <select id="formaPagamento" name="formaPagamento" className="campo" defaultValue="PIX">
+                  <option value="PIX">Pix</option>
+                  <option value="BOLETO">Boleto</option>
+                  <option value="CREDIT_CARD">Cartão de crédito</option>
+                </select>
+              </div>
+
+              {pedeDocumento && (
+                <div>
+                  <label className="rotulo" htmlFor="documento">
+                    CPF ou CNPJ para a cobrança
+                  </label>
+                  <input id="documento" name="documento" className="campo" placeholder="somente números" required />
+                  <p className="ajuda">Pedido só nesta primeira compra — as próximas não pedem de novo.</p>
+                </div>
+              )}
+
               <div className="sm:col-span-2">
                 <label className="rotulo" htmlFor="observacao">
                   Observação
@@ -191,8 +216,9 @@ export function Loja({
             </div>
 
             <div className="aviso-info">
-              O pedido é registrado agora e <strong>só entra em execução depois do pagamento confirmado</strong>.
-              Nada é consultado nem cobrado antes disso.
+              O pedido é registrado agora e <strong>só entra em execução depois do pagamento confirmado</strong>. Ao
+              confirmar, você recebe o link de pagamento (Pix, boleto ou cartão) — nada é consultado nem cobrado
+              antes disso.
             </div>
 
             <div className="flex gap-3">
@@ -249,12 +275,22 @@ export function Loja({
                     <td className="whitespace-nowrap text-right">
                       {p.situacao === "AGUARDANDO_PAGAMENTO" && (
                         <>
+                          {p.linkPagamento && (
+                            <a
+                              href={p.linkPagamento}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mr-3 text-xs font-medium text-emerald-700 underline"
+                            >
+                              pagar agora
+                            </a>
+                          )}
                           {ehDono && (
                             <button
                               onClick={() => setPagando(pagando === p.id ? null : p.id)}
                               className="mr-3 text-xs font-medium text-slate-700 underline"
                             >
-                              confirmar pagamento
+                              {p.linkPagamento ? "já paguei por fora" : "confirmar pagamento"}
                             </button>
                           )}
                           <button
@@ -294,8 +330,8 @@ export function Loja({
               </button>
             </div>
             <p className="ajuda mt-2">
-              Confirmação manual enquanto a cobrança automática não está ligada. Quando o meio de pagamento for
-              configurado, esta confirmação passa a acontecer sozinha.
+              Use só se o pagamento aconteceu fora do Asaas (depósito, dinheiro) — o normal é o link acima confirmar
+              sozinho assim que o pagamento cair.
             </p>
           </form>
         )}

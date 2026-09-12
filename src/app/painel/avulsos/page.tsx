@@ -45,6 +45,7 @@ export default async function Avulsos() {
     referente: p.pessoa?.nome ?? (p.operacao ? `${p.operacao.codigo} — ${p.operacao.titulo}` : null),
     prometidoAte: p.prometidoAte ? dataCurta(p.prometidoAte) : null,
     criadoEm: dataCurta(p.criadoEm),
+    linkPagamento: p.linkPagamento,
   }));
 
   const emAberto = pedidos.filter((p) => p.situacao === "AGUARDANDO_PAGAMENTO");
@@ -105,6 +106,7 @@ export default async function Avulsos() {
         operacoes={operacoes}
         pedidos={pedidosResumo}
         ehDono={usuario.papel === "DONO" || usuario.admin}
+        pedeDocumento={!organizacao.asaasCustomerId && !organizacao.cnpj}
       />
     </div>
   );
