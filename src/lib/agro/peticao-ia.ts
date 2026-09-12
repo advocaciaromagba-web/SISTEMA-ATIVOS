@@ -255,13 +255,18 @@ export async function gerarPeticaoIaCompleta(
     // vivo, uma petição real levou 91s e estourou o limite padrão de 90s
     // (ver comentário em `claude.ts`). 5 minutos dá folga real.
     tempoLimiteMs: 300_000,
-    // Visto ao vivo: pedida para redigir a petição, a gpt-4o-mini devolveu
-    // uma peça 5x mais curta que a do Claude Opus 5 para o mesmo contrato, e
-    // ignorou por completo os achados de abusividade já apurados (venda
-    // casada, multa acima do limite, comissão de permanência cumulada) — o
-    // motivo de a peça existir. Esta é a única tarefa do sistema que pede o
-    // nível mais forte do provedor ativo, custe o que custar a mais.
-    nivel: "avancado",
+    // Comparação ao vivo, mesmo contrato: tanto a gpt-4o-mini quanto a
+    // gpt-4o (a "mais forte" da OpenAI) devolveram uma peça bem mais curta
+    // que a do Claude Opus 5 e, o que importa mais, ignoraram os achados de
+    // abusividade já apurados no contrato (venda casada, multa acima do
+    // limite, comissão de permanência cumulada) — exatamente o que esta
+    // peça existe para expor. Não é questão de tamanho de modelo dentro da
+    // OpenAI: é diferença real de qualidade para esta tarefa específica de
+    // sintetizar muitos fatos verificados numa peça coerente. Por isso esta
+    // é a única tarefa do sistema fixada num provedor específico,
+    // independente de `IA_PROVEDOR` — leitura de contrato e de anexo
+    // continuam livres para usar o provedor mais barato.
+    provedor: "anthropic",
   });
 
   if (!resposta.ok) return { ok: false, erro: resposta.erro };
