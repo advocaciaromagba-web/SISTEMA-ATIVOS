@@ -89,8 +89,13 @@ export async function criarPedido(_anterior: ResultadoAcao, dados: FormData): Pr
   // Antes de criar o pedido: garante o cliente Asaas da organização, se a
   // cobrança automática estiver ligada. Falhar aqui é melhor que falhar
   // depois de já ter criado o pedido.
+  //
+  // O cliente é salvo no banco IMEDIATAMENTE depois de criado no Asaas — não
+  // só se a cobrança adiante der certo. Visto ao vivo: um cliente real foi
+  // criado no Asaas, mas a cobrança falhou por outro motivo (Pix não
+  // aprovado na conta); sem salvar aqui, a próxima tentativa criaria um
+  // segundo cliente duplicado para a mesma organização.
   let asaasCustomerId = organizacao.asaasCustomerId;
-  let cnpjParaSalvar: string | null = null;
 
   if (asaasConfigurado() && !asaasCustomerId) {
     let documento = organizacao.cnpj;
@@ -111,7 +116,10 @@ export async function criarPedido(_anterior: ResultadoAcao, dados: FormData): Pr
     if (!criado.ok) return { erro: `Não foi possível cadastrar o pagamento: ${criado.erro}` };
 
     asaasCustomerId = criado.dados.id;
-    cnpjParaSalvar = documento;
+    await prisma.organizacao.update({
+      where: { id: organizacao.id },
+      data: { asaasCustomerId, cnpj: documento },
+    });
   }
 
   const pedido = await prisma.pedido.create({
@@ -158,13 +166,6 @@ export async function criarPedido(_anterior: ResultadoAcao, dados: FormData): Pr
       where: { id: pedido.id },
       data: { asaasCobrancaId: cobranca.dados.id, linkPagamento: cobranca.dados.invoiceUrl },
     });
-
-    if (cnpjParaSalvar || organizacao.asaasCustomerId !== asaasCustomerId) {
-      await prisma.organizacao.update({
-        where: { id: organizacao.id },
-        data: { asaasCustomerId, ...(cnpjParaSalvar ? { cnpj: cnpjParaSalvar } : {}) },
-      });
-    }
   }
 
   await registrar({
