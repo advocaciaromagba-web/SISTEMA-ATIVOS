@@ -45,6 +45,20 @@ function modeloOpenAI(): string {
   return (process.env.OPENAI_MODEL ?? "").trim() || "gpt-4o";
 }
 
+/**
+ * Modelo mais forte da OpenAI, para tarefas que não toleram um modelo
+ * "mini" — visto ao vivo: pedida para redigir a petição inteira, a gpt-4o-mini
+ * devolveu uma peça 5x mais curta que a do Claude Opus 5 para o mesmo
+ * contrato, e ignorou por completo os achados de abusividade já apurados
+ * (venda casada, multa acima do limite, comissão de permanência cumulada)
+ * — o motivo de a peça existir. Nada disso aparece na leitura de contrato
+ * (extração de campo já definido, tarefa mais mecânica), então só a redação
+ * livre pede este nível.
+ */
+function modeloOpenAIAvancado(): string {
+  return (process.env.OPENAI_MODEL_AVANCADO ?? "").trim() || "gpt-4o";
+}
+
 export type BlocoConteudo =
   | { type: "text"; text: string }
   | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
@@ -66,6 +80,15 @@ type ParametrosPergunta = {
    * também mais tempo.
    */
   tempoLimiteMs?: number;
+  /**
+   * "avancado" pede o modelo mais forte do provedor ativo, para tarefas de
+   * redação livre/síntese que um modelo "mini" entrega incompleto — ver
+   * `modeloOpenAIAvancado`. Não faz diferença para a Anthropic hoje (só há
+   * um modelo configurado); existe para a OpenAI, onde o padrão de custo
+   * baixo (gpt-4o-mini) é bom para extração de campo, mas não para redigir
+   * uma peça inteira. Padrão: "padrao".
+   */
+  nivel?: "padrao" | "avancado";
 };
 
 /**
@@ -197,7 +220,7 @@ async function chamarOpenAI(
   const chave = (process.env.OPENAI_API_KEY ?? "").trim();
   if (!chave) return { ok: false, erro: "Inteligência artificial não configurada (OPENAI_API_KEY)." };
 
-  const modeloPedido = modeloOpenAI();
+  const modeloPedido = params.nivel === "avancado" ? modeloOpenAIAvancado() : modeloOpenAI();
 
   const conteudo: BlocoConteudo[] =
     typeof params.conteudo === "string" ? [{ type: "text", text: params.conteudo }] : params.conteudo;

@@ -255,6 +255,13 @@ export async function gerarPeticaoIaCompleta(
     // vivo, uma petição real levou 91s e estourou o limite padrão de 90s
     // (ver comentário em `claude.ts`). 5 minutos dá folga real.
     tempoLimiteMs: 300_000,
+    // Visto ao vivo: pedida para redigir a petição, a gpt-4o-mini devolveu
+    // uma peça 5x mais curta que a do Claude Opus 5 para o mesmo contrato, e
+    // ignorou por completo os achados de abusividade já apurados (venda
+    // casada, multa acima do limite, comissão de permanência cumulada) — o
+    // motivo de a peça existir. Esta é a única tarefa do sistema que pede o
+    // nível mais forte do provedor ativo, custe o que custar a mais.
+    nivel: "avancado",
   });
 
   if (!resposta.ok) return { ok: false, erro: resposta.erro };
