@@ -61,6 +61,7 @@ const FONTE_DL167_ROL_ENCARGOS = "Decreto-Lei nº 167/67, arts. 5º, 8º e 71";
 const FONTE_DL167_ART71 = "Decreto-Lei nº 167/67, art. 71 (redação da Lei nº 13.986/2020)";
 const FONTE_SUMULA_93 = "Súmula 93/STJ (2ª Seção, 27/10/1993); REsp 13.098-GO (2ª Seção, 29/04/1992, DJ 22/06/1992)";
 const FONTE_SUMULA_30 = "Súmula 30/STJ";
+const FONTE_SUMULA_472 = "Súmula 472/STJ (2ª Seção, j. 13/06/2012, DJe 19/06/2012)";
 
 /** A partir de quantos pontos percentuais acima da média já vale um alerta — e um alerta grave. Ver nota no cabeçalho do arquivo. */
 const LIMIAR_ACIMA_MEDIA = 2;
@@ -246,9 +247,12 @@ export function analisarTaxasEEncargos(f: FatosTaxas, taxaMediaBcb: TaxaMediaBcb
         titulo: "Comissão de permanência cumulada — cobrança vedada",
         texto:
           "A Súmula 30 do Superior Tribunal de Justiça veda a cumulação da comissão de permanência com a correção " +
-          "monetária. Se também houver cumulação com juros remuneratórios, há entendimento do STJ que agrava ainda " +
-          "mais o vício — vale pesquisar jurisprudência atualizada sobre esse ponto específico antes de levar à peça.",
-        fonte: FONTE_SUMULA_30,
+          "monetária. A Súmula 472 do STJ vai além: a cobrança de comissão de permanência — cujo valor não pode " +
+          "ultrapassar a soma dos encargos remuneratórios e moratórios previstos no contrato — exclui a " +
+          "exigibilidade dos juros remuneratórios, moratórios e da multa contratual. Ou seja, se a cumulação " +
+          "identificada envolver também juros remuneratórios, juros moratórios ou multa contratual (não só " +
+          "correção monetária), a cobrança cumulada é vedada por essa súmula.",
+        fonte: `${FONTE_SUMULA_30}; ${FONTE_SUMULA_472}`,
       });
     }
   } else if (f.temComissaoPermanencia === null) {

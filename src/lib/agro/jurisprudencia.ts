@@ -11,6 +11,15 @@
  * (RSSTJ), a. 5, (23): 315-358, outubro de 2011 — publicação oficial com o
  * inteiro teor dos acórdãos que originaram a Súmula 298, obtida em
  * stj.jus.br em 07/09/2026.
+ *
+ * FONTE PRIMÁRIA de `SUMULAS_ADICIONAIS_VERIFICADAS`: texto de cada súmula
+ * conferido ao vivo em 12/09/2026 — Súmulas 121 e 596/STF diretamente em
+ * portal.stf.jus.br/jurisprudencia/sumariosumulas.asp (página oficial do
+ * STF, que também revela a ressalva da MP 2.170-36/2001 e o cruzamento entre
+ * as duas súmulas); Súmula 472/STJ conferida em duas fontes institucionais
+ * independentes do próprio STJ (arquivocidadao.stj.jus.br — arquivo
+ * institucional — e stj.jus.br/sites/portalp — notícia oficial), com texto,
+ * órgão julgador e datas coincidentes nas duas.
  */
 
 export type Precedente = {
@@ -30,6 +39,27 @@ export type Doutrina = {
   dadosEdicao: string;
   trecho?: string;
   verificadoNaFontePrimaria: boolean;
+};
+
+/**
+ * Súmula avulsa (sem um único acórdão-relator, como em `Precedente` —
+ * enunciado do colegiado). `observacao` carrega, quando existe, uma ressalva
+ * que muda o alcance prático da súmula — por exemplo, uma delas foi
+ * relativizada por lei posterior para instituições do Sistema Financeiro
+ * Nacional. Omitir essa ressalva na peça seria pior do que não citar a
+ * súmula: viraria um argumento que a própria jurisprudência já afastou para
+ * o tipo de réu desta ação (banco).
+ */
+export type Sumula = {
+  numero: string;
+  tribunal: "STF" | "STJ";
+  orgaoJulgador?: string;
+  texto: string;
+  dataJulgamento?: string;
+  dataPublicacao?: string;
+  fonteConsulta: string;
+  verificadoNaFontePrimaria: boolean;
+  observacao?: string;
 };
 
 /** Precedentes que originaram a Súmula 298/STJ — todos com inteiro teor conferido na fonte primária. */
@@ -155,5 +185,66 @@ export const JURISPRUDENCIA_NAO_VERIFICADA: Precedente[] = [
       "limitada a operações contratadas até 20/06/1995 (Lei 9.138/95).",
     verificadoNaFontePrimaria: false,
     observacao: "NÃO CONFIRMADO NA FONTE PRIMÁRIA (esaj.tjsp.jus.br). Não citar na peça sem antes conferir o inteiro teor.",
+  },
+];
+
+/**
+ * Súmulas adicionais, fora do núcleo "alongamento" acima, aplicáveis à
+ * revisão de taxas e encargos (anatocismo, limite de juros bancários,
+ * comissão de permanência). Cada uma tem o texto conferido ao vivo na fonte
+ * oficial — ver nota no topo do arquivo.
+ */
+export const SUMULAS_ADICIONAIS_VERIFICADAS: Sumula[] = [
+  {
+    numero: "Súmula 121/STF",
+    tribunal: "STF",
+    texto: "É vedada a capitalização de juros, ainda que expressamente convencionada.",
+    fonteConsulta:
+      "portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=30&sumula=2000 (página oficial de aplicação das súmulas do STF), consultada ao vivo em 12/09/2026",
+    verificadoNaFontePrimaria: true,
+    observacao:
+      "RESSALVA DA PRÓPRIA PÁGINA OFICIAL DO STF (Tema 33 de Repercussão Geral, RE 592.377): para operações do " +
+      "Sistema Financeiro Nacional — como é o caso do banco réu nesta ação —, o art. 5º da MP nº 2.170-36/2001 " +
+      "autoriza a capitalização de juros com periodicidade inferior a um ano, e essa autorização foi declarada " +
+      "constitucional pelo STF. Ou seja: esta súmula NÃO pode ser usada para atacar uma capitalização já " +
+      "expressamente pactuada e dentro do que a Súmula 93/STJ e o Decreto-Lei nº 167/67 permitem para crédito " +
+      "rural (ver `taxas.ts`) — só serve para atacar capitalização SEM cláusula expressa, ou capitalização com " +
+      "periodicidade além da pactuada.",
+  },
+  {
+    numero: "Súmula 596/STF",
+    tribunal: "STF",
+    texto:
+      "As disposições do Decreto 22.626/1933 não se aplicam às taxas de juros e aos outros encargos cobrados " +
+      "nas operações realizadas por instituições públicas ou privadas, que integram o Sistema Financeiro Nacional.",
+    dataPublicacao: "DJ de 5-1-1977",
+    fonteConsulta:
+      "portal.stf.jus.br/jurisprudencia/sumariosumulas.asp?base=30&sumula=2017 (página oficial de aplicação das súmulas do STF), consultada ao vivo em 12/09/2026",
+    verificadoNaFontePrimaria: true,
+    observacao:
+      "ALERTA, NÃO TESE: esta súmula afasta a Lei de Usura (limite de 12% a.a.) para bancos — ela DERRUBA, não " +
+      "sustenta, qualquer argumento de que a taxa contratada seria abusiva só por superar 12% ao ano. A tese de " +
+      "abusividade de taxa nesta peça só pode se apoiar na comparação com a taxa média do Banco Central " +
+      "(`analise_taxas_e_encargos`), nunca na Lei de Usura.",
+  },
+  {
+    numero: "Súmula 472/STJ",
+    tribunal: "STJ",
+    orgaoJulgador: "Segunda Seção",
+    texto:
+      "A cobrança de comissão de permanência — cujo valor não pode ultrapassar a soma dos encargos remuneratórios " +
+      "e moratórios previstos no contrato — exclui a exigibilidade dos juros remuneratórios, moratórios e da " +
+      "multa contratual.",
+    dataJulgamento: "13/06/2012",
+    dataPublicacao: "DJe de 19/06/2012",
+    fonteConsulta:
+      "arquivocidadao.stj.jus.br/index.php/sumula-472-2 (arquivo institucional do STJ) e " +
+      "stj.jus.br/sites/portalp (notícia oficial do STJ) — texto, órgão julgador e datas coincidentes nas duas " +
+      "fontes, consultadas ao vivo em 12/09/2026",
+    verificadoNaFontePrimaria: true,
+    observacao:
+      "Resolve o ponto que faltava fundamentar em `taxas.ts`: se houver comissão de permanência cumulada com " +
+      "juros remuneratórios, juros moratórios ou multa contratual (não só com correção monetária, que já é a " +
+      "Súmula 30/STJ), a cumulação é vedada por esta súmula.",
   },
 ];

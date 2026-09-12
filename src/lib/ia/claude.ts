@@ -82,7 +82,114 @@ type ParametrosPergunta = {
    * continua livre para usar o provedor mais barato.
    */
   provedor?: "anthropic" | "openai";
+  /**
+   * Pede à Anthropic o raciocínio mais profundo disponível no modelo
+   * (`thinking: {type: "adaptive"}` + `output_config: {effort: "max"}`),
+   * em vez do padrão do modelo. Pedido explícito do cliente para a peça
+   * gerada por IA: "quando for pensamento profundo, necessário que a
+   * petição seja bem fundamentada, bem detalhada [...] utilizando tudo, tudo
+   * tudo que possa ser juridicamente possível". Sem efeito quando o
+   * provedor resolvido for OpenAI (a Responses API tem seu próprio
+   * parâmetro de esforço de raciocínio, `reasoning.effort`, não usado por
+   * este sistema até hoje) — quem chamar isto com um modelo não-Opus-5 do
+   * catálogo Anthropic mais antigo, sem suporte a `output_config`, pode
+   * receber HTTP 400 da própria Anthropic; por isso este campo só é usado
+   * hoje na única tarefa fixada em `provedor: "anthropic"` e no modelo
+   * corrente do sistema (`claude-opus-5`).
+   */
+  pensamentoProfundo?: boolean;
 };
+
+type LeituraAnthropic = { texto: string; cortada: boolean; modelo?: string; usage?: Record<string, unknown> } | { erro: string };
+
+/**
+ * Lê a resposta em streaming (Server-Sent Events) da Anthropic.
+ *
+ * Existe porque uma chamada real, ao vivo, com `pensamentoProfundo` (muito
+ * raciocínio antes de escrever, resposta longa) travou a conexão HTTP em
+ * "fetch failed" por volta de 300s — mesmo com um `AbortSignal.timeout` bem
+ * maior configurado, ou seja, não foi o timeout do próprio código que
+ * cortou, foi a conexão não-streaming caindo antes disso. Isso é exatamente
+ * o que a Anthropic recomenda evitar: pedidos longos devem usar streaming,
+ * que mantém a conexão viva com tráfego constante em vez de ficar em
+ * silêncio esperando a resposta inteira de uma vez.
+ *
+ * Eventos relevantes do formato SSE da Anthropic: `message_start` traz o
+ * modelo e o `usage` inicial (tokens de entrada); `content_block_start`
+ * abre um bloco por índice (tipo "thinking" ou "text"); `content_block_delta`
+ * acumula o texto de um bloco (`delta.type === "text_delta"` é o único que
+ * nos interessa — o mesmo filtro que já existia para a resposta não-streaming
+ * também vale aqui, só que aplicado durante a leitura); `message_delta` traz
+ * o `stop_reason` final e o `usage` de saída (cumulativo); `error` sinaliza
+ * falha no meio do stream.
+ */
+async function lerRespostaEmStreamAnthropic(resposta: Response): Promise<LeituraAnthropic> {
+  const leitor = resposta.body?.getReader();
+  if (!leitor) return { erro: "A IA respondeu em streaming, mas sem corpo de resposta." };
+
+  const blocos = new Map<number, { tipo: string; texto: string }>();
+  let modeloFinal: string | undefined;
+  let usageFinal: Record<string, unknown> = {};
+  let stopReason: string | undefined;
+
+  const decodificador = new TextDecoder();
+  let restante = "";
+
+  while (true) {
+    const { done, value } = await leitor.read();
+    if (done) break;
+    restante += decodificador.decode(value, { stream: true });
+
+    const eventos = restante.split("\n\n");
+    restante = eventos.pop() ?? "";
+
+    for (const evento of eventos) {
+      const linhaDados = evento.split("\n").find((l) => l.startsWith("data:"));
+      if (!linhaDados) continue;
+      const bruto = linhaDados.slice(5).trim();
+      if (!bruto) continue;
+
+      let dados: Record<string, unknown>;
+      try {
+        dados = JSON.parse(bruto);
+      } catch {
+        continue;
+      }
+
+      const tipo = dados.type as string | undefined;
+      if (tipo === "message_start") {
+        const mensagem = dados.message as { model?: string; usage?: Record<string, unknown> } | undefined;
+        modeloFinal = mensagem?.model;
+        usageFinal = mensagem?.usage ?? {};
+      } else if (tipo === "content_block_start") {
+        const indice = dados.index as number;
+        const bloco = dados.content_block as { type?: string } | undefined;
+        blocos.set(indice, { tipo: bloco?.type ?? "", texto: "" });
+      } else if (tipo === "content_block_delta") {
+        const indice = dados.index as number;
+        const delta = dados.delta as { type?: string; text?: string } | undefined;
+        if (delta?.type === "text_delta" && delta.text) {
+          const bloco = blocos.get(indice);
+          if (bloco) bloco.texto += delta.text;
+        }
+      } else if (tipo === "message_delta") {
+        const delta = dados.delta as { stop_reason?: string } | undefined;
+        if (delta?.stop_reason) stopReason = delta.stop_reason;
+        if (dados.usage) usageFinal = { ...usageFinal, ...(dados.usage as Record<string, unknown>) };
+      } else if (tipo === "error") {
+        return { erro: `Erro no streaming da IA: ${JSON.stringify(dados.error ?? dados).slice(0, 300)}` };
+      }
+    }
+  }
+
+  const texto = Array.from(blocos.values())
+    .filter((b) => b.tipo === "text")
+    .map((b) => b.texto)
+    .join("\n")
+    .trim();
+
+  return { texto, cortada: stopReason === "max_tokens", modelo: modeloFinal, usage: usageFinal };
+}
 
 /**
  * O que há de comum entre pedir JSON e pedir texto livre: a chamada HTTP, a
@@ -114,6 +221,16 @@ async function chamarAnthropic(
         max_tokens: params.maxTokens ?? 4000,
         system: params.instrucao,
         messages: [{ role: "user", content: conteudo }],
+        // "adaptive" é a única forma aceita de ligar o raciocínio estendido
+        // no Opus 5 — `budget_tokens` (formato antigo) dá HTTP 400 neste
+        // modelo. `effort: "max"` é o nível mais alto de raciocínio da API
+        // (GA, sem beta header) — pedido explícito do cliente para esta
+        // peça especificamente, não o padrão do resto do sistema.
+        // Ligado junto com o pensamento profundo: ver `lerRespostaEmStreamAnthropic`
+        // para o motivo (resposta longa sem streaming derrubou a conexão ao vivo).
+        ...(params.pensamentoProfundo
+          ? { thinking: { type: "adaptive" }, output_config: { effort: "max" }, stream: true }
+          : {}),
       }),
       signal: AbortSignal.timeout(params.tempoLimiteMs ?? TEMPO_LIMITE),
     });
@@ -141,23 +258,42 @@ async function chamarAnthropic(
       return { ok: false, erro: `IA respondeu HTTP ${resposta.status}: ${corpo.slice(0, 300)}` };
     }
 
-    const dados = (await resposta.json()) as {
-      content?: Array<{ type: string; text?: string }>;
-      model?: string;
-      usage?: Record<string, number>;
-      /** "max_tokens" aqui é a própria API confirmando que cortou a resposta no meio — não é suposição. */
-      stop_reason?: string;
-    };
+    let texto: string;
+    let cortada: boolean;
+    let dadosParaUso: { model?: string; usage?: Record<string, number> };
+
+    if (params.pensamentoProfundo) {
+      const lido = await lerRespostaEmStreamAnthropic(resposta);
+      if ("erro" in lido) {
+        await registrarUsoIa({
+          uso: { modelo: modeloPedido, tokensEntrada: 0, tokensSaida: 0, tokensCacheCriacao: 0, tokensCacheLeitura: 0 },
+          contexto: params.contexto,
+          erro: lido.erro,
+        });
+        return { ok: false, erro: lido.erro };
+      }
+      texto = lido.texto;
+      cortada = lido.cortada;
+      dadosParaUso = { model: lido.modelo, usage: lido.usage as Record<string, number> | undefined };
+    } else {
+      const dados = (await resposta.json()) as {
+        content?: Array<{ type: string; text?: string }>;
+        model?: string;
+        usage?: Record<string, number>;
+        /** "max_tokens" aqui é a própria API confirmando que cortou a resposta no meio — não é suposição. */
+        stop_reason?: string;
+      };
+      texto = (dados.content ?? [])
+        .filter((b) => b.type === "text")
+        .map((b) => b.text ?? "")
+        .join("\n")
+        .trim();
+      cortada = dados.stop_reason === "max_tokens";
+      dadosParaUso = dados;
+    }
 
     // Os tokens vêm da resposta: são medidos, não estimados.
-    await registrarUsoIa({ uso: lerUso(dados, modeloPedido), contexto: params.contexto });
-    const texto = (dados.content ?? [])
-      .filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("\n")
-      .trim();
-
-    const cortada = dados.stop_reason === "max_tokens";
+    await registrarUsoIa({ uso: lerUso(dadosParaUso, modeloPedido), contexto: params.contexto });
 
     if (!texto) {
       if (cortada) {

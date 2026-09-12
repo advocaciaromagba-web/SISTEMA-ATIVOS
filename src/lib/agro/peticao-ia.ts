@@ -25,7 +25,7 @@ import type { ResultadoAlongamento } from "./alongamento";
 import type { ResultadoMp1376 } from "./mp1376";
 import type { ResultadoTaxas } from "./taxas";
 import type { ResultadoCobrancas } from "./cobrancas";
-import { PRECEDENTES_SUMULA_298, DOUTRINA_ALONGAMENTO, JURISPRUDENCIA_NAO_VERIFICADA } from "./jurisprudencia";
+import { PRECEDENTES_SUMULA_298, DOUTRINA_ALONGAMENTO, JURISPRUDENCIA_NAO_VERIFICADA, SUMULAS_ADICIONAIS_VERIFICADAS } from "./jurisprudencia";
 
 export type TipoPeticaoIa = "REQUERIMENTO_ADMINISTRATIVO" | "PETICAO_INICIAL";
 
@@ -176,6 +176,11 @@ export function montarContextoPeticaoIa(
     // ---- ÚNICAS fontes de jurisprudência/doutrina que a IA pode citar ----
     fontes_permitidas_precedentes_stj: PRECEDENTES_SUMULA_298,
     fontes_permitidas_doutrina: DOUTRINA_ALONGAMENTO,
+    // Súmulas 121 e 596/STF e 472/STJ — cada uma com o texto oficial e, onde
+    // existe, a ressalva que muda o alcance prático (ex.: a 121 foi
+    // relativizada pela MP 2.170-36/2001 para bancos; a 596 na verdade
+    // AFASTA um argumento, não sustenta um). Ver `observacao` de cada item.
+    fontes_permitidas_sumulas: SUMULAS_ADICIONAIS_VERIFICADAS,
     // Existe, mas NÃO pode ser citada como firme — ver instrução do sistema.
     jurisprudencia_conhecida_mas_nao_verificada_na_fonte_primaria: JURISPRUDENCIA_NAO_VERIFICADA,
   };
@@ -191,14 +196,18 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
     "2. Se um dado necessário para a peça não estiver no JSON (ou estiver null), escreva literalmente " +
     '"[CONFIRMAR: <o que falta, em poucas palavras>]" no lugar exato onde o dado entraria. Nunca estime, nunca ' +
     "arredonde, nunca complete com um valor plausível.\n" +
-    "3. Você só pode citar jurisprudência e doutrina que estejam nos campos `fontes_permitidas_precedentes_stj` " +
-    "e `fontes_permitidas_doutrina` do JSON, citando exatamente a identificação, o órgão julgador, o relator e " +
-    "a data que constam ali — nunca parafraseie de memória um precedente que não esteja nesses campos, e nunca " +
-    "cite um artigo de lei, súmula, resolução ou manual que não esteja mencionado no JSON " +
-    "(`analise_alongamento_regime_geral`, `analise_enquadramento_mp_1376_2026`, `analise_taxas_e_encargos` e " +
-    "`analise_venda_casada_e_tarifas`, e os campos `fonte`/`artigo` dentro deles, trazem as normas já " +
-    "verificadas: Súmula 298/STJ, MCR 2-6-4, Resolução CMN 5.314/2026, MP nº 1.376/2026, Lei nº 4.829/65, " +
-    "Decreto-Lei nº 167/67, Súmulas 93 e 30/STJ, CDC art. 39, I, Tema 972/STJ, Súmulas 565 e 566/STJ). O campo " +
+    "3. Você só pode citar jurisprudência e doutrina que estejam nos campos `fontes_permitidas_precedentes_stj`, " +
+    "`fontes_permitidas_doutrina` e `fontes_permitidas_sumulas` do JSON, citando exatamente a identificação, o " +
+    "órgão julgador (quando houver), o relator (quando houver) e a data que constam ali — nunca parafraseie de " +
+    "memória um precedente ou súmula que não esteja nesses campos, e nunca cite um artigo de lei, súmula, " +
+    "resolução ou manual que não esteja mencionado no JSON (`analise_alongamento_regime_geral`, " +
+    "`analise_enquadramento_mp_1376_2026`, `analise_taxas_e_encargos` e `analise_venda_casada_e_tarifas`, e os " +
+    "campos `fonte`/`artigo` dentro deles, trazem as normas já verificadas: Súmula 298/STJ, MCR 2-6-4, Resolução " +
+    "CMN 5.314/2026, MP nº 1.376/2026, Lei nº 4.829/65, Decreto-Lei nº 167/67, Súmulas 93 e 30/STJ, CDC art. 39, " +
+    "I, Tema 972/STJ, Súmulas 565 e 566/STJ). Em `fontes_permitidas_sumulas` cada item pode trazer uma " +
+    "`observacao` que muda o alcance prático da súmula (ex.: uma súmula relativizada por lei posterior para " +
+    "bancos, ou uma súmula que na verdade AFASTA uma tese em vez de sustentá-la) — essa ressalva é parte " +
+    "obrigatória da citação, nunca cite a súmula isolada do que a observação exige dizer junto. O campo " +
     "`jurisprudencia_conhecida_mas_nao_verificada_na_fonte_primaria` existe só para você saber que a outra parte " +
     "pode levantar aquele julgado — nunca o cite como precedente próprio, e se mencioná-lo, deixe explícito que " +
     "não foi confirmado na fonte primária.\n" +
@@ -215,7 +224,18 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
     "pactuado, multa moratória acima do limite legal, comissão de permanência cumulada, venda casada de seguro " +
     "vinculado ao financiador, tarifas sem amparo legal) — não são hipóteses da IA, e a peça deve tratar CADA " +
     "UM deles explicitamente, citando o artigo/súmula/tema exatos que já vêm no próprio alerta (campo `fonte`). " +
-    "Omitir um alerta desses é omitir o motivo pelo qual a peça foi pedida.\n\n" +
+    "Omitir um alerta desses é omitir o motivo pelo qual a peça foi pedida.\n" +
+    "7. Escreva com profundidade, não só com correção. Pedido expresso do cliente: a peça deve ser \"bem " +
+    "fundamentada, bem detalhada, bem descrita, utilizando todas as linguagens jurídicas com fundamento, " +
+    "doutrina, jurisprudência e tudo o que for possível, juridicamente possível\". Isso significa, para CADA " +
+    "tese (alongamento, enquadramento na MP, cada abusividade de taxas/encargos, cada venda casada/tarifa): (a) " +
+    "não apenas afirme a conclusão — explique o raciocínio que liga o fato do caso à fonte que o sustenta, como " +
+    "um jurista desenvolveria o argumento num parecer; (b) quando houver mais de um precedente ou mais de uma " +
+    "doutrina permitidos sobre a mesma tese, use e articule TODOS os que se aplicarem, não apenas um; (c) onde " +
+    "uma súmula permitida tiver uma `observacao` de ressalva ou de contra-argumento (ver regra 3), antecipe e " +
+    "afaste esse contra-argumento na própria peça, em vez de ignorá-lo — isso é o que torna a fundamentação " +
+    "robusta, não frágil. Nada disso abre exceção às regras 1-3: profundidade vem de desenvolver melhor o que " +
+    "já está verificado, nunca de complementar com o que não está.\n\n" +
     "ESTRUTURA:\n" +
     (tipo === "REQUERIMENTO_ADMINISTRATIVO"
       ? "Redija um requerimento administrativo endereçado à instituição financeira ré (identificada no JSON), " +
@@ -283,11 +303,22 @@ export async function gerarPeticaoIaCompleta(
     // quando a peça cresceu com essas seções novas. O modelo aceita até
     // 128K tokens de saída, então dar bastante folga aqui não custa nada
     // extra além do necessário.
-    maxTokens: 20000,
+    // Visto ao vivo: com `pensamentoProfundo` ligado, os tokens do
+    // raciocínio (thinking) entram no MESMO `max_tokens` do texto final —
+    // não são um orçamento à parte. Num teste real, o raciocínio consumiu
+    // boa parte dos 20000 tokens antigos e a peça saiu cortada no meio de
+    // uma frase (`tokensSaida` bateu exatamente no teto). Por isso o limite
+    // sobe bem mais aqui: dá espaço de sobra tanto para o raciocínio quanto
+    // para a peça inteira, bem mais fundamentada, que ele foi pedido para
+    // produzir.
+    maxTokens: 48000,
     // Redigir uma peça inteira demora mais que ler um documento — visto ao
     // vivo, uma petição real levou 91s e estourou o limite padrão de 90s
-    // (ver comentário em `claude.ts`). 5 minutos dá folga real.
-    tempoLimiteMs: 300_000,
+    // (ver comentário em `claude.ts`). Com `pensamentoProfundo` e um
+    // `maxTokens` bem maior, o tempo de geração cresce mais ainda — 10
+    // minutos dá folga real; ajustar de novo se o teste ao vivo mostrar que
+    // não basta.
+    tempoLimiteMs: 600_000,
     // Comparação ao vivo, mesmo contrato: tanto a gpt-4o-mini quanto a
     // gpt-4o (a "mais forte" da OpenAI) devolveram uma peça bem mais curta
     // que a do Claude Opus 5 e, o que importa mais, ignoraram os achados de
@@ -300,6 +331,12 @@ export async function gerarPeticaoIaCompleta(
     // independente de `IA_PROVEDOR` — leitura de contrato e de anexo
     // continuam livres para usar o provedor mais barato.
     provedor: "anthropic",
+    // Pedido explícito do cliente: "quando for pensamento profundo" a peça
+    // deve ser bem fundamentada, detalhada e usar tudo o que for
+    // juridicamente possível — isto liga o raciocínio estendido do modelo
+    // (thinking adaptativo + esforço máximo) especificamente para esta
+    // tarefa de síntese jurídica livre, a mais exigente do sistema.
+    pensamentoProfundo: true,
   });
 
   if (!resposta.ok) return { ok: false, erro: resposta.erro };
