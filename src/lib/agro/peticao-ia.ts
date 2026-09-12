@@ -6,8 +6,9 @@
  *
  * A liberdade de redação não abre mão da regra de sempre: a IA só recebe os
  * fatos que o sistema já verificou (do contrato, dos motores determinísticos
- * de `mp1376.ts`/`alongamento.ts`, e dos anexos revisados pela pessoa) e o
- * catálogo de jurisprudência/doutrina já conferido na fonte primária
+ * de `mp1376.ts`/`alongamento.ts`/`taxas.ts`/`cobrancas.ts`, e dos anexos
+ * revisados pela pessoa) e o catálogo de jurisprudência/doutrina já conferido
+ * na fonte primária
  * (`jurisprudencia.ts`). A instrução deixa explícito: nada fora disso pode
  * ser citado, e todo dado que falte entra como `[CONFIRMAR: ...]`, nunca
  * como suposição. O texto gerado nunca sai como peça pronta — sempre como
@@ -22,6 +23,8 @@ import { empacotar } from "./documentos";
 import { moeda, dataExtenso } from "@/lib/formato";
 import type { ResultadoAlongamento } from "./alongamento";
 import type { ResultadoMp1376 } from "./mp1376";
+import type { ResultadoTaxas } from "./taxas";
+import type { ResultadoCobrancas } from "./cobrancas";
 import { PRECEDENTES_SUMULA_298, DOUTRINA_ALONGAMENTO, JURISPRUDENCIA_NAO_VERIFICADA } from "./jurisprudencia";
 
 export type TipoPeticaoIa = "REQUERIMENTO_ADMINISTRATIVO" | "PETICAO_INICIAL";
@@ -69,6 +72,8 @@ export type AgroContratoParaPeticaoIa = {
   capacidadePagamentoComprometida: boolean | null;
   resultadoAlongamento: unknown;
   resultadoMp1376: unknown;
+  resultadoTaxas: unknown;
+  resultadoCobrancas: unknown;
   valorCausa: unknown;
 };
 
@@ -92,6 +97,8 @@ export function montarContextoPeticaoIa(
 ): Record<string, unknown> {
   const resultadoAlongamento = (c.resultadoAlongamento as ResultadoAlongamento | null) ?? null;
   const resultadoMp1376 = (c.resultadoMp1376 as ResultadoMp1376 | null) ?? null;
+  const resultadoTaxas = (c.resultadoTaxas as ResultadoTaxas | null) ?? null;
+  const resultadoCobrancas = (c.resultadoCobrancas as ResultadoCobrancas | null) ?? null;
 
   return {
     parte_autora: {
@@ -155,6 +162,15 @@ export function montarContextoPeticaoIa(
     // ---- resultado dos motores determinísticos: quem decide enquadramento é código, não a IA ----
     analise_alongamento_regime_geral: resultadoAlongamento,
     analise_enquadramento_mp_1376_2026: resultadoMp1376,
+    // Comparação com a taxa média do Banco Central, capitalização de juros,
+    // multa moratória e comissão de permanência (DL 167/67; Súmulas 93 e
+    // 30/STJ) — cada alerta CRITICO aqui é abusividade já apurada pelo
+    // sistema, não uma hipótese da IA.
+    analise_taxas_e_encargos: resultadoTaxas,
+    // Venda casada de seguro/produto vinculado ao crédito, e tarifas sem
+    // amparo legal (TAC/TEC, tarifa de cadastro, tarifa de registro de
+    // gravame) — CDC art. 39, I; Tema 972/STJ; Súmulas 565 e 566/STJ.
+    analise_venda_casada_e_tarifas: resultadoCobrancas,
     aviso_sobre_vigencia_da_mp_1376: avisoVigenciaMp,
 
     // ---- ÚNICAS fontes de jurisprudência/doutrina que a IA pode citar ----
@@ -179,9 +195,10 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
     "e `fontes_permitidas_doutrina` do JSON, citando exatamente a identificação, o órgão julgador, o relator e " +
     "a data que constam ali — nunca parafraseie de memória um precedente que não esteja nesses campos, e nunca " +
     "cite um artigo de lei, súmula, resolução ou manual que não esteja mencionado no JSON " +
-    "(`analise_alongamento_regime_geral`, `analise_enquadramento_mp_1376_2026` e os campos `fonte` dentro deles " +
-    "trazem as normas já verificadas: Súmula 298/STJ, MCR 2-6-4, Resolução CMN 5.314/2026, MP nº 1.376/2026, Lei " +
-    "nº 4.829/65). O campo " +
+    "(`analise_alongamento_regime_geral`, `analise_enquadramento_mp_1376_2026`, `analise_taxas_e_encargos` e " +
+    "`analise_venda_casada_e_tarifas`, e os campos `fonte`/`artigo` dentro deles, trazem as normas já " +
+    "verificadas: Súmula 298/STJ, MCR 2-6-4, Resolução CMN 5.314/2026, MP nº 1.376/2026, Lei nº 4.829/65, " +
+    "Decreto-Lei nº 167/67, Súmulas 93 e 30/STJ, CDC art. 39, I, Tema 972/STJ, Súmulas 565 e 566/STJ). O campo " +
     "`jurisprudencia_conhecida_mas_nao_verificada_na_fonte_primaria` existe só para você saber que a outra parte " +
     "pode levantar aquele julgado — nunca o cite como precedente próprio, e se mencioná-lo, deixe explícito que " +
     "não foi confirmado na fonte primária.\n" +
@@ -189,9 +206,16 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
     "desequilíbrio contratual, histórico do pedido administrativo) deve vir apoiada nos campos correspondentes " +
     "do JSON — não amplie, não dramatize além do que os dados sustentam.\n" +
     "5. Onde o JSON traz um resultado de análise jurídica (enquadramento na MP 1.376/2026, regime aplicável do " +
-    "alongamento, força da tese, alertas e orientações), use esse resultado como está — não reavalie, não " +
-    "conclua diferente do que o motor determinístico já decidiu. Se `enquadraNaMP1376` ou `enquadraComoCreditoRural` " +
-    'estiver como "INDETERMINADO" ou false, trate isso como está: não afirme enquadramento que o sistema não confirmou.\n\n' +
+    "alongamento, força da tese, alertas e orientações, e os campos `analise_taxas_e_encargos` e " +
+    "`analise_venda_casada_e_tarifas`), use esse resultado como está — não reavalie, não conclua diferente do " +
+    "que o motor determinístico já decidiu. Se `enquadraNaMP1376` ou `enquadraComoCreditoRural` estiver como " +
+    '"INDETERMINADO" ou false, trate isso como está: não afirme enquadramento que o sistema não confirmou.\n' +
+    "6. TODO alerta de gravidade CRITICO ou ATENCAO dentro de `analise_taxas_e_encargos` e de " +
+    "`analise_venda_casada_e_tarifas` é abusividade JÁ APURADA pelo sistema (capitalização de juros fora do " +
+    "pactuado, multa moratória acima do limite legal, comissão de permanência cumulada, venda casada de seguro " +
+    "vinculado ao financiador, tarifas sem amparo legal) — não são hipóteses da IA, e a peça deve tratar CADA " +
+    "UM deles explicitamente, citando o artigo/súmula/tema exatos que já vêm no próprio alerta (campo `fonte`). " +
+    "Omitir um alerta desses é omitir o motivo pelo qual a peça foi pedida.\n\n" +
     "ESTRUTURA:\n" +
     (tipo === "REQUERIMENTO_ADMINISTRATIVO"
       ? "Redija um requerimento administrativo endereçado à instituição financeira ré (identificada no JSON), " +
@@ -200,12 +224,17 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
         "espaço para assinatura do requerente e do advogado."
       : "Redija uma petição inicial completa: endereçamento ao juízo (comarca e vara do JSON), qualificação das " +
         "partes, nome da ação, DOS FATOS, DO DIREITO (alongamento da dívida rural, enquadramento subsidiário na " +
-        "MP 1.376/2026 quando aplicável, revisão contratual pelos desequilíbrios identificados, e — seguindo a " +
-        "instrução expressa do cliente — demonstração de que o produtor sofreu prejuízo concreto na capacidade " +
-        "de pagamento, usando o campo `capacidade_de_pagamento`), DA TUTELA DE URGÊNCIA (suspensão de cobrança e " +
-        "de execução de garantias, probabilidade do direito e perigo de dano), DOS PEDIDOS (alongamento, revisão " +
-        "contratual, tutela de urgência, produção de provas, custas e honorários), DAS PROVAS, DO VALOR DA CAUSA, " +
-        "fecho com local, data e espaço de assinatura do advogado.") +
+        "MP 1.376/2026 quando aplicável, e — seguindo a instrução expressa do cliente — demonstração de que o " +
+        "produtor sofreu prejuízo concreto na capacidade de pagamento, usando o campo `capacidade_de_pagamento`), " +
+        "com uma subseção específica DA ABUSIVIDADE DE CLÁUSULAS E ENCARGOS que trate, um a um, TODOS os alertas " +
+        "de `analise_taxas_e_encargos` (capitalização de juros, multa moratória, comissão de permanência) e de " +
+        "`analise_venda_casada_e_tarifas` (venda casada de seguro/produto vinculado, TAC/TEC, tarifa de cadastro, " +
+        "tarifa de registro/gravame) — cada um com o fundamento exato que já vem no alerta, pedindo a revisão ou " +
+        "nulidade da cláusula respectiva, DA TUTELA DE URGÊNCIA (suspensão de cobrança e de execução de " +
+        "garantias, probabilidade do direito e perigo de dano), DOS PEDIDOS (alongamento, revisão contratual com " +
+        "a declaração de nulidade de cada cláusula abusiva identificada, restituição do que foi cobrado a mais " +
+        "quando cabível, tutela de urgência, produção de provas, custas e honorários), DAS PROVAS, DO VALOR DA " +
+        "CAUSA, fecho com local, data e espaço de assinatura do advogado.") +
     "\n\nFORMATO DA RESPOSTA: texto simples em português, parágrafos separados por linha em branco, sem markdown " +
     "além de **negrito** ocasional para destacar um título de seção. Não devolva JSON. Comece a resposta " +
     "diretamente pela peça — sem preâmbulo do tipo \"aqui está a minuta\"."
