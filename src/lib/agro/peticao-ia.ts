@@ -277,9 +277,13 @@ export async function gerarPeticaoIaCompleta(
     conteudo: JSON.stringify(contexto, null, 2),
     contexto: { solucao: "AGROJUD", contaId, referencia: `Peça gerada por IA — ${ROTULO_TIPO[tipo]}` },
     // Petição inteira, redigida livremente: precisa de bem mais espaço do
-    // que a leitura de um documento. O modelo aceita até 128K tokens de
-    // saída, então dar folga aqui não custa nada extra além do necessário.
-    maxTokens: 12000,
+    // que a leitura de um documento — e mais ainda depois de a peça passar
+    // a tratar, uma a uma, as abusividades de taxas e venda casada (ver
+    // abaixo). Visto ao vivo: 12000 cortou a petição no meio de uma citação
+    // quando a peça cresceu com essas seções novas. O modelo aceita até
+    // 128K tokens de saída, então dar bastante folga aqui não custa nada
+    // extra além do necessário.
+    maxTokens: 20000,
     // Redigir uma peça inteira demora mais que ler um documento — visto ao
     // vivo, uma petição real levou 91s e estourou o limite padrão de 90s
     // (ver comentário em `claude.ts`). 5 minutos dá folga real.
@@ -307,6 +311,16 @@ export async function gerarPeticaoIaCompleta(
         "cada dado, cada citação e cada marcador [CONFIRMAR: ...] antes de usar esta peça.",
       { negrito: true, espacoDepois: 320 }
     ),
+    ...(resposta.cortada
+      ? [
+          paragrafo(
+            "ATENÇÃO: esta minuta foi CORTADA ANTES DE TERMINAR — o espaço de resposta da IA acabou no meio do " +
+              "texto (o parágrafo final abaixo está incompleto). Não é uma peça pronta nem para revisão parcial: " +
+              "gere de novo antes de usar. A equipe já foi avisada para ajustar o limite.",
+            { negrito: true, espacoDepois: 320 }
+          ),
+        ]
+      : []),
     ...textoParaParagrafos(resposta.texto),
     espaco(300),
     paragrafo(`Minuta gerada por IA em ${dataGeracao}. Documento de rascunho — exige revisão humana antes de qualquer uso.`, {

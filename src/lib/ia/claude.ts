@@ -366,11 +366,33 @@ export async function perguntarJson<T>(params: ParametrosPergunta): Promise<{ ok
 /**
  * Pede uma resposta em texto livre — para quando o que se quer da IA é
  * prosa (uma minuta, um resumo), não um dado estruturado. Mesma medição de
- * custo e mesmo tratamento de corte de resposta do `perguntarJson`, sem a
- * tentativa de interpretar como JSON.
+ * custo do `perguntarJson`, sem a tentativa de interpretar como JSON.
+ *
+ * Diferente do JSON, um texto cortado no meio não quebra o parse — ele só
+ * termina no meio de uma frase, sem erro nenhum. Visto ao vivo: uma petição
+ * saiu com exatamente `tokensSaida === maxTokens` pedido, cortada no meio de
+ * uma citação. Por isso `cortada` vai explícita na resposta, e quem chama
+ * decide o que fazer (avisar, ou pedir de novo com mais espaço) — o texto
+ * parcial ainda é devolvido, porque descartar um rascunho quase completo é
+ * pior do que marcá-lo como incompleto.
  */
-export async function perguntarTexto(params: ParametrosPergunta): Promise<{ ok: true; texto: string } | { ok: false; erro: string }> {
+export async function perguntarTexto(
+  params: ParametrosPergunta
+): Promise<{ ok: true; texto: string; cortada: boolean } | { ok: false; erro: string }> {
   const resultado = await chamarIA(params);
   if (!resultado.ok) return resultado;
-  return { ok: true, texto: resultado.texto };
+
+  if (resultado.cortada) {
+    await abrirAlerta({
+      tipo: "IA_RESPOSTA_CORTADA",
+      gravidade: "ATENCAO",
+      titulo: "IA cortou a resposta em texto livre antes de terminar",
+      detalhe:
+        `${params.contexto?.referencia ?? "Chamada sem referência"} (solução ${params.contexto?.solucao ?? "?"}). ` +
+        `max_tokens pedido: ${params.maxTokens ?? 4000}. O texto devolvido tem ${resultado.texto.length} caracteres ` +
+        "e termina no meio — o rascunho segue para quem pediu, mas incompleto.",
+    });
+  }
+
+  return { ok: true, texto: resultado.texto, cortada: resultado.cortada };
 }
