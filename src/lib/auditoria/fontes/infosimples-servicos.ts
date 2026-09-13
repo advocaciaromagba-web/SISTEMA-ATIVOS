@@ -28,6 +28,19 @@ export type ServicoInfosimples = {
   exigeNomeMae?: boolean;
   exigeDataNascimento?: boolean;
   /**
+   * Manda a UF junto. Serviço estadual (SEFAZ) recusa a consulta sem ela —
+   * confirmado contra a API em 13/09/2026: sem `uf` devolve código 606
+   * ("parâmetros obrigatórios não foram enviados"); com `uf`, emite.
+   */
+  exigeUf?: boolean;
+  /**
+   * O órgão só emite para quem está logado no gov.br. A Infosimples repassa
+   * o login (`login_cpf`/`login_senha`) ou o certificado digital A1
+   * (`pkcs12_cert`/`pkcs12_pass`) — sem um dos pares, devolve 606. É o caso
+   * das certidões do TJSP, que a Justiça moveu para dentro do login único.
+   */
+  exigeGovBr?: boolean;
+  /**
    * Quando o tribunal emite em duas etapas: a primeira devolve um número de
    * pedido, e a segunda retira o PDF com ele.
    */
@@ -67,19 +80,26 @@ const NACIONAIS: Record<string, ServicoInfosimples> = {
   CND_FEDERAL: {
     caminho: "receita-federal/pgfn",
     aceita: "AMBOS",
-    observacao: "Certidão conjunta da Receita Federal e da PGFN.",
-  },
-  PROTESTO: {
-    caminho: "ieptb/protestos",
-    aceita: "AMBOS",
+    // Testado em 13/09/2026 contra três empresas diferentes, inclusive
+    // Petrobras e Magazine Luiza: sem credencial gov.br, a Receita responde
+    // "informações insuficientes para emitir a certidão pela Internet" para
+    // todas — e a consulta é cobrada (R$ 0,30) mesmo falhando. Exigir a
+    // credencial antes de chamar evita pagar por uma tentativa perdida.
+    exigeGovBr: true,
     observacao:
-      "Central nacional. Protestos de cartórios de São Paulo saem sem detalhe — para eles há consulta " +
-      "específica.",
+      "Certidão conjunta da Receita Federal e da PGFN. A Receita moveu a emissão para dentro do gov.br.",
   },
+  // PROTESTO saiu daqui de propósito. A Infosimples descontinuou as duas
+  // consultas de protesto (IEPTB e CENPROT SP) depois que a central
+  // reformulou o site — confirmado no catálogo deles e contra a API em
+  // 13/09/2026, que devolve 615 de forma permanente. Mantê-lo no mapa faria
+  // o sistema tentar, falhar e cobrar atenção à toa. Enquanto não houver
+  // outro fornecedor contratado, protesto é certidão de anexo manual.
   DIVIDA_ATIVA_ESTADUAL: {
     caminho: "sefaz/certidao-debitos",
     aceita: "AMBOS",
-    observacao: "Consulta unificada, que resolve o estado a partir do documento.",
+    exigeUf: true,
+    observacao: "Certidão da SEFAZ do estado da sede — depende da UF cadastrada na empresa.",
   },
   FALENCIA_RECUPERACAO: {
     caminho: "tribunal/tst/banco-falencias",
@@ -105,11 +125,13 @@ const ESTADUAL: Record<string, { civel?: ServicoInfosimples; criminal?: ServicoI
     civel: {
       caminho: "tribunal/tjsp/pedido-civel",
       aceita: "AMBOS",
+      exigeGovBr: true,
       segundaEtapa: { caminho: "tribunal/tjsp/obter-certidao", campoNumero: "numero_pedido" },
     },
     criminal: {
       caminho: "tribunal/tjsp/pedido-criminal",
       aceita: "AMBOS",
+      exigeGovBr: true,
       segundaEtapa: { caminho: "tribunal/tjsp/obter-certidao", campoNumero: "numero_pedido" },
     },
   },

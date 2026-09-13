@@ -55,7 +55,11 @@ export async function registrarUsoConsulta(params: {
         provedor: params.provedor,
         servico: params.servico,
         documento: params.documento ? params.documento.replace(/\D/g, "") : null,
-        custo: params.erro ? null : precoParaNumero(params.custoBruto),
+        // O custo é gravado mesmo quando a consulta falha: alguns provedores
+        // cobram a tentativa (visto na Infosimples, na CND federal, que cobra
+        // R$ 0,30 e não emite). Custo que não aparece aqui vira surpresa na
+        // fatura.
+        custo: precoParaNumero(params.custoBruto),
         moeda: params.moeda ?? (params.custoBruto ? "BRL" : null),
         erro: params.erro ?? null,
       },
@@ -90,12 +94,15 @@ export async function custoConsultasPorSolucaoDesde(desde: Date): Promise<Record
     const chave = u.solucao ?? "(sem solução informada)";
     const atual = porSolucao[chave] ?? { consultas: 0, custo: null, semPreco: 0, falhas: 0 };
 
-    if (u.erro) {
-      atual.falhas += 1;
+    // Falha entra na contagem de falhas, mas o custo dela soma junto: quando
+    // o provedor cobra a tentativa, esse dinheiro saiu de verdade.
+    if (u.erro) atual.falhas += 1;
+    else atual.consultas += 1;
+
+    if (u.custo === null) {
+      if (!u.erro) atual.semPreco += 1;
     } else {
-      atual.consultas += 1;
-      if (u.custo === null) atual.semPreco += 1;
-      else atual.custo = (atual.custo ?? 0) + Number(u.custo);
+      atual.custo = (atual.custo ?? 0) + Number(u.custo);
     }
 
     porSolucao[chave] = atual;

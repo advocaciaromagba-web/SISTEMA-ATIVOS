@@ -58,7 +58,9 @@ export type RespostaInfosimples = {
 export async function chamar(
   caminho: string,
   parametros: Record<string, string>
-): Promise<{ ok: true; resposta: RespostaInfosimples } | { ok: false; erro: string; codigo?: number }> {
+): Promise<
+  { ok: true; resposta: RespostaInfosimples } | { ok: false; erro: string; codigo?: number; custo?: string | null }
+> {
   const token = (process.env.INFOSIMPLES_TOKEN ?? "").trim();
   if (!token) return { ok: false, erro: "Infosimples não configurado (INFOSIMPLES_TOKEN)." };
 
@@ -91,7 +93,16 @@ export async function chamar(
                 "Tente mais tarde ou emita a certidão pelo site do órgão."
               : "";
 
-      return { ok: false, codigo: corpo.code, erro: `${mensagem}.${detalhe}${explicacao}`.trim() };
+      // O preço vem no cabeçalho mesmo quando o órgão não emite — visto ao
+      // vivo: a CND federal falhou para três empresas diferentes e cobrou
+      // R$ 0,30 em cada tentativa. Consulta que falha e é cobrada precisa
+      // aparecer no custo, senão o gasto real fica maior que o medido.
+      return {
+        ok: false,
+        codigo: corpo.code,
+        erro: `${mensagem}.${detalhe}${explicacao}`.trim(),
+        custo: corpo.header?.price ?? null,
+      };
     }
 
     return { ok: true, resposta: corpo };
@@ -155,6 +166,41 @@ function montarParametros(
       };
     }
     parametros.nome_mae = parte.nomeMae;
+  }
+
+  if (servico.exigeUf) {
+    if (!parte.uf) {
+      return {
+        ok: false,
+        erro:
+          "Esta certidão é estadual e depende da UF da sede, que não está no cadastro. Complete o endereço da " +
+          "empresa e tente de novo.",
+      };
+    }
+    parametros.uf = parte.uf.toUpperCase();
+  }
+
+  if (servico.exigeGovBr) {
+    const cpf = (process.env.GOVBR_LOGIN_CPF ?? "").trim();
+    const senha = (process.env.GOVBR_LOGIN_SENHA ?? "").trim();
+    const certificado = (process.env.GOVBR_CERT_PKCS12 ?? "").trim();
+    const senhaCertificado = (process.env.GOVBR_CERT_SENHA ?? "").trim();
+
+    if (certificado && senhaCertificado) {
+      parametros.pkcs12_cert = certificado;
+      parametros.pkcs12_pass = senhaCertificado;
+    } else if (cpf && senha) {
+      parametros.login_cpf = cpf.replace(/\D/g, "");
+      parametros.login_senha = senha;
+    } else {
+      return {
+        ok: false,
+        erro:
+          "Este tribunal só emite para quem está logado no gov.br, e nenhuma credencial está configurada no " +
+          "sistema. Emita pelo site do órgão e anexe o arquivo, ou peça à equipe para configurar o acesso gov.br " +
+          "(conta nível prata/ouro ou certificado digital A1).",
+      };
+    }
   }
 
   if (servico.exigeDataNascimento) {
@@ -271,6 +317,7 @@ export async function emitirCertidao(params: {
       provedor: "INFOSIMPLES",
       servico: params.chaveCertidao,
       documento: params.parte.documento,
+      custoBruto: primeira.custo,
       contexto: params.contexto,
       erro: primeira.erro,
     });
