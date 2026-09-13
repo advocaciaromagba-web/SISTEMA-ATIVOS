@@ -9,11 +9,17 @@ import { AcessoOrgao } from "@/components/acesso-orgao";
 
 const inicial: ResultadoAcao = {};
 
+/** Mesmas chaves da emissão automática — ver nota em `TIPOS_CERTIDAO`, nas ações. */
 const TIPOS = [
-  { valor: "CERTIDAO_TRIBUTOS_FEDERAIS", rotulo: "Certidão de tributos federais" },
+  { valor: "CNDT", rotulo: "CNDT — débitos trabalhistas" },
+  { valor: "CND_FEDERAL", rotulo: "Certidão de débitos federais" },
+  { valor: "DIVIDA_ATIVA_ESTADUAL", rotulo: "Certidão de débitos estaduais" },
+  { valor: "PROTESTO", rotulo: "Certidão de protesto" },
+  { valor: "FALENCIA_RECUPERACAO", rotulo: "Certidão de falência e recuperação judicial" },
+  { valor: "DISTRIBUICAO_CIVEL", rotulo: "Certidão de distribuição cível" },
+  { valor: "IMPROBIDADE_CNJ", rotulo: "Certidão de improbidade administrativa" },
+  { valor: "CADIN_FEDERAL", rotulo: "Extrato do CADIN federal" },
   { valor: "CERTIDAO_FGTS", rotulo: "Certidão do FGTS" },
-  { valor: "CNDT", rotulo: "CNDT" },
-  { valor: "CERTIDAO_FALENCIA_CONCORDATA", rotulo: "Certidão de falência e concordata" },
   { valor: "OUTRO", rotulo: "Outro" },
 ];
 
@@ -29,7 +35,7 @@ export function FormularioCertidao({
   uf: string | null;
 }) {
   const [estado, acao] = useActionState(anexarCertidao, inicial);
-  const [tipo, setTipo] = useState("CERTIDAO_TRIBUTOS_FEDERAIS");
+  const [tipo, setTipo] = useState("CNDT");
 
   const acesso = tipo === "OUTRO" ? null : acessoDaCertidao(tipo, uf, documento);
 

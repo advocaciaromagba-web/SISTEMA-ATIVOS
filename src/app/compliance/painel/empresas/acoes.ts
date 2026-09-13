@@ -1,8 +1,11 @@
 "use server";
 
+import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { CATALOGO_CERTIDOES, CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
+import { emitirCertidao, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
 import { exigirEdicaoCompliance } from "@/lib/compliance/sessao";
 import { somenteAlfanumerico, somenteNumeros, validarDocumento, validarEmail } from "@/lib/validacao";
 import { auditarEmpresaCompliance } from "@/lib/compliance/auditoria";
@@ -161,13 +164,129 @@ export async function reauditarEmpresa(id: string): Promise<ResultadoAcao> {
 // Certidões
 // ---------------------------------------------------------------------
 
+/**
+ * Tipos aceitos no anexo manual.
+ *
+ * São as mesmas chaves do catálogo usado na emissão automática — senão a
+ * mesma certidão entraria com dois nomes diferentes conforme tivesse sido
+ * anexada ou emitida, e o relatório listaria as duas como coisas distintas.
+ * Os quatro primeiros nomes antigos continuam aceitos por causa do que já
+ * foi anexado antes desta mudança.
+ */
 const TIPOS_CERTIDAO = [
+  ...CATALOGO_CERTIDOES.map((c) => c.chave),
   "CERTIDAO_TRIBUTOS_FEDERAIS",
   "CERTIDAO_FGTS",
-  "CNDT",
   "CERTIDAO_FALENCIA_CONCORDATA",
   "OUTRO",
 ];
+
+/**
+ * Emite a certidão na fonte, pela Infosimples, e guarda o resultado.
+ *
+ * Duas coisas que não mudam em relação ao anexo manual: o arquivo do
+ * comprovante é baixado e guardado (o link do provedor expira, e o que
+ * sustenta a análise depois é o documento em mãos), e a leitura do resultado é
+ * conservadora — qualquer registro devolvido vira CONSTA, para conferência
+ * humana. Errar para o lado do alerta custa cinco minutos; errar para o lado
+ * do "nada consta" é o erro que compromete quem assina o relatório.
+ */
+export async function emitirCertidaoCompliance(
+  complianceEmpresaId: string,
+  chaveCertidao: string
+): Promise<ResultadoAcao> {
+  const { usuario, conta } = await exigirEdicaoCompliance();
+
+  const definicao = CERTIDAO_POR_CHAVE[chaveCertidao];
+  if (!definicao) return { erro: "Tipo de certidão desconhecido." };
+
+  const empresa = await prisma.complianceEmpresa.findFirst({
+    where: { id: complianceEmpresaId, complianceContaId: conta.id },
+  });
+  if (!empresa) return { erro: "Empresa não encontrada." };
+  if (!empresa.documento) return { erro: "Cadastre o CNPJ da empresa antes de emitir a certidão." };
+
+  if (conta.statusAssinatura === "TESTE" && (await testeEsgotado(conta.id, conta.statusAssinatura))) {
+    return { erro: "O teste grátis já usou as consultas incluídas. Assine um plano para emitir certidões." };
+  }
+
+  if (!temEmissaoAutomatica(chaveCertidao, empresa.enderecoUf)) {
+    return {
+      erro:
+        "Esta certidão não tem emissão automática" +
+        (empresa.enderecoUf ? ` para ${empresa.enderecoUf}` : "") +
+        ". Emita pelo site do órgão e anexe o arquivo aqui.",
+    };
+  }
+
+  const emissao = await emitirCertidao({
+    chaveCertidao,
+    parte: { documento: empresa.documento, nome: empresa.nome, uf: empresa.enderecoUf },
+    // É isto que separa o gasto desta solução do gasto das outras, mesmo a
+    // conta da Infosimples sendo uma só.
+    contexto: {
+      solucao: "COMPLIANCE_EMPRESA",
+      contaId: conta.id,
+      referencia: `${definicao.nome} — ${empresa.nome}`,
+    },
+  });
+
+  if (!emissao.ok) return { erro: `Não foi possível emitir: ${emissao.erro}` };
+
+  const { certidao } = emissao;
+
+  // Baixa o comprovante: o endereço devolvido pelo provedor expira.
+  const comprovanteUrl = certidao.comprovantes[0] ?? null;
+  let arquivo: Buffer | null = null;
+  let nomeArquivo: string | null = null;
+  let arquivoTipo: string | null = null;
+  let hash: string | null = null;
+
+  if (comprovanteUrl) {
+    try {
+      const baixado = await fetch(comprovanteUrl, { signal: AbortSignal.timeout(60_000) });
+      if (baixado.ok) {
+        const conteudo = Buffer.from(await baixado.arrayBuffer());
+        if (conteudo.length > 0 && conteudo.length <= 10 * 1024 * 1024) {
+          arquivo = conteudo;
+          arquivoTipo = baixado.headers.get("content-type")?.split(";")[0] ?? "application/pdf";
+          const extensao = arquivoTipo.includes("pdf") ? "pdf" : arquivoTipo.includes("html") ? "html" : "bin";
+          nomeArquivo = `${chaveCertidao.toLowerCase().replace(/_/g, "-")}-${Date.now()}.${extensao}`;
+          hash = crypto.createHash("sha256").update(conteudo).digest("hex");
+        }
+      }
+    } catch (erro) {
+      // Comprovante não baixado não invalida a consulta: o endereço e a
+      // resposta completa continuam guardados.
+      console.error("Comprovante da certidão não pôde ser baixado:", erro);
+    }
+  }
+
+  await prisma.complianceCertidao.create({
+    data: {
+      complianceEmpresaId,
+      tipo: chaveCertidao,
+      origem: "EMITIDA",
+      orgaoEmissor: definicao.orgao,
+      numero: certidao.numero,
+      resultado: certidao.resultado,
+      natureza: certidao.natureza,
+      apontamento: certidao.apontamento,
+      nomeArquivo,
+      arquivo,
+      arquivoTipo,
+      hashSha256: hash,
+      emissaoAutomatica: true,
+      comprovanteUrl,
+      dadosConsulta: (certidao.bruto ?? undefined) as never,
+      emitidaEm: new Date(),
+      validaAte: new Date(Date.now() + definicao.validadeDias * 86400000),
+    },
+  });
+
+  revalidatePath(`/compliance/painel/empresas/${complianceEmpresaId}`);
+  return { ok: true };
+}
 
 export async function anexarCertidao(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
   const { conta } = await exigirEdicaoCompliance();
@@ -280,12 +399,16 @@ export async function gerarRelatorio(_anterior: ResultadoAcao, dados: FormData):
             resumo: c.resumo,
             consultadaEm: c.concluidaEm ?? c.criadoEm,
           })) ?? [],
+        // O resultado vai como está gravado. Certidão apresentada e nunca
+        // conferida fica "PENDENTE" — antes daqui saía "NADA_CONSTA" fixo, o
+        // que fazia o relatório assinado afirmar, sobre um arquivo que ninguém
+        // leu, exatamente aquilo que ele não podia afirmar.
         certidoes: certidoes.map((c) => ({
-          nome: c.tipo,
-          orgao: c.origem === "EMITIDA" ? "Emitida na fonte" : "Apresentada pela empresa",
-          resultado: "NADA_CONSTA",
-          natureza: "NENHUMA",
-          apontamento: null,
+          nome: CERTIDAO_POR_CHAVE[c.tipo]?.nome ?? c.tipo,
+          orgao: c.orgaoEmissor ?? (c.origem === "EMITIDA" ? "Emitida na fonte" : "Apresentada pela empresa"),
+          resultado: c.resultado,
+          natureza: c.natureza,
+          apontamento: c.apontamento,
           emitidaEm: c.emitidaEm,
           validaAte: c.validaAte,
           obrigatoria: false,

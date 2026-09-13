@@ -21,6 +21,7 @@
 import type { ResultadoFonte } from "../tipos";
 import { somenteNumeros } from "@/lib/validacao";
 import { servicoPara, type ServicoInfosimples } from "./infosimples-servicos";
+import { registrarUsoConsulta, type ContextoConsulta } from "@/lib/consultas/uso";
 
 const BASE_PADRAO = "https://api.infosimples.com/api/v2/consultas";
 
@@ -240,6 +241,12 @@ function extrairNumeroPedido(registros: Array<Record<string, unknown>>, campo: s
 export async function emitirCertidao(params: {
   chaveCertidao: string;
   parte: DadosDaParte;
+  /**
+   * De quem é este gasto. A conta da Infosimples é uma só para a plataforma
+   * inteira, então é aqui que se diz de qual solução saiu a consulta — sem
+   * isso não há como saber quanto cada solução custa. Ver `consultas/uso.ts`.
+   */
+  contexto?: ContextoConsulta;
 }): Promise<{ ok: true; certidao: CertidaoEmitida } | { ok: false; erro: string }> {
   const servico = servicoPara(params.chaveCertidao, params.parte.uf ?? null);
 
@@ -257,7 +264,18 @@ export async function emitirCertidao(params: {
 
   // ----- primeira etapa -----
   const primeira = await chamar(servico.caminho, montagem.parametros);
-  if (!primeira.ok) return { ok: false, erro: primeira.erro };
+  if (!primeira.ok) {
+    // Falha também é consumo de atenção — e algumas falham depois de o
+    // provedor já ter cobrado. Fica registrada com o erro, sem custo.
+    await registrarUsoConsulta({
+      provedor: "INFOSIMPLES",
+      servico: params.chaveCertidao,
+      documento: params.parte.documento,
+      contexto: params.contexto,
+      erro: primeira.erro,
+    });
+    return { ok: false, erro: primeira.erro };
+  }
 
   let resposta = primeira.resposta;
   let registros = Array.isArray(resposta.data) ? resposta.data : [];
@@ -296,6 +314,14 @@ export async function emitirCertidao(params: {
     if (resposta.header?.price) custo = resposta.header.price;
   }
 
+  await registrarUsoConsulta({
+    provedor: "INFOSIMPLES",
+    servico: params.chaveCertidao,
+    documento: params.parte.documento,
+    custoBruto: custo,
+    contexto: params.contexto,
+  });
+
   const leitura = interpretar(registros);
   const ehMandado = params.chaveCertidao === "BNMP_MANDADO";
 
@@ -322,7 +348,10 @@ export async function emitirCertidao(params: {
 // ---------------------------------------------------------------------
 
 /** Consulta o banco nacional de mandados de prisão durante a auditoria. */
-export async function consultarMandadosPrisao(parte: DadosDaParte): Promise<ResultadoFonte> {
+export async function consultarMandadosPrisao(
+  parte: DadosDaParte,
+  contexto?: ContextoConsulta
+): Promise<ResultadoFonte> {
   if (!infosimplesConfigurado()) {
     return {
       fonte: "BNMP",
@@ -351,7 +380,7 @@ export async function consultarMandadosPrisao(parte: DadosDaParte): Promise<Resu
     };
   }
 
-  const emissao = await emitirCertidao({ chaveCertidao: "BNMP_MANDADO", parte });
+  const emissao = await emitirCertidao({ chaveCertidao: "BNMP_MANDADO", parte, contexto });
 
   if (!emissao.ok) {
     return {
@@ -404,7 +433,10 @@ export async function consultarMandadosPrisao(parte: DadosDaParte): Promise<Resu
 }
 
 /** Consulta improbidade administrativa e inelegibilidade no CNJ. */
-export async function consultarImprobidade(parte: DadosDaParte): Promise<ResultadoFonte> {
+export async function consultarImprobidade(
+  parte: DadosDaParte,
+  contexto?: ContextoConsulta
+): Promise<ResultadoFonte> {
   if (!infosimplesConfigurado()) {
     return {
       fonte: "IMPROBIDADE_CNJ",
@@ -414,7 +446,7 @@ export async function consultarImprobidade(parte: DadosDaParte): Promise<Resulta
     };
   }
 
-  const emissao = await emitirCertidao({ chaveCertidao: "IMPROBIDADE_CNJ", parte });
+  const emissao = await emitirCertidao({ chaveCertidao: "IMPROBIDADE_CNJ", parte, contexto });
 
   if (!emissao.ok) {
     return {

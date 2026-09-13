@@ -1392,12 +1392,30 @@ model ComplianceCertidao {
   complianceEmpresaId String
   complianceEmpresa   ComplianceEmpresa @relation(fields: [complianceEmpresaId], references: [id], onDelete: Cascade)
 
-  tipo   String // CERTIDAO_TRIBUTOS_FEDERAIS | CERTIDAO_FGTS | CNDT | CERTIDAO_FALENCIA_CONCORDATA | OUTRO
+  /// Chave do catalogo em src/lib/auditoria/certidoes.ts (CNDT, CND_FEDERAL,
+  /// PROTESTO...) ou um dos tipos antigos digitados a mao.
+  tipo   String
   origem String @default("APRESENTADA") // APRESENTADA | EMITIDA
+
+  orgaoEmissor String?
+  numero       String?
+
+  /// O que a certidao diz. PENDENTE e o estado de quem foi apenas anexado sem
+  /// ninguem declarar o conteudo — nunca pode ser lido como "nada consta".
+  resultado   String  @default("PENDENTE") // PENDENTE | NADA_CONSTA | CONSTA
+  natureza    String  @default("NENHUMA") // NENHUMA | PROCESSO_EM_CURSO | CONDENACAO | MANDADO_ABERTO | OUTRO
+  apontamento String?
 
   nomeArquivo String?
   arquivo     Bytes?
   arquivoTipo String?
+  hashSha256  String?
+
+  /// Emitida pelo sistema na fonte (Infosimples), nao apresentada pela empresa.
+  emissaoAutomatica Boolean @default(false)
+  comprovanteUrl    String?
+  /// Resposta crua da consulta, guardada como prova do que a fonte respondeu.
+  dadosConsulta     Json?
 
   emitidaEm DateTime?
   validaAte DateTime?
@@ -1405,6 +1423,43 @@ model ComplianceCertidao {
   criadoEm DateTime @default(now())
 
   @@index([complianceEmpresaId])
+}
+
+/// Consumo de consultas externas pagas (Infosimples, bureau de credito).
+///
+/// Mesmo desenho do UsoIa, e pelo mesmo motivo: o contrato com o provedor e
+/// unico para a plataforma inteira, mas cada consulta precisa dizer de qual
+/// solucao e de qual conta saiu — senao nao ha como saber quanto cada solucao
+/// custa nem quanto cobrar por ela.
+model UsoConsulta {
+  id String @id @default(cuid())
+
+  solucao    String?
+  contaId    String?
+  /// O que estava sendo consultado, para dar sentido a linha depois.
+  referencia String?
+
+  /// INFOSIMPLES | SERASA | ...
+  provedor String
+  /// Chave do servico consultado (CNDT, CND_FEDERAL, BUREAU_PJ...).
+  servico  String
+  /// CPF/CNPJ consultado — so digitos.
+  documento String?
+
+  /// Custo informado pelo proprio provedor na resposta, quando ele informa.
+  custo    Decimal? @db.Decimal(12, 6)
+  /// Moeda do custo ("BRL" na Infosimples).
+  moeda    String?
+
+  /// Preenchido quando a consulta falhou.
+  erro String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([criadoEm])
+  @@index([solucao, criadoEm])
+  @@index([contaId, criadoEm])
+  @@index([provedor, criadoEm])
 }
 
 /// Relatório de compliance gerado e guardado — arquivo e impressão digital,
