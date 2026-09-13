@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { CATALOGO_CERTIDOES, CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
-import { emitirCertidao, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
+import { emitirCertidao, temEmissaoAutomatica, type CredencialGovBr } from "@/lib/auditoria/fontes/infosimples";
+import { decifrar } from "@/lib/seguranca/cofre";
 import { exigirEdicaoCompliance } from "@/lib/compliance/sessao";
 import { somenteAlfanumerico, somenteNumeros, validarDocumento, validarEmail } from "@/lib/validacao";
 import { auditarEmpresaCompliance } from "@/lib/compliance/auditoria";
@@ -219,9 +220,24 @@ export async function emitirCertidaoCompliance(
     };
   }
 
+  // Certidão que exige gov.br sai com o certificado do PRÓPRIO cliente: é a
+  // credencial dele que o órgão reconhece, e é em nome dele que a certidão é
+  // emitida.
+  let credencial: CredencialGovBr | undefined;
+  if (conta.certificadoArquivo && conta.certificadoSenha) {
+    const senha = decifrar(conta.certificadoSenha);
+    if (!senha.ok) return { erro: senha.erro };
+    credencial = {
+      tipo: "certificado",
+      arquivoBase64: Buffer.from(conta.certificadoArquivo).toString("base64"),
+      senha: senha.texto,
+    };
+  }
+
   const emissao = await emitirCertidao({
     chaveCertidao,
     parte: { documento: empresa.documento, nome: empresa.nome, uf: empresa.enderecoUf },
+    credencial,
     // É isto que separa o gasto desta solução do gasto das outras, mesmo a
     // conta da Infosimples sendo uma só.
     contexto: {

@@ -123,6 +123,22 @@ export type DadosDaParte = {
   uf?: string | null;
 };
 
+/**
+ * Credencial gov.br usada para emitir onde o órgão exige login.
+ *
+ * Quem entra é o DONO da certidão, com a credencial dele — a plataforma não
+ * age no gov.br em nome de terceiro com credencial própria. Numa solução
+ * comercial, cada cliente envia o próprio certificado A1; na operação da
+ * própria casa, vale a credencial configurada no ambiente.
+ *
+ * A3 não entra aqui de propósito: ele vive num token ou cartão físico, que
+ * precisa estar plugado na máquina de quem assina — não há como um servidor
+ * usá-lo sozinho. Quem só tem A3 emite no site do órgão e anexa o arquivo.
+ */
+export type CredencialGovBr =
+  | { tipo: "certificado"; arquivoBase64: string; senha: string }
+  | { tipo: "login"; cpf: string; senha: string };
+
 export type CertidaoEmitida = {
   resultado: "NADA_CONSTA" | "CONSTA";
   natureza: "NENHUMA" | "PROCESSO_EM_CURSO" | "MANDADO_ABERTO" | "OUTRO";
@@ -138,7 +154,8 @@ export type CertidaoEmitida = {
 /** Monta os parâmetros que o serviço espera, e recusa quando falta algo. */
 function montarParametros(
   servico: ServicoInfosimples,
-  parte: DadosDaParte
+  parte: DadosDaParte,
+  credencial?: CredencialGovBr
 ): { ok: true; parametros: Record<string, string> } | { ok: false; erro: string } {
   const documento = somenteNumeros(parte.documento);
   const parametros: Record<string, string> = {};
@@ -181,25 +198,35 @@ function montarParametros(
   }
 
   if (servico.exigeGovBr) {
-    const cpf = (process.env.GOVBR_LOGIN_CPF ?? "").trim();
-    const senha = (process.env.GOVBR_LOGIN_SENHA ?? "").trim();
-    const certificado = (process.env.GOVBR_CERT_PKCS12 ?? "").trim();
-    const senhaCertificado = (process.env.GOVBR_CERT_SENHA ?? "").trim();
-
-    if (certificado && senhaCertificado) {
-      parametros.pkcs12_cert = certificado;
-      parametros.pkcs12_pass = senhaCertificado;
-    } else if (cpf && senha) {
-      parametros.login_cpf = cpf.replace(/\D/g, "");
-      parametros.login_senha = senha;
+    // A credencial do cliente vem primeiro: a certidão é dele, e é com o
+    // acesso dele que o órgão deve ser consultado. A do ambiente só atende a
+    // operação da própria casa, onde a Blackbird é a titular.
+    if (credencial?.tipo === "certificado") {
+      parametros.pkcs12_cert = credencial.arquivoBase64;
+      parametros.pkcs12_pass = credencial.senha;
+    } else if (credencial?.tipo === "login") {
+      parametros.login_cpf = credencial.cpf.replace(/\D/g, "");
+      parametros.login_senha = credencial.senha;
     } else {
-      return {
-        ok: false,
-        erro:
-          "Este tribunal só emite para quem está logado no gov.br, e nenhuma credencial está configurada no " +
-          "sistema. Emita pelo site do órgão e anexe o arquivo, ou peça à equipe para configurar o acesso gov.br " +
-          "(conta nível prata/ouro ou certificado digital A1).",
-      };
+      const cpf = (process.env.GOVBR_LOGIN_CPF ?? "").trim();
+      const senha = (process.env.GOVBR_LOGIN_SENHA ?? "").trim();
+      const certificado = (process.env.GOVBR_CERT_PKCS12 ?? "").trim();
+      const senhaCertificado = (process.env.GOVBR_CERT_SENHA ?? "").trim();
+
+      if (certificado && senhaCertificado) {
+        parametros.pkcs12_cert = certificado;
+        parametros.pkcs12_pass = senhaCertificado;
+      } else if (cpf && senha) {
+        parametros.login_cpf = cpf.replace(/\D/g, "");
+        parametros.login_senha = senha;
+      } else {
+        return {
+          ok: false,
+          erro:
+            "Este órgão só emite para quem está logado no gov.br. Envie o certificado digital A1 da empresa em " +
+            "Segurança, e o sistema passa a emitir sozinho — ou emita no site do órgão e anexe o arquivo aqui.",
+        };
+      }
     }
   }
 
@@ -293,6 +320,8 @@ export async function emitirCertidao(params: {
    * isso não há como saber quanto cada solução custa. Ver `consultas/uso.ts`.
    */
   contexto?: ContextoConsulta;
+  /** Credencial gov.br do titular da certidão, quando o órgão exige login. */
+  credencial?: CredencialGovBr;
 }): Promise<{ ok: true; certidao: CertidaoEmitida } | { ok: false; erro: string }> {
   const servico = servicoPara(params.chaveCertidao, params.parte.uf ?? null);
 
@@ -305,7 +334,7 @@ export async function emitirCertidao(params: {
     };
   }
 
-  const montagem = montarParametros(servico, params.parte);
+  const montagem = montarParametros(servico, params.parte, params.credencial);
   if (!montagem.ok) return montagem;
 
   // ----- primeira etapa -----

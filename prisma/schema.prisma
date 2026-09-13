@@ -1240,6 +1240,23 @@ model ComplianceConta {
   asaasCustomerId     String?
   asaasSubscriptionId String?
 
+  // ----- certificado digital A1 do proprio cliente -----
+  //
+  // Varias certidoes (a federal da Receita/PGFN e as do TJSP) so sao emitidas
+  // para quem esta logado no gov.br. Quem entra e o CLIENTE, com o
+  // certificado dele: a certidao sai em nome dele, sob a credencial dele, e a
+  // plataforma nunca usa credencial propria para agir por terceiro.
+  //
+  // O arquivo e a senha ficam CIFRADOS (AES-256-GCM, ver lib/seguranca/cofre).
+  // Nunca em texto puro, nem no banco nem em log.
+  certificadoArquivo   Bytes?
+  certificadoNome      String?
+  /// Senha do .pfx, cifrada. Formato: iv:tag:conteudo, em base64.
+  certificadoSenha     String?
+  /// Informada por quem envia — serve para avisar antes de vencer.
+  certificadoValidade  DateTime?
+  certificadoEnviadoEm DateTime?
+
   ativa        Boolean  @default(true)
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
