@@ -30,6 +30,17 @@ export async function auditarEmpresaCompliance(params: {
   const { resultado, fontes } = await avaliarComplianceEmpresa({
     documento: empresa.documento,
     nome: empresa.nome,
+    // Processos judiciais em que a empresa figura — busca por CNPJ no
+    // tribunal da sede. Vale o custo aqui porque é uma das perguntas centrais
+    // de um compliance, e o relatório promete responder.
+    processos: {
+      uf: empresa.enderecoUf,
+      contexto: {
+        solucao: "COMPLIANCE_EMPRESA",
+        contaId: complianceContaId,
+        referencia: `Processos judiciais — ${empresa.nome}`,
+      },
+    },
   });
 
   await prisma.complianceConsulta.createMany({

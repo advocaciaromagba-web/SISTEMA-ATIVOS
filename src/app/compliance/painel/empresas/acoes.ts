@@ -353,6 +353,7 @@ const ROTULO_FONTE: Record<string, string> = {
   CNEP: "CNEP",
   CEPIM: "CEPIM",
   BUREAU: "Bureau de crédito",
+  PROCESSOS_JUDICIAIS: "Processos judiciais (tribunal da sede)",
   CADASTRO: "Cadastro interno",
 };
 

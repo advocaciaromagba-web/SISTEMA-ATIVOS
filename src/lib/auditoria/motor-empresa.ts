@@ -14,6 +14,8 @@ import { consultarPunicoes } from "./fontes/transparencia";
 import { consultarSancoes } from "./fontes/sancoes";
 import { consultarDividaAtiva } from "./fontes/divida-ativa";
 import { consultarBureau } from "./fontes/bureau";
+import { consultarProcessosDaEmpresa } from "./fontes/processos-empresa";
+import type { ContextoConsulta } from "@/lib/consultas/uso";
 import { consolidar } from "./analise";
 import { somenteNumeros } from "@/lib/validacao";
 import type { ResultadoAuditoria, ResultadoFonte } from "./tipos";
@@ -22,11 +24,17 @@ export async function avaliarComplianceEmpresa(params: {
   documento: string;
   nome: string;
   valorReferencia?: number | null;
+  /**
+   * Busca dos processos judiciais em que a empresa figura. Fica opcional
+   * porque é consulta paga: quem chama decide se quer pagar por ela, e diz de
+   * qual solução sai o gasto.
+   */
+  processos?: { uf: string | null; contexto?: ContextoConsulta };
 }): Promise<{ resultado: ResultadoAuditoria; fontes: ResultadoFonte[] }> {
   const documento = somenteNumeros(params.documento);
   const valorReferencia = params.valorReferencia ?? null;
 
-  const [receita, punicoes, sancoes, dividaAtiva, bureau] = await Promise.all([
+  const [receita, punicoes, sancoes, dividaAtiva, bureau, processos] = await Promise.all([
     documento.length === 14 ? consultarReceita(documento) : Promise.resolve(null),
     documento ? consultarPunicoes(documento) : Promise.resolve([]),
     consultarSancoes(params.nome),
@@ -34,6 +42,13 @@ export async function avaliarComplianceEmpresa(params: {
       ? consultarDividaAtiva({ documento, tipoPessoa: "PJ", nome: params.nome, valorOperacao: valorReferencia })
       : Promise.resolve(null),
     documento ? consultarBureau(documento, "PJ", valorReferencia) : Promise.resolve(null),
+    documento && params.processos
+      ? consultarProcessosDaEmpresa({
+          documento,
+          uf: params.processos.uf,
+          contexto: params.processos.contexto,
+        })
+      : Promise.resolve(null),
   ]);
 
   const fontes: ResultadoFonte[] = [];
@@ -42,6 +57,7 @@ export async function avaliarComplianceEmpresa(params: {
   fontes.push(sancoes);
   if (dividaAtiva) fontes.push(dividaAtiva);
   if (bureau) fontes.push(bureau);
+  if (processos) fontes.push(processos);
 
   if (!documento) {
     fontes.push({
