@@ -12,7 +12,7 @@ export const metadata = {
   // busca, e ela ja comeca pelo nome da marca.
   title: { absolute: `${marca.nome} — compliance, due diligence e gestão de ativos` },
   description:
-    "Compliance de empresas e due diligence de pessoas para o mercado de ativos financeiros e commodities, " +
+    "Compliance e due diligence de empresas e pessoas para o mercado de ativos financeiros e commodities, " +
     "com verificação em fontes oficiais, conferência de documentos e gestão das operações.",
   robots: { index: true, follow: true },
 };
@@ -45,7 +45,7 @@ export default function Inicio() {
           </h1>
 
           <p className="serif mt-6 max-w-2xl text-lg leading-relaxed text-white/75">
-            Compliance de empresas e due diligence de pessoas para o mercado de ativos financeiros e commodities.
+            Compliance e due diligence de empresas e pessoas para o mercado de ativos financeiros e commodities.
             A contraparte verificada em fontes oficiais, os documentos conferidos, e a gestão dos ativos no mesmo
             lugar — com {documentos.length} documentos gerados a partir do cadastro.
           </p>

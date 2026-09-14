@@ -6,7 +6,7 @@ import { AbasSolucoes } from "./abas";
 export const metadata = {
   title: "Soluções",
   description:
-    "Compliance de empresas, due diligence de pessoas, verificação de documentos, análise de licitações e " +
+    "Compliance e due diligence de empresas e pessoas, verificação de documentos, análise de licitações e " +
     "gestão de ativos financeiros e commodities.",
   robots: { index: true, follow: true },
 };

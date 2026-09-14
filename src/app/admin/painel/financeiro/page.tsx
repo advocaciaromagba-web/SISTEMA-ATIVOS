@@ -22,9 +22,9 @@ const MODELOS_CONSULTA: { rotulo: string; modelo: string }[] = [
   { rotulo: "Gestão de ativos", modelo: "consulta" },
   { rotulo: "Licitações (empresa)", modelo: "licitanteConsulta" },
   { rotulo: "Licitações (participantes)", modelo: "participanteConsulta" },
-  { rotulo: "Compliance de empresas", modelo: "complianceConsulta" },
+  { rotulo: "Compliance e Due Diligence (empresas)", modelo: "complianceConsulta" },
   { rotulo: "Consulta cadastral", modelo: "serasaConsulta" },
-  { rotulo: "Due diligence de pessoas", modelo: "diligenciaConsulta" },
+  { rotulo: "Compliance e Due Diligence (pessoas)", modelo: "diligenciaConsulta" },
 ];
 
 export default async function FinanceiroAdmin() {
