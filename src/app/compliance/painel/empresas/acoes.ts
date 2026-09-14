@@ -397,6 +397,11 @@ export async function gerarRelatorio(_anterior: ResultadoAcao, dados: FormData):
 
   const certidoes = await prisma.complianceCertidao.findMany({ where: { complianceEmpresaId } });
 
+  // Os processos vêm da consulta guardada, não de uma nova busca: o relatório
+  // reflete o que foi apurado naquela auditoria, com a data dela.
+  const consultaProcessos = auditoria?.consultas.find((c) => c.fonte === "PROCESSOS_JUDICIAIS");
+  const { processos, avisoParcial } = extrairProcessos(consultaProcessos?.resultado);
+
   const diligencia: DadosDiligencia = {
     partes: [
       {
@@ -433,6 +438,8 @@ export async function gerarRelatorio(_anterior: ResultadoAcao, dados: FormData):
           obrigatoria: false,
           estado: c.validaAte && c.validaAte < new Date() ? "VENCIDA" : "OK",
         })),
+        processos,
+        processosParciais: avisoParcial,
       },
     ],
     responsavel: {
@@ -592,4 +599,51 @@ export async function reexecutarRelatorio(pedidoId: string): Promise<ResultadoAc
   const r = await executarRelatorioPago(pedidoId);
   revalidatePath(`/compliance/painel/empresas/${pedido.complianceEmpresaId}`);
   return r.ok ? { ok: true } : { erro: r.erro };
+}
+
+/**
+ * Tira a lista de processos de dentro da resposta guardada da consulta.
+ *
+ * A resposta crua é a prova do que o tribunal devolveu, e fica salva inteira.
+ * Aqui só se extrai o que vai para a tabela do relatório — e, quando a
+ * listagem foi cortada pelo limite de páginas, o aviso de que o número é um
+ * piso vai junto, para o documento não sugerir uma contagem fechada.
+ */
+function extrairProcessos(bruto: unknown): {
+  processos: Array<{ numero: string | null; classe: string | null; assunto: string | null; foro: string | null; vara: string | null }>;
+  avisoParcial: string | null;
+} {
+  const vazio = { processos: [], avisoParcial: null };
+  if (!bruto || typeof bruto !== "object") return vazio;
+
+  const dados = (bruto as { data?: unknown[] }).data;
+  const registro = Array.isArray(dados) ? (dados[0] as Record<string, unknown> | undefined) : undefined;
+  if (!registro) return vazio;
+
+  const lista = Array.isArray(registro.processos) ? (registro.processos as Record<string, unknown>[]) : [];
+  if (lista.length === 0) return vazio;
+
+  const ler = (r: Record<string, unknown>, chave: string) => {
+    const v = r[chave];
+    return typeof v === "string" && v.trim() ? v.trim() : null;
+  };
+
+  const paginas = Number(registro.paginas ?? 1) || 1;
+  // 25 processos por página é o tamanho que o TJSP devolve; se o total de
+  // páginas indica mais do que veio, a leitura foi cortada.
+  const parcial = paginas * 25 > lista.length + 24;
+
+  return {
+    processos: lista.map((p) => ({
+      numero: ler(p, "processo"),
+      classe: ler(p, "classe"),
+      assunto: ler(p, "assunto"),
+      foro: ler(p, "foro"),
+      vara: ler(p, "vara"),
+    })),
+    avisoParcial: parcial
+      ? `ATENÇÃO: a busca no tribunal devolveu ${paginas} páginas de resultado e a leitura parou antes do fim. ` +
+        `Os ${lista.length} processos acima são um piso, não a lista completa — há outros não relacionados aqui.`
+      : null,
+  };
 }

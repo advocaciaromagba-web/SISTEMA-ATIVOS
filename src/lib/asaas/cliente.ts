@@ -153,3 +153,40 @@ export async function criarCobrancaAvulsaAsaas(params: {
 export async function cancelarCobrancaAvulsaAsaas(asaasCobrancaId: string) {
   return chamar<{ deleted: boolean }>("DELETE", `/payments/${asaasCobrancaId}`);
 }
+
+// ---------------------------------------------------------------------
+// Consulta Serasa pela própria conta Asaas
+// ---------------------------------------------------------------------
+
+/**
+ * Relatório do Serasa Experian, comprado pela conta Asaas que já existe.
+ *
+ * O QUE ISTO DEVOLVE, E O QUE NÃO DEVOLVE: a API do Asaas entrega o relatório
+ * como PDF — `id`, data, documento consultado e o arquivo. Ela NÃO devolve os
+ * números separados em campos (score, quantidade de protestos, valor das
+ * pendências). Por isso este módulo guarda o documento oficial e o apresenta
+ * como prova, em vez de fingir que leu números que a API não informou.
+ * Ler o PDF com IA para extrair valores seria transformar suposição em dado
+ * de crédito, que é exatamente o que este sistema não faz.
+ *
+ * Preço divulgado pelo Asaas em 13/09/2026: R$ 16,99 por consulta. O acesso
+ * precisa ser liberado pelo gerente da conta antes da primeira chamada.
+ */
+export type ConsultaSerasaAsaas = {
+  id: string;
+  dateCreated?: string;
+  cpfCnpj?: string;
+  customer?: string;
+  downloadReport?: string;
+  /** PDF em base64 — só vem na criação da consulta. */
+  reportFile?: string;
+};
+
+export async function consultarSerasaPeloAsaas(params: { documento?: string; asaasCustomerId?: string }) {
+  const corpo: Record<string, unknown> = {};
+  if (params.asaasCustomerId) corpo.customer = params.asaasCustomerId;
+  else if (params.documento) corpo.cpfCnpj = params.documento.replace(/\D/g, "");
+  else return { ok: false as const, erro: "Informe o documento ou o cliente para consultar." };
+
+  return chamar<ConsultaSerasaAsaas>("POST", "/creditBureauReport", corpo);
+}

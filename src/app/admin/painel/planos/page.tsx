@@ -5,7 +5,8 @@ import { todosOsPlanosDaSolucao, configuracaoDaSolucao } from "@/lib/planos-solu
 import { moeda } from "@/lib/formato";
 import { custoIaPorSolucaoDesde } from "@/lib/ia/custo";
 import { cotacaoDolarComCache } from "@/lib/cambio";
-import { FormularioPlano, FormularioConfiguracao } from "./formularios";
+import { FormularioPlano, FormularioConfiguracao, FormularioPrecoRelatorio } from "./formularios";
+import { precoDoRelatorio } from "@/lib/compliance/relatorio-pago";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export default async function PlanosAdmin() {
   inicioDoMes.setHours(0, 0, 0, 0);
   const custoIaPorSolucao = await custoIaPorSolucaoDesde(inicioDoMes);
   const cotacao = await cotacaoDolarComCache();
+  const precoRelatorio = await precoDoRelatorio();
 
   const solucoes = await Promise.all(
     SOLUCOES_ADMIN.map(async (s) => ({
@@ -122,6 +124,13 @@ export default async function PlanosAdmin() {
               consultasGratisTeste={s.config.consultasGratisTeste}
             />
           </div>
+
+          {s.chave === "COMPLIANCE_EMPRESA" && (
+            <div className="cartao">
+              <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Venda por peça</p>
+              <FormularioPrecoRelatorio preco={precoRelatorio} />
+            </div>
+          )}
 
           {s.planos.length === 0 ? (
             <div className="cartao text-sm text-slate-500">

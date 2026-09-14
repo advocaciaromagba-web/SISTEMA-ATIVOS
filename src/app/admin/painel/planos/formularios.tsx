@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { salvarPlano, salvarConfiguracao, type ResultadoPlano } from "./acoes";
+import { salvarPlano, salvarConfiguracao, salvarPrecoRelatorio, type ResultadoPlano } from "./acoes";
 
 const INICIAL: ResultadoPlano = {};
 
@@ -151,6 +151,36 @@ export function FormularioConfiguracao({
       <button type="submit" className="botao-principal">
         Salvar
       </button>
+      <div className="w-full">
+        <Recado estado={estado} />
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Preço do relatório de compliance, vendido por peça.
+ *
+ * Aparece só na solução de Compliance, porque é a única que hoje vende por
+ * unidade em vez de assinatura.
+ */
+export function FormularioPrecoRelatorio({ preco }: { preco: number }) {
+  const [estado, acao] = useActionState(salvarPrecoRelatorio, INICIAL);
+
+  return (
+    <form action={acao} className="flex flex-wrap items-end gap-3">
+      <div>
+        <label className="rotulo">Preço do relatório completo (R$)</label>
+        <input name="preco" className="campo w-36" inputMode="decimal" defaultValue={preco.toFixed(2).replace(".", ",")} />
+      </div>
+      <button type="submit" className="botao-principal">
+        Salvar preço
+      </button>
+      <p className="w-full text-xs text-slate-500">
+        Cobrado por relatório emitido. Cada pedido guarda o preço do momento da compra — mudar aqui não altera o
+        que já foi vendido. Nas medições feitas até agora, as consultas de um relatório custam entre R$ 0,72 e
+        R$ 5,00, fora o bureau de crédito, que sai por R$ 16,99 quando estiver ligado.
+      </p>
       <div className="w-full">
         <Recado estado={estado} />
       </div>

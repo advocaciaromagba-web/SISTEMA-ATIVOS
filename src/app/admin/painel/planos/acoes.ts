@@ -131,3 +131,41 @@ export async function salvarConfiguracao(_anterior: ResultadoPlano, dados: FormD
   revalidatePath("/admin/painel/planos");
   return { ok: "Regras de teste salvas." };
 }
+
+/**
+ * Preço do relatório de compliance vendido por peça.
+ *
+ * Fica separado dos planos porque não é assinatura: é venda unitária, e o
+ * valor é congelado em cada pedido no momento da compra — mudar aqui não mexe
+ * no que já foi vendido.
+ */
+export async function salvarPrecoRelatorio(_anterior: ResultadoPlano, dados: FormData): Promise<ResultadoPlano> {
+  const admin = await exigirSessaoAdmin();
+
+  const bruto = (dados.get("preco") ?? "").toString().replace(/\./g, "").replace(",", ".").trim();
+  const preco = Number(bruto);
+
+  if (!Number.isFinite(preco) || preco <= 0) return { erro: "Informe um preço válido, maior que zero." };
+  if (preco > 100000) return { erro: "Preço acima do limite — confira se digitou certo." };
+
+  const anterior = await prisma.configAdmin.findUnique({ where: { chave: "compliance_preco_relatorio" } });
+
+  await prisma.configAdmin.upsert({
+    where: { chave: "compliance_preco_relatorio" },
+    create: { chave: "compliance_preco_relatorio", valor: String(preco) },
+    update: { valor: String(preco) },
+  });
+
+  await registrarAcaoAdmin({
+    admin,
+    acao: "CONFIGURAR",
+    solucao: "COMPLIANCE_EMPRESA",
+    alvoTipo: "PRECO_RELATORIO",
+    alvoId: "compliance_preco_relatorio",
+    resumo: `Definiu o preço do relatório de compliance em R$ ${preco.toFixed(2)}.`,
+    detalhe: { antes: anterior?.valor ?? null, depois: String(preco) },
+  });
+
+  revalidatePath("/admin/painel/planos");
+  return { ok: "Preço do relatório salvo." };
+}

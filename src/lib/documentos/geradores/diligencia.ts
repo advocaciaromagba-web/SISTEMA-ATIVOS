@@ -56,6 +56,20 @@ export type ParteDiligenciada = {
     obrigatoria: boolean;
     estado: string;
   }>;
+  /**
+   * Processos em que a parte figura, quando houve busca por documento. Lista
+   * o que existe; não julga. Processo em curso não é condenação, e volume
+   * alto é rotina em empresa grande — a leitura é de quem assina.
+   */
+  processos?: Array<{
+    numero: string | null;
+    classe: string | null;
+    assunto: string | null;
+    foro: string | null;
+    vara: string | null;
+  }>;
+  /** Aviso quando a listagem foi cortada por limite — o total é um piso. */
+  processosParciais?: string | null;
 };
 
 export type DadosDiligencia = {
@@ -282,6 +296,34 @@ export function gerarRelatorioDiligencia(ctx: ContextoDocumento): MontagemDocume
           ])
         )
       );
+      corpo.push(espaco(240));
+    }
+
+    // ----- processos judiciais -----
+    if (parte.processos && parte.processos.length > 0) {
+      corpo.push(paragrafo("Processos judiciais encontrados:", { negrito: true, espacoDepois: 120 }));
+      corpo.push(
+        paragrafo(
+          "A lista abaixo mostra os processos em que a parte figura, como constam no sistema do tribunal. " +
+            "Processo em curso NÃO é condenação (Constituição, art. 5º, LVII), e a existência de ações não " +
+            "significa, por si só, irregularidade — o que pesa é a natureza de cada uma.",
+          { espacoDepois: 120 }
+        )
+      );
+      corpo.push(
+        tabela(
+          ["Processo", "Classe", "Assunto", "Vara / foro"],
+          parte.processos.map((p) => [
+            p.numero ?? "—",
+            p.classe ?? "—",
+            p.assunto ?? "—",
+            [p.vara, p.foro].filter(Boolean).join(" — ") || "—",
+          ])
+        )
+      );
+      if (parte.processosParciais) {
+        corpo.push(paragrafo(parte.processosParciais, { negrito: true, espacoDepois: 120 }));
+      }
       corpo.push(espaco(240));
     }
 

@@ -18,6 +18,25 @@ import { emitirCertidao, temEmissaoAutomatica, type CredencialGovBr } from "@/li
 import { CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
 import { decifrar } from "@/lib/seguranca/cofre";
 import crypto from "crypto";
+import { consultarSerasaPeloAsaas } from "@/lib/asaas/cliente";
+import { registrarUsoConsulta } from "@/lib/consultas/uso";
+
+/**
+ * Preco de tabela da consulta Serasa pelo Asaas, divulgado por eles e
+ * conferido na pagina de precos em 13/09/2026. A resposta da API nao informa
+ * o valor cobrado, entao ele entra por aqui — e precisa ser revisto se o
+ * Asaas mudar a tabela.
+ */
+const PRECO_SERASA_ASAAS = 16.99;
+
+/**
+ * O Serasa pelo Asaas so entra quando alguem liga explicitamente. E a consulta
+ * mais cara do relatorio (mais de vinte vezes o custo de todas as certidoes
+ * somadas), e ligar sozinho seria decidir gasto no lugar de quem paga.
+ */
+function serasaPeloAsaasLigado(): boolean {
+  return (process.env.SERASA_VIA_ASAAS ?? "").trim().toLowerCase() === "true";
+}
 
 /** Certidões que entram no relatório completo, na ordem em que fazem falta. */
 const CERTIDOES_DO_RELATORIO = [
@@ -170,7 +189,62 @@ export async function executarRelatorioPago(pedidoId: string): Promise<{ ok: boo
       });
     }
 
-    // ----- 2. auditoria completa, já com processos judiciais -----
+    // ----- 2. relatório do Serasa, quando o acesso está liberado -----
+    if (serasaPeloAsaasLigado()) {
+      const serasa = await consultarSerasaPeloAsaas({ documento: pedido.empresa.documento });
+
+      await registrarUsoConsulta({
+        provedor: "SERASA_ASAAS",
+        servico: "RELATORIO_SERASA",
+        documento: pedido.empresa.documento,
+        // O Asaas não devolve o preço na resposta; o valor é o de tabela,
+        // divulgado por eles e confirmado na página de preços.
+        custoBruto: serasa.ok ? String(PRECO_SERASA_ASAAS) : null,
+        contexto,
+        erro: serasa.ok ? null : serasa.erro,
+      });
+
+      if (serasa.ok) {
+        const pdf = serasa.dados.reportFile ? Buffer.from(serasa.dados.reportFile, "base64") : null;
+        await prisma.complianceCertidao.create({
+          data: {
+            complianceEmpresaId: pedido.complianceEmpresaId,
+            tipo: "RELATORIO_SERASA",
+            origem: "EMITIDA",
+            orgaoEmissor: "Serasa Experian (via Asaas)",
+            numero: serasa.dados.id,
+            // A API entrega o documento, não os números separados. Declarar
+            // "nada consta" aqui seria afirmar o que ninguém leu.
+            resultado: "PENDENTE",
+            apontamento:
+              "Relatório do Serasa anexado. O provedor entrega o documento em PDF, sem os números em campos " +
+              "separados — leia o anexo para score, pendências e protestos.",
+            nomeArquivo: pdf ? `serasa-${Date.now()}.pdf` : null,
+            arquivo: pdf,
+            arquivoTipo: pdf ? "application/pdf" : null,
+            hashSha256: pdf ? crypto.createHash("sha256").update(pdf).digest("hex") : null,
+            emissaoAutomatica: true,
+            comprovanteUrl: serasa.dados.downloadReport ?? null,
+            emitidaEm: new Date(),
+            validaAte: new Date(Date.now() + 30 * 86400000),
+          },
+        });
+      } else {
+        await prisma.complianceCertidao.create({
+          data: {
+            complianceEmpresaId: pedido.complianceEmpresaId,
+            tipo: "RELATORIO_SERASA",
+            origem: "EMITIDA",
+            orgaoEmissor: "Serasa Experian (via Asaas)",
+            resultado: "PENDENTE",
+            apontamento: `Não foi possível consultar o Serasa nesta data: ${serasa.erro}`,
+            emissaoAutomatica: true,
+          },
+        });
+      }
+    }
+
+    // ----- 3. auditoria completa, já com processos judiciais -----
     const usuario = pedido.solicitadoPorId
       ? await prisma.complianceUsuario.findUnique({ where: { id: pedido.solicitadoPorId } })
       : null;
@@ -184,7 +258,7 @@ export async function executarRelatorioPago(pedidoId: string): Promise<{ ok: boo
       referenciaDoGasto: contexto.referencia,
     });
 
-    // ----- 3. quanto este relatório custou de verdade -----
+    // ----- 4. quanto este relatório custou de verdade -----
     const gastos = await prisma.usoConsulta.findMany({
       where: { referencia: contexto.referencia },
       select: { custo: true },
