@@ -15,6 +15,12 @@ export async function auditarEmpresaCompliance(params: {
   empresa: ComplianceEmpresa;
   usuario: ComplianceUsuario;
   complianceContaId: string;
+  /**
+   * Como marcar o gasto desta auditoria. Quando ela faz parte de um relatório
+   * vendido por peça, a referência é a do pedido — é assim que o custo das
+   * consultas volta somado no relatório certo, em vez de ficar solto.
+   */
+  referenciaDoGasto?: string;
 }): Promise<{ auditoriaId: string; resultado: ResultadoAuditoria }> {
   const { empresa, usuario, complianceContaId } = params;
 
@@ -38,7 +44,7 @@ export async function auditarEmpresaCompliance(params: {
       contexto: {
         solucao: "COMPLIANCE_EMPRESA",
         contaId: complianceContaId,
-        referencia: `Processos judiciais — ${empresa.nome}`,
+        referencia: params.referenciaDoGasto ?? `Processos judiciais — ${empresa.nome}`,
       },
     },
   });

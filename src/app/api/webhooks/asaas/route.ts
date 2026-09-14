@@ -3,6 +3,7 @@ import { modelo } from "@/lib/modelo-prisma";
 import { prisma } from "@/lib/prisma";
 import { CONTA_DA_SOLUCAO } from "@/lib/assinatura-solucao";
 import { aplicarPagamentoPedido } from "@/app/painel/avulsos/acoes";
+import { executarRelatorioPago } from "@/lib/compliance/relatorio-pago";
 
 /**
  * Recebe a confirmação de pagamento do Asaas — é o único jeito de uma
@@ -82,11 +83,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // Cobrança avulsa (pedido único — hoje só a Gestão de Ativos vende assim).
+  // Cobrança avulsa (pedido único — hoje a Gestão de Ativos e o relatório de
+  // compliance vendido por peça).
   if (EVENTOS_CONFIRMACAO.has(evento)) {
     const pedido = await prisma.pedido.findFirst({ where: { asaasCobrancaId: paymentId } });
     if (pedido) {
       await aplicarPagamentoPedido(pedido.id, mapearFormaPagamento(billingType));
+      return NextResponse.json({ ok: true });
+    }
+
+    const relatorio = await prisma.complianceRelatorioPedido.findFirst({
+      where: { asaasCobrancaId: paymentId, situacao: "AGUARDANDO_PAGAMENTO" },
+    });
+
+    if (relatorio) {
+      await prisma.complianceRelatorioPedido.update({
+        where: { id: relatorio.id },
+        data: { situacao: "PAGO", pagoEm: new Date(), formaPagamento: mapearFormaPagamento(billingType) },
+      });
+
+      // A execução leva minutos (certidão de tribunal, paginação de
+      // processos) e o Asaas precisa de resposta rápida — se demorar, ele
+      // reenvia o evento. Por isso solta aqui e não espera: o pedido guarda
+      // em que pé está, e um pago que ficou parado pode ser rodado de novo
+      // sem cobrar outra vez.
+      void executarRelatorioPago(relatorio.id).catch((erro) => {
+        console.error("Execução do relatório de compliance falhou:", erro);
+      });
     }
   }
 

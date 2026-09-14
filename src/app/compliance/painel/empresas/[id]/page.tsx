@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { exigirSessaoCompliance } from "@/lib/compliance/sessao";
 import { formatarDocumento } from "@/lib/validacao";
-import { dataCurta } from "@/lib/formato";
+import { dataCurta, moeda } from "@/lib/formato";
 import { FormularioCertidao } from "./certidao-form";
 import { FormularioRelatorio } from "./relatorio-form";
 import { BotaoReauditar } from "./reauditar-botao";
 import { LiberacaoEmpresa } from "./liberacao";
 import { EmitirCertidoes, type CertidaoDisponivel } from "./emitir-certidoes";
+import { RelatorioPago } from "./relatorio-pago";
+import { precoDoRelatorio } from "@/lib/compliance/relatorio-pago";
 import { CATALOGO_CERTIDOES } from "@/lib/auditoria/certidoes";
 import { infosimplesConfigurado, temEmissaoAutomatica } from "@/lib/auditoria/fontes/infosimples";
 
@@ -68,12 +70,14 @@ export default async function DetalheEmpresa(props: { params: Promise<{ id: stri
     where: { id: params.id, complianceContaId: conta.id },
     include: {
       certidoes: { orderBy: { criadoEm: "desc" } },
+      pedidosRelatorio: { orderBy: { criadoEm: "desc" }, take: 5 },
       documentos: { orderBy: { criadoEm: "desc" } },
       auditorias: { orderBy: { criadoEm: "desc" }, take: 1 },
     },
   });
   if (!empresa) notFound();
 
+  const preco = await precoDoRelatorio();
   const ultimaAuditoria = empresa.auditorias[0] ?? null;
   const apontamentos = (ultimaAuditoria?.apontamentos as unknown as Apontamento[] | null) ?? [];
 
@@ -197,9 +201,28 @@ export default async function DetalheEmpresa(props: { params: Promise<{ id: stri
           />
         </section>
 
+        {/* ---- relatório completo, vendido por peça ---- */}
+        <section className="cartao">
+          <h2 className="mb-1 text-base font-semibold">Relatório completo</h2>
+          <RelatorioPago
+            complianceEmpresaId={empresa.id}
+            preco={moeda(preco)}
+            pedidos={empresa.pedidosRelatorio.map((p) => ({
+              id: p.id,
+              numero: p.numero,
+              situacao: p.situacao,
+              valor: moeda(Number(p.valor)),
+              linkPagamento: p.linkPagamento,
+              erro: p.erro,
+              criadoEm: dataCurta(p.criadoEm),
+              entregueEm: p.entregueEm ? dataCurta(p.entregueEm) : null,
+            }))}
+          />
+        </section>
+
         {/* ---- relatório assinado ---- */}
         <section className="cartao">
-          <h2 className="mb-1 text-base font-semibold">Relatório de compliance</h2>
+          <h2 className="mb-1 text-base font-semibold">Gerar documento da última auditoria</h2>
           <p className="mb-4 text-sm text-slate-500">
             Consolida o resultado da auditoria num documento assinado, com o que não foi possível verificar no
             mesmo destaque do resto.

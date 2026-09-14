@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { CATALOGO_CERTIDOES, CERTIDAO_POR_CHAVE } from "@/lib/auditoria/certidoes";
 import { emitirCertidao, temEmissaoAutomatica, type CredencialGovBr } from "@/lib/auditoria/fontes/infosimples";
 import { decifrar } from "@/lib/seguranca/cofre";
+import { asaasConfigurado, criarClienteAsaas, criarCobrancaAvulsaAsaas } from "@/lib/asaas/cliente";
+import { precoDoRelatorio, executarRelatorioPago } from "@/lib/compliance/relatorio-pago";
 import { exigirEdicaoCompliance } from "@/lib/compliance/sessao";
 import { somenteAlfanumerico, somenteNumeros, validarDocumento, validarEmail } from "@/lib/validacao";
 import { auditarEmpresaCompliance } from "@/lib/compliance/auditoria";
@@ -470,4 +472,124 @@ export async function gerarRelatorio(_anterior: ResultadoAcao, dados: FormData):
 
   revalidatePath(`/compliance/painel/empresas/${complianceEmpresaId}`);
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// Relatório completo vendido por peça
+// ---------------------------------------------------------------------
+
+/** Próximo número do pedido de relatório, por conta: RC-0001. */
+async function proximoNumeroRelatorio(complianceContaId: string): Promise<string> {
+  const ultimo = await prisma.complianceRelatorioPedido.findFirst({
+    where: { complianceContaId },
+    orderBy: { criadoEm: "desc" },
+    select: { numero: true },
+  });
+  const atual = Number(ultimo?.numero?.replace(/\D/g, "") ?? 0);
+  return `RC-${String(atual + 1).padStart(4, "0")}`;
+}
+
+/**
+ * Pede o relatório completo de uma empresa e gera a cobrança.
+ *
+ * Nada é consultado agora: o pedido nasce aguardando pagamento, e as consultas
+ * pagas (certidões, processos) só rodam quando o webhook do Asaas confirmar
+ * que o dinheiro entrou. É o que separa vender por peça de trabalhar de graça.
+ */
+export async function pedirRelatorioCompleto(complianceEmpresaId: string): Promise<ResultadoAcao> {
+  const { usuario, conta } = await exigirEdicaoCompliance();
+
+  const empresa = await prisma.complianceEmpresa.findFirst({
+    where: { id: complianceEmpresaId, complianceContaId: conta.id },
+  });
+  if (!empresa) return { erro: "Empresa não encontrada." };
+  if (!empresa.documento) return { erro: "Cadastre o CNPJ da empresa antes de pedir o relatório." };
+
+  const jaEmAndamento = await prisma.complianceRelatorioPedido.findFirst({
+    where: {
+      complianceEmpresaId,
+      situacao: { in: ["AGUARDANDO_PAGAMENTO", "PAGO", "EM_EXECUCAO"] },
+    },
+  });
+  if (jaEmAndamento) {
+    return {
+      erro:
+        jaEmAndamento.situacao === "AGUARDANDO_PAGAMENTO"
+          ? `Já existe o pedido ${jaEmAndamento.numero} aguardando pagamento para esta empresa.`
+          : `O pedido ${jaEmAndamento.numero} desta empresa já está em andamento.`,
+    };
+  }
+
+  if (!asaasConfigurado()) return { erro: "Pagamento não configurado no momento. Tente novamente mais tarde." };
+
+  const valor = await precoDoRelatorio();
+
+  // Cliente Asaas da conta — criado na primeira compra, reaproveitado depois.
+  let asaasCustomerId = conta.asaasCustomerId;
+  if (!asaasCustomerId) {
+    if (!conta.documento) {
+      return { erro: "Informe o CNPJ da sua empresa em Assinatura antes de comprar — ele é obrigatório na cobrança." };
+    }
+    const criado = await criarClienteAsaas({
+      nome: conta.nome,
+      email: conta.emailContato || usuario.email,
+      documento: conta.documento,
+      referenciaExterna: `COMPLIANCE_EMPRESA:${conta.id}`,
+    });
+    if (!criado.ok) return { erro: `Não foi possível cadastrar o pagamento: ${criado.erro}` };
+
+    asaasCustomerId = criado.dados.id;
+    await prisma.complianceConta.update({ where: { id: conta.id }, data: { asaasCustomerId } });
+  }
+
+  const pedido = await prisma.complianceRelatorioPedido.create({
+    data: {
+      complianceContaId: conta.id,
+      complianceEmpresaId,
+      numero: await proximoNumeroRelatorio(conta.id),
+      situacao: "AGUARDANDO_PAGAMENTO",
+      valor,
+      solicitadoPorId: usuario.id,
+    },
+  });
+
+  const vencimento = new Date();
+  vencimento.setDate(vencimento.getDate() + 3);
+
+  const cobranca = await criarCobrancaAvulsaAsaas({
+    asaasCustomerId,
+    valor,
+    formaPagamento: "PIX",
+    vencimentoEm: vencimento.toISOString().slice(0, 10),
+    descricao: `${pedido.numero} — Relatório de compliance: ${empresa.nome}`,
+    referenciaExterna: `RELATORIO:COMPLIANCE_EMPRESA:${pedido.id}`,
+  });
+
+  if (!cobranca.ok) {
+    await prisma.complianceRelatorioPedido.delete({ where: { id: pedido.id } });
+    return { erro: `Não foi possível gerar a cobrança: ${cobranca.erro}` };
+  }
+
+  await prisma.complianceRelatorioPedido.update({
+    where: { id: pedido.id },
+    data: { asaasCobrancaId: cobranca.dados.id, linkPagamento: cobranca.dados.invoiceUrl },
+  });
+
+  revalidatePath(`/compliance/painel/empresas/${complianceEmpresaId}`);
+  return { ok: true };
+}
+
+/** Manda rodar de novo um relatório já pago que falhou no meio — sem cobrar outra vez. */
+export async function reexecutarRelatorio(pedidoId: string): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoCompliance();
+
+  const pedido = await prisma.complianceRelatorioPedido.findFirst({
+    where: { id: pedidoId, complianceContaId: conta.id },
+  });
+  if (!pedido) return { erro: "Pedido não encontrado." };
+  if (pedido.situacao !== "PAGO") return { erro: "Só um pedido pago e parado pode ser gerado de novo." };
+
+  const r = await executarRelatorioPago(pedidoId);
+  revalidatePath(`/compliance/painel/empresas/${pedido.complianceEmpresaId}`);
+  return r.ok ? { ok: true } : { erro: r.erro };
 }

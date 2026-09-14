@@ -1261,8 +1261,9 @@ model ComplianceConta {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  usuarios ComplianceUsuario[]
-  empresas ComplianceEmpresa[]
+  usuarios         ComplianceUsuario[]
+  empresas         ComplianceEmpresa[]
+  pedidosRelatorio ComplianceRelatorioPedido[]
 
   @@index([statusAssinatura])
 }
@@ -1344,9 +1345,10 @@ model ComplianceEmpresa {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  certidoes  ComplianceCertidao[]
-  auditorias ComplianceAuditoria[]
-  documentos ComplianceDocumento[]
+  certidoes        ComplianceCertidao[]
+  auditorias       ComplianceAuditoria[]
+  documentos       ComplianceDocumento[]
+  pedidosRelatorio ComplianceRelatorioPedido[]
 
   @@index([complianceContaId])
   @@index([complianceContaId, documento])
@@ -1440,6 +1442,55 @@ model ComplianceCertidao {
   criadoEm DateTime @default(now())
 
   @@index([complianceEmpresaId])
+}
+
+/// Pedido de relatorio de compliance vendido por peca.
+///
+/// O relatorio completo consulta fontes pagas (certidoes, processos, bureau),
+/// e por isso NAO roda antes de o pagamento entrar: o pedido nasce aguardando
+/// pagamento, o webhook do Asaas confirma, e so entao as consultas acontecem.
+/// A ordem importa — rodar antes de pagar seria entregar o custo e torcer.
+model ComplianceRelatorioPedido {
+  id                  String            @id @default(cuid())
+  complianceContaId   String
+  conta               ComplianceConta   @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
+  complianceEmpresaId String
+  empresa             ComplianceEmpresa @relation(fields: [complianceEmpresaId], references: [id], onDelete: Cascade)
+
+  /// Numero curto e sequencial por conta: RC-0001.
+  numero String
+
+  /// AGUARDANDO_PAGAMENTO | PAGO | EM_EXECUCAO | ENTREGUE | CANCELADO | FALHOU
+  situacao String @default("AGUARDANDO_PAGAMENTO")
+
+  /// Preco cobrado, congelado no momento do pedido — mudanca de tabela depois
+  /// nao altera o que ja foi vendido.
+  valor Decimal @db.Decimal(12, 2)
+
+  // ----- pagamento -----
+  asaasCobrancaId String?
+  linkPagamento   String?
+  formaPagamento  String?
+  pagoEm          DateTime?
+
+  // ----- execucao -----
+  iniciadoEm  DateTime?
+  entregueEm  DateTime?
+  /// Por que falhou, quando falha. O cliente tem direito de saber.
+  erro        String?
+  /// Quanto as consultas custaram de verdade neste relatorio.
+  custoApurado Decimal? @db.Decimal(12, 6)
+
+  /// Documento gerado ao final.
+  complianceDocumentoId String?
+
+  solicitadoPorId String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([complianceContaId, criadoEm])
+  @@index([complianceEmpresaId])
+  @@index([asaasCobrancaId])
 }
 
 /// Consumo de consultas externas pagas (Infosimples, bureau de credito).
