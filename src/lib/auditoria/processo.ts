@@ -70,25 +70,20 @@ export type ResultadoAnaliseProcesso = {
   erroIa: string | null;
 };
 
-export async function analisarProcesso(numeroProcesso: string): Promise<ResultadoAnaliseProcesso> {
+/**
+ * Busca o processo no DataJud e prepara o resumo enxuto (classe, assuntos,
+ * órgão, movimentação recente) que vai para a IA — parte comum às duas
+ * leituras deste arquivo, para não repetir a extração dos dados do CNJ.
+ */
+async function prepararResumoDoProcesso(
+  numeroProcesso: string
+): Promise<{ consulta: ResultadoFonte; resumo: Record<string, unknown> | null }> {
   const consulta = await consultarProcesso(numeroProcesso);
 
-  if (consulta.status !== "CONCLUIDA") {
-    return { consulta, leitura: null, erroIa: null };
-  }
+  if (consulta.status !== "CONCLUIDA") return { consulta, resumo: null };
 
   const dados = (consulta.resultado as { encontrado?: boolean; dados?: Record<string, unknown> } | undefined) ?? {};
-  if (!dados.encontrado || !dados.dados) {
-    return { consulta, leitura: null, erroIa: null };
-  }
-
-  if (!iaConfigurada()) {
-    return {
-      consulta,
-      leitura: null,
-      erroIa: "Leitura por inteligência artificial não configurada (ANTHROPIC_API_KEY).",
-    };
-  }
+  if (!dados.encontrado || !dados.dados) return { consulta, resumo: null };
 
   const fonte = dados.dados;
 
@@ -110,7 +105,7 @@ export async function analisarProcesso(numeroProcesso: string): Promise<Resultad
         .slice(0, 120)
     : [];
 
-  const resumoDoProcesso = {
+  const resumo = {
     numero: formatarNumeroProcessoCnj(numeroProcesso),
     classe: (fonte.classe as { nome?: string } | undefined)?.nome ?? null,
     assuntos: Array.isArray(fonte.assuntos)
@@ -124,9 +119,24 @@ export async function analisarProcesso(numeroProcesso: string): Promise<Resultad
     movimentosRecentes: movimentos,
   };
 
+  return { consulta, resumo };
+}
+
+export async function analisarProcesso(numeroProcesso: string): Promise<ResultadoAnaliseProcesso> {
+  const { consulta, resumo } = await prepararResumoDoProcesso(numeroProcesso);
+  if (!resumo) return { consulta, leitura: null, erroIa: null };
+
+  if (!iaConfigurada()) {
+    return {
+      consulta,
+      leitura: null,
+      erroIa: "Leitura por inteligência artificial não configurada (ANTHROPIC_API_KEY).",
+    };
+  }
+
   const resposta = await perguntarJson<LeituraProcesso>({
     instrucao: INSTRUCAO,
-    conteudo: JSON.stringify(resumoDoProcesso, null, 2),
+    conteudo: JSON.stringify(resumo, null, 2),
     maxTokens: 4000,
   });
 
@@ -150,6 +160,135 @@ export async function analisarProcesso(numeroProcesso: string): Promise<Resultad
       : [],
     verificar: Array.isArray(d.verificar) ? d.verificar.filter((v) => typeof v === "string") : [],
     constricoes: Array.isArray(d.constricoes) ? d.constricoes.filter((c) => typeof c === "string") : [],
+  };
+
+  return { consulta, leitura, erroIa: null };
+}
+
+// ---------------------------------------------------------------------
+// Regularidade processual de precatório — leitura própria da solução
+// Compliance e Due Diligence, mais específica que a análise genérica acima:
+// não é "o que ameaça a cessão", é "o processo está regular".
+// ---------------------------------------------------------------------
+
+export type SituacaoBinaria = "SIM" | "NAO" | "NAO_CONSTA";
+
+export type RegularidadeProcesso = {
+  /** REGULAR: nada pendente. ATENCAO: há algo a conferir. IRREGULAR: pendência grave. */
+  situacao: "REGULAR" | "ATENCAO" | "IRREGULAR";
+  resumo: string;
+  /** Em que pé está: conhecimento, recurso, execução, cumprimento de sentença, precatório expedido... */
+  fase: string;
+  /** Sessões de julgamento colegiado identificadas na movimentação, com data. */
+  sessoes: { data: string; descricao: string }[];
+  recursos: { pendentes: boolean; detalhe: string };
+  transitoEmJulgado: { situacao: SituacaoBinaria; data: string | null; detalhe: string };
+  homologacaoCalculo: { situacao: SituacaoBinaria; data: string | null; detalhe: string };
+  /** Decisões que se contradizem dentro do mesmo processo — só confirmado quando dois movimentos indicarem isso claramente. */
+  decisoesConflitantes: { existe: boolean; detalhe: string };
+  /** O que segue em aberto. */
+  pendencias: string[];
+  /** Sinais de penhora, bloqueio, sequestro ou cessão já averbada. */
+  constricoes: string[];
+  /** Parecer fundamentado, citando os movimentos (data e descrição) que sustentam cada conclusão. */
+  parecer: string;
+};
+
+const INSTRUCAO_REGULARIDADE = `Você analisa a REGULARIDADE PROCESSUAL de processos judiciais que originam PRECATÓRIOS ou créditos judiciais contra a Fazenda Pública, para uma plataforma de compliance que audita esses créditos antes de uma operação.
+
+Recebe os dados públicos de um processo, vindos da base DataJud do CNJ: classe, assuntos, órgão julgador, grau, data de ajuizamento e a lista de movimentações processuais (cada uma com código, nome e data).
+
+Sua tarefa é produzir um PARECER FUNDAMENTADO respondendo especificamente:
+1. Quais sessões de julgamento (colegiadas) aconteceram, e o resultado de cada uma, quando identificável pela movimentação.
+2. Se há recurso pendente de julgamento.
+3. Se houve trânsito em julgado — e, se houve, a data do movimento que o indica.
+4. Se há homologação de cálculos (movimento típico de homologação de cálculo de liquidação/cumprimento de sentença) — e, se houve, a data.
+5. Se há decisões conflitantes dentro do mesmo processo (ex.: decisões contraditórias entre instâncias, embargos de declaração acolhidos que alteraram decisão anterior).
+6. Quais pendências seguem em aberto.
+
+REGRAS QUE NÃO PODEM SER QUEBRADAS:
+1. Baseie-se SOMENTE no que está nos dados recebidos. Se a movimentação não indicar claramente um dos itens acima, responda "NAO_CONSTA" ou "não identificado na movimentação disponível" — nunca suponha, nunca estime, nunca invente data, valor ou teor de decisão.
+2. A base do CNJ não traz o teor das decisões, só o nome do movimento — "decisão conflitante" só pode ser apontada quando dois movimentos indicarem, pelo próprio nome/complemento, resultados contraditórios. Na dúvida, trate como algo a verificar, nunca como conflito confirmado.
+3. Escreva para quem vai decidir se compra ou intermedeia o crédito, mas o parecer precisa ser tecnicamente fundamentado, citando os movimentos (data e descrição) que sustentam cada conclusão.
+4. "situacao" geral é REGULAR quando não há pendência relevante nem risco identificado; ATENCAO quando há algo a conferir mas nada que impeça seguir; IRREGULAR quando há pendência grave (recurso pendente com potencial de reverter o crédito, decisão conflitante não resolvida, ausência de homologação de cálculo quando a fase já é de pagamento, indício de penhora/bloqueio/cessão de terceiro).
+
+Responda SOMENTE com um objeto JSON, sem texto antes ou depois, neste formato exato:
+{
+  "situacao": "REGULAR|ATENCAO|IRREGULAR",
+  "resumo": "2 a 4 frases sobre o que é o processo e em que pé está",
+  "fase": "uma expressão curta: conhecimento, recurso, execução, cumprimento de sentença, precatório expedido, arquivado, etc.",
+  "sessoes": [ { "data": "AAAA-MM-DD ou o que constar", "descricao": "o que foi julgado e o resultado" } ],
+  "recursos": { "pendentes": true|false, "detalhe": "qual recurso, desde quando, o que falta" },
+  "transitoEmJulgado": { "situacao": "SIM|NAO|NAO_CONSTA", "data": "AAAA-MM-DD ou null", "detalhe": "movimento que sustenta a conclusão" },
+  "homologacaoCalculo": { "situacao": "SIM|NAO|NAO_CONSTA", "data": "AAAA-MM-DD ou null", "detalhe": "movimento que sustenta a conclusão" },
+  "decisoesConflitantes": { "existe": true|false, "detalhe": "quais movimentos se contradizem, ou por que não há indício" },
+  "pendencias": [ "o que segue em aberto" ],
+  "constricoes": [ "movimentos que indicam penhora, bloqueio, sequestro ou cessão já averbada; lista vazia se não houver" ],
+  "parecer": "parecer fundamentado, 1 a 3 parágrafos, citando os movimentos relevantes com data, concluindo pela regularidade ou não do processo"
+}`;
+
+export type ResultadoRegularidadeProcesso = {
+  consulta: ResultadoFonte;
+  leitura: RegularidadeProcesso | null;
+  erroIa: string | null;
+};
+
+export async function analisarRegularidadePrecatorio(numeroProcesso: string): Promise<ResultadoRegularidadeProcesso> {
+  const { consulta, resumo } = await prepararResumoDoProcesso(numeroProcesso);
+  if (!resumo) return { consulta, leitura: null, erroIa: null };
+
+  if (!iaConfigurada()) {
+    return {
+      consulta,
+      leitura: null,
+      erroIa: "Leitura por inteligência artificial não configurada (ANTHROPIC_API_KEY).",
+    };
+  }
+
+  const resposta = await perguntarJson<RegularidadeProcesso>({
+    instrucao: INSTRUCAO_REGULARIDADE,
+    conteudo: JSON.stringify(resumo, null, 2),
+    maxTokens: 4000,
+  });
+
+  if (!resposta.ok) return { consulta, leitura: null, erroIa: resposta.erro };
+
+  const d = resposta.dados;
+  const situacaoBinaria = (v: unknown): SituacaoBinaria =>
+    v === "SIM" || v === "NAO" ? v : "NAO_CONSTA";
+
+  const leitura: RegularidadeProcesso = {
+    situacao: ["REGULAR", "ATENCAO", "IRREGULAR"].includes(d.situacao as string)
+      ? (d.situacao as RegularidadeProcesso["situacao"])
+      : "ATENCAO",
+    resumo: typeof d.resumo === "string" ? d.resumo : "",
+    fase: typeof d.fase === "string" ? d.fase : "não identificada",
+    sessoes: Array.isArray(d.sessoes)
+      ? d.sessoes
+          .filter((s) => s && typeof s.descricao === "string")
+          .map((s) => ({ data: typeof s.data === "string" ? s.data : "", descricao: s.descricao }))
+      : [],
+    recursos: {
+      pendentes: Boolean(d.recursos?.pendentes),
+      detalhe: typeof d.recursos?.detalhe === "string" ? d.recursos.detalhe : "",
+    },
+    transitoEmJulgado: {
+      situacao: situacaoBinaria(d.transitoEmJulgado?.situacao),
+      data: typeof d.transitoEmJulgado?.data === "string" ? d.transitoEmJulgado.data : null,
+      detalhe: typeof d.transitoEmJulgado?.detalhe === "string" ? d.transitoEmJulgado.detalhe : "",
+    },
+    homologacaoCalculo: {
+      situacao: situacaoBinaria(d.homologacaoCalculo?.situacao),
+      data: typeof d.homologacaoCalculo?.data === "string" ? d.homologacaoCalculo.data : null,
+      detalhe: typeof d.homologacaoCalculo?.detalhe === "string" ? d.homologacaoCalculo.detalhe : "",
+    },
+    decisoesConflitantes: {
+      existe: Boolean(d.decisoesConflitantes?.existe),
+      detalhe: typeof d.decisoesConflitantes?.detalhe === "string" ? d.decisoesConflitantes.detalhe : "",
+    },
+    pendencias: Array.isArray(d.pendencias) ? d.pendencias.filter((p) => typeof p === "string") : [],
+    constricoes: Array.isArray(d.constricoes) ? d.constricoes.filter((c) => typeof c === "string") : [],
+    parecer: typeof d.parecer === "string" ? d.parecer : "",
   };
 
   return { consulta, leitura, erroIa: null };

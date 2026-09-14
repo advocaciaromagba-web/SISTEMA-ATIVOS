@@ -1267,6 +1267,10 @@ model ComplianceConta {
   // Due Diligence de Pessoas, fundida nesta mesma conta em 14/09/2026.
   pessoas          DiligenciaPessoa[]
   auditoriasPessoa DiligenciaAuditoria[]
+  // Análise processual de precatório, adicionada em 14/09/2026 — terceira
+  // tela da mesma solução, mesma conta.
+  processos         ComplianceProcesso[]
+  analisesProcesso  ComplianceProcessoAnalise[]
 
   @@index([statusAssinatura])
 }
@@ -1767,6 +1771,75 @@ model DiligenciaConsulta {
 // FIM da parte "Due Diligence de Pessoas" (DiligenciaPessoa/Auditoria/
 // Consulta), fundida na conta de ComplianceConta acima.
 // ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// Análise processual de precatório — terceira tela da solução Compliance e
+// Due Diligence, adicionada em 14/09/2026. Verifica a REGULARIDADE do
+// processo de origem de um precatório/crédito judicial: sessões realizadas,
+// recursos pendentes, trânsito em julgado, homologação de cálculos, decisões
+// conflitantes e pendências — não a idoneidade de uma parte (isso é
+// Empresas/Pessoas). Reaproveita a consulta ao DataJud (CNJ) que já existe em
+// src/lib/auditoria/fontes/datajud.ts, com uma leitura por IA própria e mais
+// específica que a usada pela Gestão de Ativos.
+// ---------------------------------------------------------------------
+
+model ComplianceProcesso {
+  id                String          @id @default(cuid())
+  complianceContaId String
+  complianceConta   ComplianceConta @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
+
+  numeroProcesso String // 20 dígitos, padrão CNJ
+  apelido        String? // referência livre do usuário para achar o processo depois
+
+  // ----- resultado da ultima analise -----
+  /// REGULAR | ATENCAO | IRREGULAR
+  situacaoRegularidade String?
+  faseAtual            String?
+  /// SIM | NAO | NAO_CONSTA
+  transitoEmJulgado  String?
+  /// SIM | NAO | NAO_CONSTA
+  homologacaoCalculo String?
+  parecer            String?   @db.Text
+  analisadoEm        DateTime?
+
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  analises ComplianceProcessoAnalise[]
+
+  @@index([complianceContaId])
+  @@index([complianceContaId, numeroProcesso])
+}
+
+model ComplianceProcessoAnalise {
+  id                   String             @id @default(cuid())
+  complianceContaId    String
+  complianceConta      ComplianceConta    @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
+  complianceProcessoId String
+  complianceProcesso   ComplianceProcesso @relation(fields: [complianceProcessoId], references: [id], onDelete: Cascade)
+
+  situacao String @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDA | ERRO
+
+  situacaoRegularidade String?
+  faseAtual            String?
+  transitoEmJulgado    String?
+  homologacaoCalculo   String?
+  parecer              String? @db.Text
+  /// Leitura completa da IA (RegularidadeProcesso), para a tela mostrar
+  /// sessões, recursos, decisões conflitantes e pendências sem reprocessar.
+  leitura       Json?
+  /// Resposta bruta do DataJud, guardada como prova do que o CNJ devolveu.
+  fonteResultado Json?
+  erro          String?
+
+  solicitadoPorId String?
+  criadoEm        DateTime  @default(now())
+  concluidaEm     DateTime?
+
+  @@index([complianceContaId, criadoEm])
+  @@index([complianceProcessoId, criadoEm])
+}
 
 // ---------------------------------------------------------------------
 // VERIFICACAO DE DOCUMENTOS — oitava solucao, isolada das demais. Recebe

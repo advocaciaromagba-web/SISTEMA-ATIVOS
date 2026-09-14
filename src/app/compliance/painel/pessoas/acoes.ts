@@ -13,18 +13,19 @@ export type ResultadoAcao = { erro?: string; ok?: boolean };
 const texto = (dados: FormData, chave: string) => (dados.get(chave)?.toString() ?? "").trim() || null;
 
 /**
- * Teste grátis: cota única de consultas, compartilhada entre empresas e
- * pessoas — é a mesma conta, a mesma assinatura, desde a fusão das duas
- * soluções em 14/09/2026.
+ * Teste grátis: cota única de consultas, compartilhada entre empresas,
+ * pessoas e processos — é a mesma conta, a mesma assinatura, desde a fusão
+ * das duas soluções em 14/09/2026.
  */
 async function testeEsgotado(complianceContaId: string, statusAssinatura: string): Promise<boolean> {
   if (statusAssinatura !== "TESTE") return false;
-  const [empresas, pessoas] = await Promise.all([
+  const [empresas, pessoas, processos] = await Promise.all([
     prisma.complianceAuditoria.count({ where: { complianceContaId } }),
     prisma.diligenciaAuditoria.count({ where: { complianceContaId } }),
+    prisma.complianceProcessoAnalise.count({ where: { complianceContaId } }),
   ]);
   const { consultasGratisTeste } = await configuracaoDaSolucao("COMPLIANCE_EMPRESA");
-  return empresas + pessoas >= consultasGratisTeste;
+  return empresas + pessoas + processos >= consultasGratisTeste;
 }
 
 /**
@@ -84,7 +85,7 @@ export async function reauditarPessoa(id: string): Promise<ResultadoAcao> {
 
   if (await testeEsgotado(conta.id, conta.statusAssinatura)) {
     return {
-      erro: `Seu teste grátis já usou as ${(await configuracaoDaSolucao("COMPLIANCE_EMPRESA")).consultasGratisTeste} consultas incluídas (empresas e pessoas somadas). Assine um plano para continuar auditando.`,
+      erro: `Seu teste grátis já usou as ${(await configuracaoDaSolucao("COMPLIANCE_EMPRESA")).consultasGratisTeste} consultas incluídas (empresas, pessoas e processos somados). Assine um plano para continuar auditando.`,
     };
   }
 
