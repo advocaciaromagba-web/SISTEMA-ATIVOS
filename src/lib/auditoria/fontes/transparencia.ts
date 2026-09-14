@@ -22,12 +22,53 @@ import { somenteNumeros } from "@/lib/validacao";
 const BASE = "https://api.portaldatransparencia.gov.br/api-de-dados";
 const TEMPO_LIMITE = 15000;
 
-type Cadastro = { chave: string; caminho: string; nome: string; gravidade: "GRAVE" | "MEDIA" };
+/**
+ * `parametroDocumento` é o nome exato que a API espera para filtrar pelo
+ * documento do sancionado — CONFERIDO contra o schema oficial
+ * (api.portaldatransparencia.gov.br/v3/api-docs) em 14/09/2026, depois de um
+ * bug real: o código antigo mandava `cpfSancionado`/`cnpjSancionado` nos três
+ * cadastros, só que CEIS e CNEP usam `codigoSancionado`; a API IGNORA
+ * parâmetro desconhecido em vez de dar erro, e devolvia a primeira página de
+ * TODOS os registros, sem filtrar ninguém — o sistema teria classificado
+ * qualquer empresa consultada como sancionada.
+ *
+ * `soAceitaCnpj` existe porque CEPIM só tem cadastro de entidade (é o cadastro
+ * de ONGs impedidas de convênio, não existe CEPIM de pessoa física) — para
+ * CPF, a consulta nem faz sentido, e mandar `cnpjSancionado` com 11 dígitos
+ * devolveria, de novo, a lista inteira sem filtro.
+ */
+type Cadastro = {
+  chave: string;
+  caminho: string;
+  nome: string;
+  gravidade: "GRAVE" | "MEDIA";
+  parametroDocumento: string;
+  soAceitaCnpj?: boolean;
+};
 
 const CADASTROS: Cadastro[] = [
-  { chave: "CEIS", caminho: "ceis", nome: "CEIS — Empresas Inidôneas e Suspensas", gravidade: "GRAVE" },
-  { chave: "CNEP", caminho: "cnep", nome: "CNEP — Punidas pela Lei Anticorrupção", gravidade: "GRAVE" },
-  { chave: "CEPIM", caminho: "cepim", nome: "CEPIM — Impedidas de firmar convênios", gravidade: "MEDIA" },
+  {
+    chave: "CEIS",
+    caminho: "ceis",
+    nome: "CEIS — Empresas Inidôneas e Suspensas",
+    gravidade: "GRAVE",
+    parametroDocumento: "codigoSancionado",
+  },
+  {
+    chave: "CNEP",
+    caminho: "cnep",
+    nome: "CNEP — Punidas pela Lei Anticorrupção",
+    gravidade: "GRAVE",
+    parametroDocumento: "codigoSancionado",
+  },
+  {
+    chave: "CEPIM",
+    caminho: "cepim",
+    nome: "CEPIM — Impedidas de firmar convênios",
+    gravidade: "MEDIA",
+    parametroDocumento: "cnpjSancionado",
+    soAceitaCnpj: true,
+  },
 ];
 
 function chaveApi(): string | null {
@@ -44,10 +85,7 @@ function indisponivel(motivo: string): ResultadoFonte[] {
 }
 
 async function consultarCadastro(cadastro: Cadastro, documento: string, chave: string): Promise<ResultadoFonte> {
-  // A API aceita o documento do sancionado; o mesmo parâmetro serve para
-  // CPF e CNPJ conforme o tamanho.
-  const parametro = documento.length === 11 ? "cpfSancionado" : "cnpjSancionado";
-  const url = `${BASE}/${cadastro.caminho}?${parametro}=${documento}&pagina=1`;
+  const url = `${BASE}/${cadastro.caminho}?${cadastro.parametroDocumento}=${documento}&pagina=1`;
 
   try {
     const resposta = await fetch(url, {
@@ -136,5 +174,18 @@ export async function consultarPunicoes(documento: string): Promise<ResultadoFon
     );
   }
 
-  return Promise.all(CADASTROS.map((c) => consultarCadastro(c, limpo, chave)));
+  const ehCnpj = limpo.length === 14;
+
+  return Promise.all(
+    CADASTROS.map((c) =>
+      c.soAceitaCnpj && !ehCnpj
+        ? Promise.resolve<ResultadoFonte>({
+            fonte: c.chave,
+            status: "INDISPONIVEL",
+            resumo: `${c.chave} não se aplica a pessoa física.`,
+            apontamentos: [],
+          })
+        : consultarCadastro(c, limpo, chave)
+    )
+  );
 }
