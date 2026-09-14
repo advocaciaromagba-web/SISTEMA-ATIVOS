@@ -1271,6 +1271,8 @@ model ComplianceConta {
   // tela da mesma solução, mesma conta.
   processos         ComplianceProcesso[]
   analisesProcesso  ComplianceProcessoAnalise[]
+  // Pareceres (contrato, documento, parecer, processo), quarta tela.
+  pareceres         ComplianceParecer[]
 
   @@index([statusAssinatura])
 }
@@ -1806,7 +1808,8 @@ model ComplianceProcesso {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  analises ComplianceProcessoAnalise[]
+  analises  ComplianceProcessoAnalise[]
+  pareceres ComplianceParecer[]
 
   @@index([complianceContaId])
   @@index([complianceContaId, numeroProcesso])
@@ -1839,6 +1842,65 @@ model ComplianceProcessoAnalise {
 
   @@index([complianceContaId, criadoEm])
   @@index([complianceProcessoId, criadoEm])
+}
+
+// ---------------------------------------------------------------------
+// Pareceres — quarta tela da solução Compliance e Due Diligence, adicionada
+// em 14/09/2026. Não é mais só precatório: contrato, documento, parecer já
+// existente ou um processo já cadastrado (o de cima), sobre qualquer tema
+// pedido em texto livre. O sistema gera primeiro uma MINUTA (rascunho da
+// IA), e só quando o usuário finaliza é que vira PARECER — com opção de
+// registrar autoria (nome/cargo/registro), sem certificado digital de
+// verdade: é um "carimbo" de quem assinou, com hash do texto para provar que
+// não foi alterado depois.
+// ---------------------------------------------------------------------
+
+model ComplianceParecer {
+  id                String          @id @default(cuid())
+  complianceContaId String
+  complianceConta   ComplianceConta @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
+
+  /// CONTRATO | DOCUMENTO | PARECER | PROCESSO
+  tipo String
+  /// O que o usuário pediu para ser analisado/respondido — texto livre.
+  tema String @db.Text
+
+  /// Só quando tipo = PROCESSO: referencia um processo já cadastrado na aba Processos.
+  complianceProcessoId String?
+  complianceProcesso   ComplianceProcesso? @relation(fields: [complianceProcessoId], references: [id], onDelete: SetNull)
+
+  /// Só quando tipo != PROCESSO: contrato, documento ou parecer anexado — PDF ou imagem.
+  arquivoNome String?
+  arquivo     Bytes?
+  arquivoTipo String?
+
+  situacao String @default("GERANDO_MINUTA") // GERANDO_MINUTA | MINUTA_PRONTA | FINALIZADO | ERRO
+  erro     String?
+
+  minuta         String?   @db.Text
+  minutaGeradaEm DateTime?
+
+  parecerFinal      String?   @db.Text
+  finalizadoEm      DateTime?
+  /// Hash do texto final, no momento em que foi finalizado — prova que o
+  /// parecer entregue é exatamente o que está gravado aqui.
+  hashParecerSha256 String?
+
+  assinado            Boolean   @default(false)
+  assinadoPorNome     String?
+  assinadoPorCargo    String?
+  assinadoPorRegistro String?
+  assinadoEm          DateTime?
+
+  /// O .docx final, gerado ao finalizar.
+  documentoArquivo Bytes?
+  documentoNome    String?
+
+  solicitadoPorId String?
+  criadoEm        DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@index([complianceContaId, criadoEm])
 }
 
 // ---------------------------------------------------------------------
