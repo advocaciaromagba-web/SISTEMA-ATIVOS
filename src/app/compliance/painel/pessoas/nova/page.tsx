@@ -1,8 +1,8 @@
-import { exigirSessaoDiligencia } from "@/lib/diligencia/sessao";
+import { exigirSessaoCompliance } from "@/lib/compliance/sessao";
 import { FormularioPessoa } from "../formulario";
 
 export default async function NovaPessoa() {
-  await exigirSessaoDiligencia();
+  await exigirSessaoCompliance();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

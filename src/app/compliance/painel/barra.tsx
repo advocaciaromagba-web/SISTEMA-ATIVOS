@@ -9,12 +9,15 @@ export function BarraCompliance({ marcaNome, contaNome, usuarioNome }: { marcaNo
     <header className="faixa-escura border-b-2 border-[color:var(--marca-destaque)]">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
         <Link href="/compliance/painel" aria-label={marcaNome}>
-          <MarcaEscura nome={marcaNome} assinatura="Compliance de Empresas" />
+          <MarcaEscura nome={marcaNome} assinatura="Compliance e Due Diligence" />
         </Link>
 
         <nav className="flex flex-1 items-center gap-4 text-sm">
           <Link href="/compliance/painel/empresas" className="text-white/80 hover:text-white hover:underline">
             Empresas
+          </Link>
+          <Link href="/compliance/painel/pessoas" className="text-white/80 hover:text-white hover:underline">
+            Pessoas
           </Link>
           <Link href="/compliance/painel/assinatura" className="text-white/80 hover:text-white hover:underline">
             Assinatura

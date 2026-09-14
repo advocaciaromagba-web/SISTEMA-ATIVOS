@@ -12,7 +12,6 @@
 import { exigirSessao } from "@/lib/sessao";
 import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { exigirSessaoCompliance } from "@/lib/compliance/sessao";
-import { exigirSessaoDiligencia } from "@/lib/diligencia/sessao";
 import { exigirSessaoVerificacao } from "@/lib/verificacao/sessao";
 import { exigirSessaoAgro } from "@/lib/agro/sessao";
 
@@ -51,17 +50,6 @@ export async function contaLogadaDaSolucao(solucao: string): Promise<ContaLogada
     }
     case "COMPLIANCE_EMPRESA": {
       const { conta, usuario } = await exigirSessaoCompliance();
-      return {
-        contaId: conta.id,
-        contaNome: conta.nome,
-        emailContato: conta.emailContato ?? usuario.email,
-        usuarioId: usuario.id,
-        usuarioEmail: usuario.email,
-        podeEditar: usuario.papel !== "LEITOR",
-      };
-    }
-    case "DILIGENCIA_PESSOA": {
-      const { conta, usuario } = await exigirSessaoDiligencia();
       return {
         contaId: conta.id,
         contaNome: conta.nome,

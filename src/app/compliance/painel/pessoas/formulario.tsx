@@ -24,7 +24,7 @@ export function FormularioPessoa() {
 
   return (
     <div className="space-y-5">
-      <BuscarPorDocumento solucao="DILIGENCIA_PESSOA" perfil="PESSOA_PF" aoAplicar={aplicarLeitura} />
+      <BuscarPorDocumento solucao="COMPLIANCE_EMPRESA" perfil="PESSOA_PF" aoAplicar={aplicarLeitura} />
 
       <form ref={formulario} action={acao} className="space-y-5">
         {estado.erro && <div className="aviso-erro">{estado.erro}</div>}
@@ -43,7 +43,7 @@ export function FormularioPessoa() {
 
         <div className="flex gap-3">
           <BotaoSalvar>Salvar e auditar</BotaoSalvar>
-          <a href="/diligencia/painel/pessoas" className="botao-secundario">
+          <a href="/compliance/painel/pessoas" className="botao-secundario">
             Cancelar
           </a>
         </div>

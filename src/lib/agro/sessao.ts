@@ -1,7 +1,7 @@
 /**
  * Acesso à sessão da solução Agrojud.
  *
- * Espelha `src/lib/diligencia/sessao.ts`, contra `AgroUsuario`/`AgroConta`.
+ * Espelha `src/lib/compliance/sessao.ts`, contra `AgroUsuario`/`AgroConta`.
  */
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";

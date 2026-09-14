@@ -1,5 +1,5 @@
 /**
- * Mapa que permite à administração tratar as sete soluções por uma porta só.
+ * Mapa que permite à administração tratar as seis soluções por uma porta só.
  *
  * O isolamento entre soluções é regra da casa: cada uma tem tabela de conta e
  * de usuário próprias, e nenhuma lê a da outra. Este arquivo NÃO fura isso —
@@ -7,10 +7,17 @@
  * administração, onde cada conta mora. Quem lê continua sendo uma consulta
  * por solução, na tabela daquela solução.
  *
+ * COMPLIANCE_EMPRESA é a fusão de duas soluções que existiam separadas até
+ * 14/09/2026 (Compliance de Empresas e Due Diligence de Pessoas) — mesma
+ * conta, mesma assinatura, duas telas (Empresas e Pessoas). O CNPJ e o CPF
+ * verificado moram em tabelas diferentes (`ComplianceEmpresa`/
+ * `DiligenciaPessoa`), mas a conta e o login são um só.
+ *
  * Os campos que a administração usa (nome, documento, emailContato,
  * statusAssinatura, testeExpiraEm, bloqueadoEm, criadoEm) existem com o mesmo
- * nome nos sete modelos. `plano` é a exceção: a Consulta cadastral não tem —
- * ela funciona por saldo pré-pago. Por isso o `temPlano` no descritor.
+ * nome nos seis modelos de conta. `plano` é a exceção: a Consulta cadastral
+ * não tem — ela funciona por saldo pré-pago. Por isso o `temPlano` no
+ * descritor.
  */
 import { modelo } from "@/lib/modelo-prisma";
 
@@ -21,7 +28,6 @@ export type ChaveSolucaoAdmin =
   | "LICITACOES"
   | "COMPLIANCE_EMPRESA"
   | "CONSULTA_CADASTRAL_SERASA"
-  | "DILIGENCIA_PESSOA"
   | "VERIFICACAO_DOCUMENTOS"
   | "AGROJUD";
 
@@ -68,7 +74,7 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
   },
   {
     chave: "COMPLIANCE_EMPRESA",
-    rotulo: "Compliance de empresas",
+    rotulo: "Compliance e Due Diligence",
     modeloConta: "complianceConta",
     modeloUsuario: "complianceUsuario",
     campoContaNoUsuario: "complianceContaId",
@@ -85,16 +91,6 @@ export const SOLUCOES_ADMIN: DescritorSolucao[] = [
     painel: "/serasa/painel",
     temCampoAtiva: true,
     temPlano: false,
-  },
-  {
-    chave: "DILIGENCIA_PESSOA",
-    rotulo: "Due diligence de pessoas",
-    modeloConta: "diligenciaConta",
-    modeloUsuario: "diligenciaUsuario",
-    campoContaNoUsuario: "diligenciaContaId",
-    painel: "/diligencia/painel",
-    temCampoAtiva: true,
-    temPlano: true,
   },
   {
     chave: "VERIFICACAO_DOCUMENTOS",

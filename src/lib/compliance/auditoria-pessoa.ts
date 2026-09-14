@@ -1,26 +1,28 @@
 /**
- * Due Diligence de Pessoas — orquestração e gravação próprias desta solução.
+ * Due Diligence de Pessoas — orquestração e gravação próprias desta parte da
+ * solução Compliance e Due Diligence.
  *
  * A verificação em si vem de `src/lib/auditoria/motor-pessoa.ts` — lógica de
  * consultar fontes externas, não dado de outra solução. O que é próprio
- * daqui é gravar em `DiligenciaAuditoria` / `DiligenciaConsulta`, tabelas
- * que só esta solução usa.
+ * daqui é gravar em `DiligenciaAuditoria` / `DiligenciaConsulta`, tabelas que
+ * só a parte "pessoas" desta solução usa — mesmo padrão de
+ * `src/lib/compliance/auditoria.ts`, para empresas, na mesma conta.
  */
-import type { DiligenciaPessoa, DiligenciaUsuario } from "@prisma/client";
+import type { DiligenciaPessoa, ComplianceUsuario } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { avaliarDiligenciaPessoa } from "@/lib/auditoria/motor-pessoa";
 import type { ResultadoAuditoria } from "@/lib/auditoria/tipos";
 
 export async function auditarPessoaDiligencia(params: {
   pessoa: DiligenciaPessoa;
-  usuario: DiligenciaUsuario;
-  diligenciaContaId: string;
+  usuario: ComplianceUsuario;
+  complianceContaId: string;
 }): Promise<{ auditoriaId: string; resultado: ResultadoAuditoria }> {
-  const { pessoa, usuario, diligenciaContaId } = params;
+  const { pessoa, usuario, complianceContaId } = params;
 
   const auditoria = await prisma.diligenciaAuditoria.create({
     data: {
-      diligenciaContaId,
+      complianceContaId,
       diligenciaPessoaId: pessoa.id,
       situacao: "EM_ANDAMENTO",
       solicitadoPorId: usuario.id,

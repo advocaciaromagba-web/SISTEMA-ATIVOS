@@ -14,8 +14,7 @@ export const metadata: Metadata = { title: "Entrar" };
  * onde entrar. Aqui o assinante escolhe a solução primeiro.
  */
 const SOLUCOES_ACESSO = [
-  { chave: "COMPLIANCE_EMPRESA" as const, nome: "Compliance de empresas", entrar: "/compliance/entrar", cadastro: "/compliance/cadastro" },
-  { chave: "DILIGENCIA_PESSOA" as const, nome: "Due diligence de pessoas", entrar: "/diligencia/entrar", cadastro: "/diligencia/cadastro" },
+  { chave: "COMPLIANCE_EMPRESA" as const, nome: "Compliance e Due Diligence", entrar: "/compliance/entrar", cadastro: "/compliance/cadastro" },
   { chave: "VERIFICACAO_DOCUMENTOS" as const, nome: "Verificação de documentos", entrar: "/verificacao/entrar", cadastro: "/verificacao/cadastro" },
   { chave: "LICITACOES" as const, nome: "Análise de licitações", entrar: "/licitacoes/entrar", cadastro: "/licitacoes/cadastro" },
   { chave: "GESTAO_ATIVOS" as const, nome: "Gestão de ativos e operações", entrar: "/login", cadastro: "/cadastro" },
@@ -25,7 +24,6 @@ const SOLUCOES_ACESSO = [
 
 const ESTADO_POR_CHAVE: Record<(typeof SOLUCOES_ACESSO)[number]["chave"], keyof typeof ROTULO_ESTADO> = {
   COMPLIANCE_EMPRESA: "DISPONIVEL",
-  DILIGENCIA_PESSOA: "PARCIAL",
   VERIFICACAO_DOCUMENTOS: "PARCIAL",
   LICITACOES: "PARCIAL",
   GESTAO_ATIVOS: "DISPONIVEL",

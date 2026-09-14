@@ -18,7 +18,6 @@ import { PLANOS } from "../src/lib/planos.ts";
 import { PLANOS_AGRO } from "../src/lib/agro/planos.ts";
 import { PLANOS_COMPLIANCE } from "../src/lib/compliance/planos.ts";
 import { PLANOS_LICITACOES } from "../src/lib/licitacoes/planos.ts";
-import { PLANOS_DILIGENCIA } from "../src/lib/diligencia/planos.ts";
 import { PLANOS_VERIFICACAO } from "../src/lib/verificacao/planos.ts";
 
 const prisma = new PrismaClient();
@@ -30,7 +29,6 @@ const ORIGEM = [
   { solucao: "AGROJUD", planos: PLANOS_AGRO },
   { solucao: "COMPLIANCE_EMPRESA", planos: PLANOS_COMPLIANCE },
   { solucao: "LICITACOES", planos: PLANOS_LICITACOES },
-  { solucao: "DILIGENCIA_PESSOA", planos: PLANOS_DILIGENCIA },
   { solucao: "VERIFICACAO_DOCUMENTOS", planos: PLANOS_VERIFICACAO },
 ];
 

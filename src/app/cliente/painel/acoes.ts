@@ -18,8 +18,6 @@ async function buscarUsuarioDaSolucao(solucao: string, email: string): Promise<U
       return prisma.licitacaoUsuario.findFirst({ where: { email, ativo: true } });
     case "COMPLIANCE_EMPRESA":
       return prisma.complianceUsuario.findFirst({ where: { email, ativo: true } });
-    case "DILIGENCIA_PESSOA":
-      return prisma.diligenciaUsuario.findFirst({ where: { email, ativo: true } });
     case "VERIFICACAO_DOCUMENTOS":
       return prisma.verificacaoUsuario.findFirst({ where: { email, ativo: true } });
     case "CONSULTA_CADASTRAL_SERASA":

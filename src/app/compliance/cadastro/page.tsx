@@ -12,7 +12,7 @@ export default function CadastroCompliance() {
       <div className="mx-auto w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
           <MarcaLogo altura={32} prioridade />
-          <h1 className="titulo mt-4 text-xl font-semibold text-slate-900">Assinar Compliance de Empresas</h1>
+          <h1 className="titulo mt-4 text-xl font-semibold text-slate-900">Assinar Compliance e Due Diligence</h1>
           <p className="mt-2 text-sm text-slate-500">
             Conta própria desta solução da {marca.nome} — independente de qualquer outra assinatura que você tenha.
           </p>

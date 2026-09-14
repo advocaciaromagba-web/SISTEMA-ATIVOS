@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { exigirSessaoDiligencia } from "@/lib/diligencia/sessao";
+import { exigirSessaoCompliance } from "@/lib/compliance/sessao";
 import { formatarDocumento } from "@/lib/validacao";
 import { dataCurta } from "@/lib/formato";
 import { BotaoReauditar } from "./reauditar-botao";
@@ -24,10 +24,10 @@ type Apontamento = { titulo: string; detalhe: string };
 
 export default async function DetalhePessoa(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const { usuario, conta } = await exigirSessaoDiligencia();
+  const { usuario, conta } = await exigirSessaoCompliance();
 
   const pessoa = await prisma.diligenciaPessoa.findFirst({
-    where: { id: params.id, diligenciaContaId: conta.id },
+    where: { id: params.id, complianceContaId: conta.id },
     include: {
       auditorias: { orderBy: { criadoEm: "desc" }, take: 1 },
     },
@@ -40,7 +40,7 @@ export default async function DetalhePessoa(props: { params: Promise<{ id: strin
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/diligencia/painel/pessoas" className="text-sm text-slate-500 hover:underline">
+        <Link href="/compliance/painel/pessoas" className="text-sm text-slate-500 hover:underline">
           ← Pessoas
         </Link>
         <h1 className="mt-1 text-xl font-semibold">{pessoa.nome}</h1>
@@ -50,7 +50,7 @@ export default async function DetalhePessoa(props: { params: Promise<{ id: strin
       {pessoa.situacaoCompliance ? (
         <div className={`aviso ${pessoa.situacaoCompliance === "RESTRICAO" ? "aviso-erro" : "aviso-info"}`}>
           <div className="flex flex-wrap items-center gap-2">
-            <strong>Diligência:</strong>
+            <strong>Due diligence:</strong>
             <span className={`etiqueta ${COR_IDONEIDADE[pessoa.situacaoCompliance] ?? "bg-slate-100 text-slate-700"}`}>
               {ROTULO_IDONEIDADE[pessoa.situacaoCompliance] ?? pessoa.situacaoCompliance}
             </span>

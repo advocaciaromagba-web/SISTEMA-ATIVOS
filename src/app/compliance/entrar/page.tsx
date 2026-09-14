@@ -14,7 +14,7 @@ export default function EntrarCompliance() {
           <MarcaLogo forma="simbolo" altura={64} prioridade />
           <h1 className="titulo mt-5 text-xl font-bold uppercase tracking-[0.16em] text-white">{marca.nome}</h1>
           <p className="mt-2 text-[11px] uppercase tracking-[0.3em] text-[color:var(--marca-destaque)]">
-            Compliance de Empresas
+            Compliance e Due Diligence
           </p>
           <p className="serif mt-5 text-sm text-white/60">
             Acesso próprio desta solução — independente da sua conta de outras soluções da {marca.nome}.

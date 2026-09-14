@@ -49,10 +49,6 @@ const CONFIGS: Record<string, ConfigSolucao> = {
     cookieName: "serasa.session-token",
     campos: (u) => ({ serasaContaId: u.serasaContaId, papel: u.papel }),
   },
-  DILIGENCIA_PESSOA: {
-    cookieName: "diligencia.session-token",
-    campos: (u) => ({ diligenciaContaId: u.diligenciaContaId, papel: u.papel }),
-  },
   VERIFICACAO_DOCUMENTOS: {
     cookieName: "verificacao.session-token",
     campos: (u) => ({ verificacaoContaId: u.verificacaoContaId, papel: u.papel }),

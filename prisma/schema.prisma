@@ -1264,6 +1264,9 @@ model ComplianceConta {
   usuarios         ComplianceUsuario[]
   empresas         ComplianceEmpresa[]
   pedidosRelatorio ComplianceRelatorioPedido[]
+  // Due Diligence de Pessoas, fundida nesta mesma conta em 14/09/2026.
+  pessoas          DiligenciaPessoa[]
+  auditoriasPessoa DiligenciaAuditoria[]
 
   @@index([statusAssinatura])
 }
@@ -1668,92 +1671,18 @@ model SerasaConsulta {
 // `src/lib/auditoria/motor-pessoa.ts`, dados proprios desta conta.
 // ---------------------------------------------------------------------
 
-model DiligenciaConta {
-  id String @id @default(cuid())
-
-  tipo        String // PF | PJ
-  nome        String
-  razaoSocial String?
-  documento   String?
-
-  emailContato String?
-  telefone     String?
-
-  enderecoRua         String?
-  enderecoNumero      String?
-  enderecoComplemento String?
-  enderecoBairro      String?
-  enderecoCidade      String?
-  enderecoUf          String?
-  enderecoCep         String?
-
-  formaCobranca    String    @default("ASSINATURA") // AVULSO | CREDITO | ASSINATURA
-  plano            String    @default("TESTE") // TESTE | ESSENCIAL | PROFISSIONAL | MESA
-  statusAssinatura String    @default("TESTE") // TESTE | ATIVA | INADIMPLENTE | CANCELADA
-  testeExpiraEm    DateTime?
-
-  /// Bloqueio administrativo. E diferente de assinatura cancelada: aqui foi
-  /// o administrador da Blackbird que fechou a conta, e o motivo fica escrito.
-  bloqueadoEm     DateTime?
-  bloqueadoMotivo String?
-  assinaturaAte   DateTime?
-  saldoCredito    Decimal   @default(0) @db.Decimal(12, 2)
-
-  asaasCustomerId     String?
-  asaasSubscriptionId String?
-
-  ativa        Boolean  @default(true)
-  criadoEm     DateTime @default(now())
-  atualizadoEm DateTime @updatedAt
-
-  usuarios   DiligenciaUsuario[]
-  pessoas    DiligenciaPessoa[]
-  auditorias DiligenciaAuditoria[]
-
-  @@index([statusAssinatura])
-}
-
-model DiligenciaUsuario {
-  id                String          @id @default(cuid())
-  diligenciaContaId String
-  diligenciaConta   DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
-
-  nome         String
-  email        String  @unique
-  passwordHash String
-  papel        String  @default("OPERADOR") // DONO | OPERADOR | LEITOR
-  ativo        Boolean @default(true)
-
-  totpSegredo        String?
-  totpAtivado        Boolean   @default(false)
-  totpAtivadoEm      DateTime?
-  totpRecuperacao    String?
-  /// Token de redefinição de senha (hash sha256), com validade curta.
-  resetTokenHash     String?   @unique
-  resetTokenExpiraEm DateTime?
-
-  ultimoAcesso DateTime?
-  criadoEm     DateTime  @default(now())
-  atualizadoEm DateTime  @updatedAt
-
-  @@index([diligenciaContaId])
-}
-
-model DiligenciaTentativaLogin {
-  id       String   @id @default(cuid())
-  email    String
-  ip       String?
-  criadoEm DateTime @default(now())
-
-  @@index([email, criadoEm])
-}
-
-/// Cadastro da pessoa física verificada — próprio desta solução, sem
-/// nenhuma ligação com `Pessoa` (Gestão de Ativos).
+/// Cadastro da pessoa física verificada — própria desta parte da solução
+/// (Due Diligence), sem nenhuma ligação com `Pessoa` (Gestão de Ativos).
+/// A conta é a MESMA de `ComplianceEmpresa` (`ComplianceConta`) — Compliance
+/// de Empresas e Due Diligence de Pessoas se fundiram numa solução só, com
+/// login e assinatura únicos e telas separadas por tipo de parte verificada.
+/// Decisão de 14/09/2026: as duas eram sempre usadas juntas na mesma
+/// operação (empresa + sócios/procuradores), então duas contas e duas
+/// assinaturas para a mesma verificação não fazia sentido.
 model DiligenciaPessoa {
   id                String          @id @default(cuid())
-  diligenciaContaId String
-  diligenciaConta   DiligenciaConta @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
+  complianceContaId String
+  complianceConta   ComplianceConta @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
 
   nome           String
   documento      String // CPF
@@ -1783,14 +1712,14 @@ model DiligenciaPessoa {
 
   auditorias DiligenciaAuditoria[]
 
-  @@index([diligenciaContaId])
-  @@index([diligenciaContaId, documento])
+  @@index([complianceContaId])
+  @@index([complianceContaId, documento])
 }
 
 model DiligenciaAuditoria {
   id                 String           @id @default(cuid())
-  diligenciaContaId  String
-  diligenciaConta    DiligenciaConta  @relation(fields: [diligenciaContaId], references: [id], onDelete: Cascade)
+  complianceContaId  String
+  complianceConta    ComplianceConta  @relation(fields: [complianceContaId], references: [id], onDelete: Cascade)
   diligenciaPessoaId String
   diligenciaPessoa   DiligenciaPessoa @relation(fields: [diligenciaPessoaId], references: [id], onDelete: Cascade)
 
@@ -1810,7 +1739,7 @@ model DiligenciaAuditoria {
 
   consultas DiligenciaConsulta[]
 
-  @@index([diligenciaContaId])
+  @@index([complianceContaId])
   @@index([diligenciaPessoaId])
 }
 
@@ -1833,6 +1762,11 @@ model DiligenciaConsulta {
 
   @@index([diligenciaPessoaId])
 }
+
+// ---------------------------------------------------------------------
+// FIM da parte "Due Diligence de Pessoas" (DiligenciaPessoa/Auditoria/
+// Consulta), fundida na conta de ComplianceConta acima.
+// ---------------------------------------------------------------------
 
 // ---------------------------------------------------------------------
 // VERIFICACAO DE DOCUMENTOS — oitava solucao, isolada das demais. Recebe

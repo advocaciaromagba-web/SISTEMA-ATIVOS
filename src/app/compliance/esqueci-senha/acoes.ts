@@ -30,7 +30,7 @@ export async function pedirRedefinicaoSenha(
 
     const link = `${marca.site}/compliance/redefinir-senha?token=${token}`;
     try {
-      await enviarEmailRedefinicaoSenha({ destinatario: email, nomeSolucao: "Compliance de Empresas", link });
+      await enviarEmailRedefinicaoSenha({ destinatario: email, nomeSolucao: "Compliance e Due Diligence", link });
     } catch (err: any) {
       console.error("[email] Falha ao enviar redefinição de senha (compliance):", err.message);
       return { erro: "Não foi possível enviar o e-mail agora. Tente novamente em instantes." };

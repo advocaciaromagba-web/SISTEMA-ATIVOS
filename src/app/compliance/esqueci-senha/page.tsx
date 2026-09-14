@@ -14,7 +14,7 @@ export default function EsqueciSenhaCompliance() {
           <MarcaLogo forma="simbolo" altura={64} prioridade />
           <h1 className="titulo mt-5 text-xl font-bold uppercase tracking-[0.16em] text-white">{marca.nome}</h1>
           <p className="mt-2 text-[11px] uppercase tracking-[0.3em] text-[color:var(--marca-destaque)]">
-            Compliance de Empresas
+            Compliance e Due Diligence
           </p>
           <p className="serif mt-5 text-sm text-white/60">Informe o e-mail da conta para receber o link de redefinição.</p>
         </div>

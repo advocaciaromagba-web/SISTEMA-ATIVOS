@@ -27,8 +27,7 @@ import {
 export const CONTA_DA_SOLUCAO: Record<string, { modelo: string; nome: string }> = {
   GESTAO_ATIVOS: { modelo: "organizacao", nome: "Gestão de ativos" },
   LICITACOES: { modelo: "licitacaoConta", nome: "Análise de licitações" },
-  COMPLIANCE_EMPRESA: { modelo: "complianceConta", nome: "Compliance de empresas" },
-  DILIGENCIA_PESSOA: { modelo: "diligenciaConta", nome: "Due diligence de pessoas" },
+  COMPLIANCE_EMPRESA: { modelo: "complianceConta", nome: "Compliance e Due Diligence" },
   VERIFICACAO_DOCUMENTOS: { modelo: "verificacaoConta", nome: "Verificação de documentos" },
   AGROJUD: { modelo: "agroConta", nome: "Agrojud" },
 };

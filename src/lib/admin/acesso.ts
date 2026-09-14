@@ -26,7 +26,6 @@ const COOKIE_DA_SOLUCAO: Record<string, string> = {
   LICITACOES: "licitacoes.session-token",
   COMPLIANCE_EMPRESA: "compliance.session-token",
   CONSULTA_CADASTRAL_SERASA: "serasa.session-token",
-  DILIGENCIA_PESSOA: "diligencia.session-token",
   VERIFICACAO_DOCUMENTOS: "verificacao.session-token",
   AGROJUD: "agro.session-token",
 };

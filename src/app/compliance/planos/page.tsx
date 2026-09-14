@@ -28,7 +28,7 @@ export default async function PlanosCompliance() {
       </header>
 
       <div className="mx-auto max-w-5xl px-4 py-16">
-        <p className="sobretitulo">Compliance de empresas</p>
+        <p className="sobretitulo">Compliance e Due Diligence</p>
         <h1 className="titulo mt-3 text-3xl font-semibold text-slate-900">Planos e preços</h1>
         <p className="mt-3 max-w-2xl text-lg leading-relaxed text-slate-600">
           Conta própria desta solução, separada de qualquer outra assinatura da {marca.nome}. {diasDeTeste} dias

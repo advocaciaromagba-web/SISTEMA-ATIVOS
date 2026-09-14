@@ -20,7 +20,7 @@ export default proxy;
  * - /cliente ....... conta única do assinante, login PRÓPRIO — escolhe e
  *                    troca entre as seis soluções sem precisar de um
  *                    cadastro por solução
- * - /licitacoes, /compliance, /serasa, /diligencia, /verificacao, /agrojud ... soluções com login
+ * - /licitacoes, /compliance, /serasa, /verificacao, /agrojud ... soluções com login
  *                    PRÓPRIO — cada uma confere a própria sessão em cada página
  *                    (exigirSessaoX()), e nunca deve passar pelo proxy
  *                    da Gestão de Ativos. Bug real encontrado em produção:
@@ -40,6 +40,6 @@ export const config = {
   matcher: [
     // O `.+` no fim (em vez de `.*`) deixa a raiz "/" de fora: ela é a página
     // pública de apresentação. As demais páginas públicas estão nomeadas.
-    "/((?!entrar|login|cadastro|esqueci-senha|redefinir-senha|cliente|licitacoes|compliance|serasa|diligencia|verificacao|agrojud|admin|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
+    "/((?!entrar|login|cadastro|esqueci-senha|redefinir-senha|cliente|licitacoes|compliance|serasa|verificacao|agrojud|admin|api|solucoes|planos|institucional|termos|privacidade|seguranca|fontes|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).+)",
   ],
 };

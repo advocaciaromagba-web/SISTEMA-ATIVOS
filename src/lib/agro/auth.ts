@@ -1,7 +1,7 @@
 /**
  * Login e sessão da solução Agrojud (análise contratual rural).
  *
- * Espelha `src/lib/diligencia/auth.ts` — mesma trava de tentativas, mesma
+ * Espelha `src/lib/compliance/auth.ts` — mesma trava de tentativas, mesma
  * verificação em duas etapas — contra `AgroUsuario`/`AgroConta`.
  */
 import type { NextAuthOptions } from "next-auth";

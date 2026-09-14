@@ -14,7 +14,7 @@ export default async function SegurancaCompliance() {
       <div>
         <h2 className="text-base font-semibold text-slate-900">Segurança</h2>
         <p className="text-sm text-slate-500">
-          A senha e a verificação em duas etapas desta conta são próprias da solução de Compliance de Empresas —
+          A senha e a verificação em duas etapas desta conta são próprias da solução de Compliance e Due Diligence —
           não têm relação com o acesso de nenhuma outra solução.
         </p>
       </div>

@@ -51,19 +51,27 @@ export const ROTULO_ESTADO: Record<EstadoSolucao, string> = {
 export const SOLUCOES: Solucao[] = [
   {
     chave: "COMPLIANCE_EMPRESA",
-    nome: "Compliance de empresas",
-    resumo: "Saber se a empresa existe, está regular e tem como pagar — antes de assinar.",
+    nome: "Compliance e Due Diligence",
+    resumo: "Saber se a empresa existe e tem como pagar, e quem são as pessoas por trás dela — antes de assinar.",
     paraQuem:
-      "Quem vai contratar, fornecer, comprar de ou investir numa empresa que ainda não conhece. Também para " +
-      "quem precisa cumprir política interna de conheça-seu-cliente e registrar a verificação.",
-    entrada: ["CNPJ da empresa", "Opcionalmente, os documentos societários que ela apresentou"],
+      "Quem vai contratar, fornecer, comprar de ou investir numa empresa que ainda não conhece — e precisa " +
+      "conhecer também os sócios, procuradores e garantidores que vão assinar por ela. As duas verificações " +
+      "andam juntas na mesma operação, por isso são uma solução só, com telas separadas para empresa e para " +
+      "pessoa física. Serve também para quem precisa cumprir política interna de conheça-seu-cliente e " +
+      "registrar a verificação.",
+    entrada: [
+      "CNPJ da empresa, ou CPF/nome da mãe/data de nascimento da pessoa física",
+      "Opcionalmente, os documentos societários ou pessoais apresentados",
+    ],
     entrega: [
-      "Situação cadastral, data de abertura, capital social, atividade e quadro societário",
-      "Dívida ativa da União, com valor e natureza do débito",
-      "Débitos trabalhistas reconhecidos em juízo (CNDT)",
+      "Da empresa: situação cadastral, data de abertura, capital social, atividade e quadro societário",
+      "Da pessoa física: sanções internacionais, mandado de prisão e condenação por improbidade administrativa",
+      "Dívida ativa da União, com valor e natureza do débito, para empresa ou pessoa",
+      "Débitos trabalhistas reconhecidos em juízo (CNDT) — empresa",
       "Protestos em cartório",
       "Presença em cadastros de empresas punidas e em listas internacionais de sanções",
-      "Processos judiciais em que a empresa figura, com análise de cada um",
+      "Processos judiciais em que a parte figura, com análise de cada um",
+      "Bureau de crédito: protesto, negativação, recuperação judicial — pessoa física",
       "Certidões federal, estadual e trabalhista, emitidas e arquivadas com data de validade",
       "Parecer final classificando o risco, assinado por responsável identificado",
     ],
@@ -76,43 +84,17 @@ export const SOLUCOES: Solucao[] = [
       "Secretarias estaduais da Fazenda",
       "Conselho Nacional de Justiça",
       "OFAC — Departamento do Tesouro dos Estados Unidos",
+      "Bureau de crédito, quando contratado",
     ],
     estado: "DISPONIVEL",
     limite:
       "A verificação mostra o que as fontes públicas registravam na data da consulta. Não é atestado de " +
-      "idoneidade, não prevê comportamento futuro e não substitui auditoria contábil.",
-    avulso: "DILIGENCIA_BASICA",
-  },
-
-  {
-    chave: "DILIGENCIA_PESSOA",
-    nome: "Due diligence de pessoas",
-    resumo: "Quem é a pessoa física que vai assinar, responder ou receber.",
-    paraQuem:
-      "Quem precisa conhecer sócios, administradores, procuradores, cedentes e garantidores antes de fechar. " +
-      "É a verificação que mais falta e a que mais custa caro quando falha.",
-    entrada: ["CPF, nome da mãe e data de nascimento", "Opcionalmente, os documentos pessoais apresentados"],
-    entrega: [
-      "Sanções internacionais e dívida ativa da União",
-      "Consulta ao banco nacional de mandados de prisão",
-      "Consulta ao cadastro de condenações por improbidade administrativa",
-      "Bureau de crédito: protesto, negativação, recuperação judicial",
-      "Parecer final, com a distinção entre processo em curso e condenação",
-      "Histórico salvo, consultável a qualquer momento",
-    ],
-    fontes: [
-      "OFAC — Departamento do Tesouro dos Estados Unidos",
-      "Procuradoria-Geral da Fazenda Nacional",
-      "Conselho Nacional de Justiça",
-      "Bureau de crédito, quando contratado",
-    ],
-    estado: "PARCIAL",
-    limite:
-      "Processo em curso não é condenação (Constituição, art. 5º, LVII, e Súmula 444 do STJ), e o parecer diz " +
-      "isso com todas as letras. Mandado de prisão e improbidade exigem nome da mãe e data de nascimento — sem " +
-      "eles, a consulta é recusada com aviso. Ainda não incluído: situação do CPF na Receita (não existe hoje " +
-      "uma fonte pronta para isso) e emissão de certidão cível/criminal — para esse último, use a solução " +
-      "Verificação de Documentos.",
+      "idoneidade, não prevê comportamento futuro e não substitui auditoria contábil. Para pessoa física, " +
+      "processo em curso não é condenação (Constituição, art. 5º, LVII, e Súmula 444 do STJ), e o parecer diz " +
+      "isso com todas as letras — mandado de prisão e improbidade exigem nome da mãe e data de nascimento, sem " +
+      "os quais a consulta é recusada com aviso. Ainda não incluído: situação do CPF na Receita (não existe " +
+      "hoje uma fonte pronta para isso) e emissão de certidão cível/criminal de pessoa física — para esse " +
+      "último, use a solução Verificação de Documentos.",
     avulso: "DILIGENCIA_BASICA",
   },
 

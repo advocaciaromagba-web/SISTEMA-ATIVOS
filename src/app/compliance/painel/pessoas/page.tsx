@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { exigirSessaoDiligencia } from "@/lib/diligencia/sessao";
+import { exigirSessaoCompliance } from "@/lib/compliance/sessao";
 import { formatarDocumento } from "@/lib/validacao";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +17,10 @@ const CORES: Record<string, string> = {
 };
 
 export default async function Pessoas() {
-  const { conta } = await exigirSessaoDiligencia();
+  const { conta } = await exigirSessaoCompliance();
 
   const pessoas = await prisma.diligenciaPessoa.findMany({
-    where: { diligenciaContaId: conta.id, ativa: true },
+    where: { complianceContaId: conta.id, ativa: true },
     orderBy: { nome: "asc" },
   });
 
@@ -29,9 +29,12 @@ export default async function Pessoas() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-slate-900">Pessoas verificadas</h2>
-          <p className="text-sm text-slate-500">Cada cadastro roda a auditoria automaticamente ao ser salvo.</p>
+          <p className="text-sm text-slate-500">
+            Sócios, procuradores, avalistas e garantidores. Cada cadastro roda a auditoria automaticamente ao ser
+            salvo.
+          </p>
         </div>
-        <Link href="/diligencia/painel/pessoas/nova" className="botao-principal">
+        <Link href="/compliance/painel/pessoas/nova" className="botao-principal">
           Nova pessoa
         </Link>
       </div>
@@ -53,7 +56,7 @@ export default async function Pessoas() {
               {pessoas.map((p) => (
                 <tr key={p.id}>
                   <td>
-                    <Link href={`/diligencia/painel/pessoas/${p.id}`} className="font-medium text-slate-900 hover:underline">
+                    <Link href={`/compliance/painel/pessoas/${p.id}`} className="font-medium text-slate-900 hover:underline">
                       {p.nome}
                     </Link>
                   </td>

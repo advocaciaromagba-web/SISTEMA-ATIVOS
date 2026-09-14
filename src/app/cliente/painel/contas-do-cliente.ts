@@ -29,10 +29,6 @@ export async function contaDaSolucaoPorEmail(solucao: string, email: string): Pr
       const u = await prisma.complianceUsuario.findFirst({ where: { email, ativo: true }, include: { complianceConta: true } });
       return u ? { contaId: u.complianceContaId, statusAssinatura: u.complianceConta.statusAssinatura } : null;
     }
-    case "DILIGENCIA_PESSOA": {
-      const u = await prisma.diligenciaUsuario.findFirst({ where: { email, ativo: true }, include: { diligenciaConta: true } });
-      return u ? { contaId: u.diligenciaContaId, statusAssinatura: u.diligenciaConta.statusAssinatura } : null;
-    }
     case "VERIFICACAO_DOCUMENTOS": {
       const u = await prisma.verificacaoUsuario.findFirst({ where: { email, ativo: true }, include: { verificacaoConta: true } });
       return u ? { contaId: u.verificacaoContaId, statusAssinatura: u.verificacaoConta.statusAssinatura } : null;

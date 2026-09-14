@@ -114,7 +114,6 @@ export function IconeTrigo({ className = "" }: Props) {
 
 export const ICONE_SOLUCAO: Record<string, (props: Props) => JSX.Element> = {
   COMPLIANCE_EMPRESA: IconePredio,
-  DILIGENCIA_PESSOA: IconePessoa,
   VERIFICACAO_DOCUMENTOS: IconeDocumentoCheck,
   LICITACOES: IconeMartelo,
   GESTAO_ATIVOS: IconeAtivos,

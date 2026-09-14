@@ -11,7 +11,6 @@ const PLANOS_DA_SOLUCAO: Record<string, string> = {
   GESTAO_ATIVOS: "/planos",
   LICITACOES: "/licitacoes/planos",
   COMPLIANCE_EMPRESA: "/compliance/planos",
-  DILIGENCIA_PESSOA: "/diligencia/planos",
   VERIFICACAO_DOCUMENTOS: "/verificacao/planos",
   AGROJUD: "/agrojud/planos",
   CONSULTA_CADASTRAL_SERASA: "/serasa/cadastro",
