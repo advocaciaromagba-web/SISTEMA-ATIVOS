@@ -254,7 +254,14 @@ export function julgarPropostas(params: {
     }
   }
 
-  if (empateFicto && vencedor && vencedor.participanteId !== empateFicto.beneficiadoId) {
+  // Se a própria beneficiada já é a vencedora apurada, o direito de
+  // preferência perdeu o objeto: não há oferta melhor para ela cobrir. Manter
+  // o aviso mandaria a comissão abrir uma etapa inócua.
+  if (empateFicto && vencedor && vencedor.participanteId === empateFicto.beneficiadoId) {
+    empateFicto = null;
+  }
+
+  if (empateFicto && vencedor) {
     justificativa +=
       " Atenção: há empate ficto de ME/EPP a resolver antes da adjudicação — veja o aviso abaixo.";
   }
