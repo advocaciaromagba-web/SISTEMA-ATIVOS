@@ -778,6 +778,24 @@ model LicitacaoConta {
   asaasCustomerId     String?
   asaasSubscriptionId String?
 
+  // ----- certificado digital A1 do proprio licitante -----
+  //
+  // Serve para ASSINAR as declaracoes do envelope com assinatura digital
+  // ICP-Brasil (padrao PAdES) — sem isso o edital nao aceita o documento
+  // gerado, que sai sem assinatura nenhuma. Quem assina e o licitante, com o
+  // certificado dele: a plataforma nunca assina em nome de terceiro com
+  // credencial propria.
+  //
+  // Mesmo cofre da solucao de Compliance (AES-256-GCM, ver
+  // src/lib/seguranca/cofre.ts) — a senha nunca fica em texto puro.
+  certificadoArquivo   Bytes?
+  certificadoNome      String?
+  /// Senha do .pfx, cifrada. Formato: iv:tag:conteudo, em base64.
+  certificadoSenha     String?
+  /// Informada por quem envia — serve para avisar antes de vencer.
+  certificadoValidade  DateTime?
+  certificadoEnviadoEm DateTime?
+
   ativa        Boolean  @default(true)
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
@@ -1032,8 +1050,42 @@ model Envelope {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
+  documentos EnvelopeDocumento[]
+
   @@index([licitacaoContaId])
   @@index([licitanteEmpresaId])
+}
+
+/// Cada declaração do envelope, em PDF, guardada de verdade — antes disto o
+/// sistema gerava o arquivo, anotava o hash e DESCARTAVA o conteúdo, de modo
+/// que o licitante não tinha como baixar o que a plataforma prometia entregar.
+///
+/// Quando a conta tem certificado A1 cadastrado, o PDF sai assinado
+/// digitalmente (ICP-Brasil, padrão PAdES) e é isso que o edital aceita.
+model EnvelopeDocumento {
+  id         String   @id @default(cuid())
+  envelopeId String
+  envelope   Envelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+
+  /// Chave do catálogo de documentos (LICIT_CREDENCIAMENTO etc.).
+  tipo        String
+  titulo      String
+  nomeArquivo String
+  arquivo     Bytes
+  /// Hash do arquivo COMO FOI GUARDADO — se assinado, é o hash do PDF assinado.
+  hashSha256  String
+
+  assinado   Boolean   @default(false)
+  assinadoEm DateTime?
+  /// Titular do certificado que assinou, lido do próprio .pfx.
+  assinantePorNome String?
+  assinanteDocumento String?
+  /// Por que não assinou, quando não assinou — nunca fica em silêncio.
+  erroAssinatura String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([envelopeId])
 }
 
 // ---------------------------------------------------------------------

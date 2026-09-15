@@ -13,6 +13,8 @@ import { buscarOportunidadesPncp, type OportunidadePncp } from "@/lib/licitacoes
 import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 import { lerEdital } from "@/lib/licitacoes/leitura-edital";
+import { decifrar } from "@/lib/seguranca/cofre";
+import { gerarDeclaracaoDoEnvelope, type DeclaracaoGerada } from "@/lib/licitacoes/envelope";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -424,7 +426,17 @@ export async function gerarEnvelope(_anterior: ResultadoAcao, dados: FormData): 
     ? [...DECLARACOES_ENVELOPE, "LICIT_ME_EPP"]
     : DECLARACOES_ENVELOPE;
 
-  const itens: Array<{ tipo: string; titulo: string; hash: string; pendencias: number }> = [];
+  // Certificado A1 da conta — é com ele que as declarações saem assinadas.
+  // Sem certificado, o envelope continua saindo, só que sem assinatura.
+  let certificado: { pfx: Buffer; senha: string } | null = null;
+  if (conta.certificadoArquivo && conta.certificadoSenha) {
+    const senha = decifrar(conta.certificadoSenha);
+    if (senha.ok) certificado = { pfx: Buffer.from(conta.certificadoArquivo), senha: senha.texto };
+  }
+
+  const itens: Array<{ tipo: string; titulo: string; hash: string; pendencias: number; assinado: boolean }> = [];
+  const declaracoes: DeclaracaoGerada[] = [];
+  const agora = new Date();
 
   for (const tipo of tiposParaGerar) {
     const contexto: ContextoDocumento = {
@@ -432,15 +444,29 @@ export async function gerarEnvelope(_anterior: ResultadoAcao, dados: FormData): 
       operacao: null,
       usuario: usuarioLicitacoesComoUsuario(usuario),
       campos,
-      agora: new Date(),
+      agora,
       licitante,
     };
+
+    // O .docx continua sendo gerado: é a versão para revisar a redação antes
+    // de assinar. O que vai para o certame é o PDF abaixo.
     const gerado = await gerarDocumento(tipo, contexto);
+
+    const declaracao = await gerarDeclaracaoDoEnvelope({
+      tipo,
+      contexto,
+      licitante,
+      certificado,
+      motivo: `Declaração de habilitação — ${edital.modalidade} nº ${edital.numeroCertame}`,
+    });
+    if (declaracao) declaracoes.push(declaracao);
+
     itens.push({
       tipo,
       titulo: gerado.titulo,
       hash: gerado.hashSha256,
       pendencias: gerado.pendencias.length,
+      assinado: declaracao?.assinado ?? false,
     });
   }
 
@@ -456,6 +482,20 @@ export async function gerarEnvelope(_anterior: ResultadoAcao, dados: FormData): 
       editalInteresseId,
       status: documentosPessoais.length > 0 ? "COMPLETO" : "MONTAGEM",
       itens: { declaracoesGeradas: itens, documentosPessoais } as never,
+      documentos: {
+        create: declaracoes.map((d) => ({
+          tipo: d.tipo,
+          titulo: d.titulo,
+          nomeArquivo: d.nomeArquivo,
+          arquivo: d.pdf,
+          hashSha256: d.hashSha256,
+          assinado: d.assinado,
+          assinadoEm: d.assinado ? agora : null,
+          assinantePorNome: d.titular?.nome ?? null,
+          assinanteDocumento: d.titular?.documento ?? null,
+          erroAssinatura: d.erroAssinatura,
+        })),
+      },
     },
   });
 

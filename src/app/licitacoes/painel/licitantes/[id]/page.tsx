@@ -26,7 +26,10 @@ export default async function DetalheLicitante(props: { params: Promise<{ id: st
     where: { id: params.id, licitacaoContaId: conta.id },
     include: {
       documentosPessoais: { orderBy: { enviadoEm: "desc" } },
-      envelopes: { orderBy: { criadoEm: "desc" }, include: { editalInteresse: true } },
+      envelopes: {
+        orderBy: { criadoEm: "desc" },
+        include: { editalInteresse: true, documentos: { orderBy: { criadoEm: "asc" } } },
+      },
       auditorias: { orderBy: { criadoEm: "desc" }, take: 1 },
     },
   });
@@ -101,7 +104,12 @@ export default async function DetalheLicitante(props: { params: Promise<{ id: st
           <section className="cartao">
             <h2 className="mb-1 text-base font-semibold">Envelopes</h2>
             <p className="mb-4 text-sm text-slate-500">
-              As declarações padronizadas, identificadas com o certame, mais os documentos pessoais anexados.
+              As declarações padronizadas, identificadas com o certame, mais os documentos pessoais anexados. Saem
+              em PDF assinado digitalmente (ICP-Brasil) quando há{" "}
+              <Link href="/licitacoes/painel/seguranca" className="underline">
+                certificado A1 cadastrado
+              </Link>
+              .
             </p>
 
             {licitante.envelopes.length === 0 ? (
@@ -125,6 +133,28 @@ export default async function DetalheLicitante(props: { params: Promise<{ id: st
                       </span>
                     </div>
                     <div className="text-xs text-slate-500">{e.editalInteresse.orgaoLicitante}</div>
+
+                    {e.documentos.length > 0 && (
+                      <ul className="mt-2 space-y-1.5 border-l-2 border-slate-100 pl-3">
+                        {e.documentos.map((d) => (
+                          <li key={d.id} className="flex flex-wrap items-center gap-2 text-xs">
+                            <a
+                              href={`/api/licitacoes/envelope-documentos/${d.id}/baixar`}
+                              className="text-slate-700 underline"
+                            >
+                              {d.titulo}
+                            </a>
+                            {d.assinado ? (
+                              <span className="etiqueta bg-emerald-100 text-emerald-800">assinado</span>
+                            ) : (
+                              <span className="etiqueta bg-slate-100 text-slate-600">sem assinatura</span>
+                            )}
+                            {d.assinantePorNome && <span className="text-slate-400">por {d.assinantePorNome}</span>}
+                            {d.erroAssinatura && <span className="text-red-600">{d.erroAssinatura}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -5,8 +5,18 @@ import { generateSecret, generateURI, verify as verificarCodigoOtp } from "otpli
 import { prisma } from "@/lib/prisma";
 import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { marca } from "@/lib/marca";
+import { cifrar } from "@/lib/seguranca/cofre";
+import { arquivoComConteudo } from "@/lib/arquivo-enviado";
+import { lerTitularDoCertificado } from "@/lib/licitacoes/assinatura";
 
-export type ResultadoSeguranca = { erro?: string; ok?: boolean; segredo?: string; uri?: string };
+export type ResultadoSeguranca = {
+  erro?: string;
+  ok?: boolean;
+  segredo?: string;
+  uri?: string;
+  /** Titular lido do certificado recém-enviado, para a tela confirmar quem vai assinar. */
+  titular?: string;
+};
 
 /**
  * Gera um segredo novo e devolve para a tela mostrar — ainda não grava nada.
@@ -49,6 +59,103 @@ export async function desligarDuasEtapas(): Promise<ResultadoSeguranca> {
   await prisma.licitacaoUsuario.update({
     where: { id: usuario.id },
     data: { totpSegredo: null, totpAtivado: false, totpAtivadoEm: null },
+  });
+
+  revalidatePath("/licitacoes/painel/seguranca");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// Certificado digital A1 — para ASSINAR as declarações do envelope
+// ---------------------------------------------------------------------
+
+/**
+ * Guarda o certificado A1 do licitante, que é com o que as declarações do
+ * envelope saem assinadas digitalmente (ICP-Brasil).
+ *
+ * Diferente do envio equivalente no Compliance, aqui o certificado é ABERTO
+ * na hora do envio, com a senha informada: se a senha estiver errada ou o
+ * arquivo não for um A1 legível, o erro aparece agora — e não na véspera do
+ * certame, quando o licitante for gerar o envelope.
+ */
+export async function enviarCertificadoLicitacoes(
+  _anterior: ResultadoSeguranca,
+  dados: FormData
+): Promise<ResultadoSeguranca> {
+  const { usuario, conta } = await exigirSessaoLicitacoes();
+
+  if (usuario.papel !== "DONO") {
+    return { erro: "Somente o responsável pela conta pode enviar o certificado digital." };
+  }
+
+  const arquivo = dados.get("certificado");
+  const senha = (dados.get("senha")?.toString() ?? "").trim();
+  const validade = (dados.get("validade")?.toString() ?? "").trim();
+
+  if (!arquivoComConteudo(arquivo)) return { erro: "Selecione o arquivo do certificado (.pfx ou .p12)." };
+  if (!/\.(pfx|p12)$/i.test(arquivo.name)) {
+    return {
+      erro:
+        "O arquivo precisa ser um certificado A1, com extensão .pfx ou .p12. Certificado A3 (token ou cartão) " +
+        "não pode ser usado pelo sistema, porque a chave privada não sai do dispositivo.",
+    };
+  }
+  if (arquivo.size > 200 * 1024) return { erro: "Arquivo grande demais para um certificado — confira se é o .pfx certo." };
+  if (!senha) return { erro: "Informe a senha do certificado." };
+
+  const pfx = Buffer.from(await arquivo.arrayBuffer());
+
+  // Conferência imediata: abre o certificado antes de guardar.
+  const titular = lerTitularDoCertificado(pfx, senha);
+  if (!titular.ok) return { erro: titular.erro };
+
+  if (titular.titular.validoAte && titular.titular.validoAte < new Date()) {
+    return {
+      erro: `Este certificado venceu em ${titular.titular.validoAte.toLocaleDateString("pt-BR")}. Um documento assinado com certificado vencido é recusado no certame.`,
+    };
+  }
+
+  const cifrada = cifrar(senha);
+  if (!cifrada.ok) return { erro: cifrada.erro };
+
+  await prisma.licitacaoConta.update({
+    where: { id: conta.id },
+    data: {
+      certificadoArquivo: pfx,
+      certificadoNome: arquivo.name,
+      certificadoSenha: cifrada.valor,
+      // A validade real vem do próprio certificado; o campo digitado só entra
+      // se o certificado não trouxer a data.
+      certificadoValidade: titular.titular.validoAte ?? (validade ? new Date(`${validade}T12:00:00`) : null),
+      certificadoEnviadoEm: new Date(),
+    },
+  });
+
+  revalidatePath("/licitacoes/painel/seguranca");
+  return {
+    ok: true,
+    titular: titular.titular.documento
+      ? `${titular.titular.nome} (${titular.titular.documento})`
+      : titular.titular.nome,
+  };
+}
+
+export async function removerCertificadoLicitacoes(): Promise<ResultadoSeguranca> {
+  const { usuario, conta } = await exigirSessaoLicitacoes();
+
+  if (usuario.papel !== "DONO") {
+    return { erro: "Somente o responsável pela conta pode remover o certificado digital." };
+  }
+
+  await prisma.licitacaoConta.update({
+    where: { id: conta.id },
+    data: {
+      certificadoArquivo: null,
+      certificadoNome: null,
+      certificadoSenha: null,
+      certificadoValidade: null,
+      certificadoEnviadoEm: null,
+    },
   });
 
   revalidatePath("/licitacoes/painel/seguranca");
