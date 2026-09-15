@@ -23,6 +23,7 @@ export type FatosParaAnalise = {
   situacaoAdimplencia: FatosContrato["situacaoAdimplenciaNaContratacaoNovaLinha"];
   dataInicioInadimplencia: Date | null;
   permaneceInadimplenteEm31Mai2026: boolean | null;
+  vencimentoParcelaInvestimento: Date | null;
   categoriaBeneficiario: FatosContrato["categoriaBeneficiario"];
   valorOperacao: number | null;
   numeroSafrasComPerda: number | null;
@@ -64,6 +65,7 @@ export function analisarContrato(f: FatosParaAnalise): ResultadoAnalise {
     situacaoAdimplenciaNaContratacaoNovaLinha: f.situacaoAdimplencia,
     dataInicioInadimplencia: f.dataInicioInadimplencia,
     permaneceInadimplenteEm31Mai2026: f.permaneceInadimplenteEm31Mai2026,
+    vencimentoParcelaInvestimento: f.vencimentoParcelaInvestimento,
     categoriaBeneficiario: f.categoriaBeneficiario,
     valorOperacao: f.valorOperacao,
     numeroSafrasComPerda: f.numeroSafrasComPerda,

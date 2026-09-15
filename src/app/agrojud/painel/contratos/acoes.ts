@@ -152,6 +152,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
     situacaoAdimplencia,
     dataInicioInadimplencia: data(dados, "dataInicioInadimplencia"),
     permaneceInadimplenteEm31Mai2026: booleano(dados, "permaneceInadimplenteEm31Mai2026"),
+    vencimentoParcelaInvestimento: data(dados, "vencimentoParcelaInvestimento"),
     categoriaBeneficiario,
     valorOperacao: numero(dados, "valorOperacao"),
     numeroSafrasComPerda: inteiro(dados, "numeroSafrasComPerda"),
@@ -228,6 +229,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       situacaoAdimplencia,
       dataInicioInadimplencia: data(dados, "dataInicioInadimplencia"),
       permaneceInadimplenteEm31Mai2026: booleano(dados, "permaneceInadimplenteEm31Mai2026"),
+      vencimentoParcelaInvestimento: data(dados, "vencimentoParcelaInvestimento"),
       foiRenegociadoOuProrrogado: booleano(dados, "foiRenegociadoOuProrrogado"),
       dataRenegociacaoOuProrrogacao: data(dados, "dataRenegociacaoOuProrrogacao"),
 
@@ -370,6 +372,7 @@ async function reanalisar(contratoId: string): Promise<void> {
     situacaoAdimplencia: c.situacaoAdimplencia as FatosContrato["situacaoAdimplenciaNaContratacaoNovaLinha"],
     dataInicioInadimplencia: c.dataInicioInadimplencia,
     permaneceInadimplenteEm31Mai2026: c.permaneceInadimplenteEm31Mai2026,
+    vencimentoParcelaInvestimento: c.vencimentoParcelaInvestimento,
     categoriaBeneficiario: c.categoriaBeneficiario as FatosContrato["categoriaBeneficiario"],
     valorOperacao: c.valorOperacao ? Number(c.valorOperacao) : null,
     numeroSafrasComPerda: c.numeroSafrasComPerda,

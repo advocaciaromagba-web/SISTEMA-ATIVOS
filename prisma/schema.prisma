@@ -2300,6 +2300,14 @@ model AgroContrato {
   enquadraCreditoRural       Boolean?
   justificativaEnquadramento String?
 
+  /// Vencimento da parcela, so para operacao de INVESTIMENTO.
+  ///
+  /// O art. 1o, III da MP 1.376/2026 so alcanca parcela "vencida ou vincenda
+  /// entre 1o de janeiro de 2024 e 31 de dezembro de 2026". Sem esta data o
+  /// motor nao tem como conferir a janela, e devolve INDETERMINADO em vez de
+  /// dar o requisito por atendido.
+  vencimentoParcelaInvestimento DateTime?
+
   // ----- porte do beneficiário e situação -----
   /// PRONAF | PRONAMP | DEMAIS
   categoriaBeneficiario         String?

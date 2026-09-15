@@ -56,8 +56,20 @@ export type VigenciaMp = {
   descricaoSituacaoOficial: string | null;
   /** Data-limite de deliberação. Vinda do despacho oficial quando houver. */
   prazoFinal: string | null;
-  /** De onde saiu o prazo: despacho oficial de prorrogação, ou conta de 60 dias. */
-  origemPrazo: "DESPACHO_OFICIAL" | "CALCULADO_60_DIAS" | "DESCONHECIDA";
+  /**
+   * De onde saiu o prazo.
+   *
+   * `DESPACHO_INCONSISTENTE` é o caso em que o despacho oficial anuncia
+   * prorrogação mas traz uma data que não fecha com ela — ver
+   * `prazoOficialInconsistente` abaixo.
+   */
+  origemPrazo: "DESPACHO_OFICIAL" | "CALCULADO_60_DIAS" | "DESCONHECIDA" | "DESPACHO_INCONSISTENTE";
+  /**
+   * A data que o despacho oficial traz, quando ela não fecha com a própria
+   * prorrogação que ele anuncia. Guardada literal, porque o que a fonte
+   * escreveu não pode sumir da tela só por estar errado.
+   */
+  prazoOficialInconsistente: string | null;
   /** Preenchido só quando a MP virou lei. */
   leiConversao: string | null;
   /** Houve Projeto de Lei de Conversão: o texto pode ter mudado. */
@@ -220,12 +232,31 @@ export async function consultarVigenciaMp(hoje = new Date(), alvo: AlvoMp = MP_A
   const situacao = classificar(descricaoOficial, eventos);
 
   const prazoOficial = lerPrazoProrrogado(eventos);
-  // Sem despacho oficial, a data é a mais CEDO possível: 60 dias contando a
-  // publicação como dia 1, sem descontar a suspensão no recesso (CF, art. 62,
-  // § 4º), que só empurra o prazo para frente. Errar para o lado de avisar
-  // cedo demais é seguro; para o lado de avisar tarde, não.
-  const prazoFinal = prazoOficial ?? somarDias(alvo.publicacao, 59);
-  const origemPrazo: VigenciaMp["origemPrazo"] = prazoOficial ? "DESPACHO_OFICIAL" : "CALCULADO_60_DIAS";
+
+  // Prazo original: 60 dias contando a publicação como dia 1 (CF, art. 62,
+  // § 3º), sem descontar a suspensão no recesso (§ 4º), que só empurra para
+  // frente. É a data mais CEDO possível.
+  const prazoOriginal = somarDias(alvo.publicacao, 59);
+  // Prorrogado uma única vez por igual período (§ 7º).
+  const prazoProrrogadoPelaRegra = somarDias(prazoOriginal, 60);
+
+  // Conferência de coerência: prorrogação que termina ANTES do prazo que ela
+  // prorroga é impossível. Visto na vida real — o despacho da MP 1.376/2026
+  // anuncia "por 60 dias" e escreve "Data final após prorrogação: 11/9/2026",
+  // anterior ao prazo original (12/9/2026). Confiar nessa data faria o sistema
+  // gritar que a MP venceu enquanto ela está em vigor. Aqui o erro é
+  // detectado por aritmética, a data oficial é preservada à vista, e o prazo
+  // de trabalho passa a ser o da regra constitucional que o próprio despacho
+  // invoca.
+  const oficialIncoerente = prazoOficial != null && prazoOficial < prazoOriginal;
+
+  const prazoFinal = oficialIncoerente ? prazoProrrogadoPelaRegra : prazoOficial ?? prazoOriginal;
+  const origemPrazo: VigenciaMp["origemPrazo"] = oficialIncoerente
+    ? "DESPACHO_INCONSISTENTE"
+    : prazoOficial
+      ? "DESPACHO_OFICIAL"
+      : "CALCULADO_60_DIAS";
+  const prazoOficialInconsistente = oficialIncoerente ? prazoOficial : null;
 
   const leiConversao = lerLeiConversao(eventos);
   const plv = temPlv(eventos);
@@ -291,6 +322,19 @@ export async function consultarVigenciaMp(hoje = new Date(), alvo: AlvoMp = MP_A
     }
   }
 
+  if (origemPrazo === "DESPACHO_INCONSISTENTE") {
+    alertas.push({
+      gravidade: "ATENCAO",
+      titulo: "Despacho oficial traz data que não fecha com a prorrogação",
+      texto:
+        `O despacho de prorrogação publicado informa "${dataBr(prazoOficialInconsistente)}" como data final, mas essa data é ` +
+        `ANTERIOR ao prazo original (${dataBr(prazoOriginal)}) — uma prorrogação não pode terminar antes do prazo que prorroga. ` +
+        `Pela regra que o próprio despacho invoca (mais 60 dias, CF art. 62, § 7º), a data seria ${dataBr(prazoProrrogadoPelaRegra)}, ` +
+        "e é essa que o sistema está usando para contar. A data do despacho fica registrada acima, como publicada. " +
+        "Confira no Congresso Nacional antes de decidir qualquer coisa que dependa do prazo.",
+    });
+  }
+
   if (origemPrazo === "CALCULADO_60_DIAS") {
     alertas.push({
       gravidade: "INFORMATIVO",
@@ -310,6 +354,7 @@ export async function consultarVigenciaMp(hoje = new Date(), alvo: AlvoMp = MP_A
     descricaoSituacaoOficial: descricaoOficial,
     prazoFinal,
     origemPrazo,
+    prazoOficialInconsistente,
     leiConversao,
     temProjetoLeiConversao: plv,
     ultimoEvento,

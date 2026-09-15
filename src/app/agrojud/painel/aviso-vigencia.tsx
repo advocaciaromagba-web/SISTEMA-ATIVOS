@@ -84,7 +84,11 @@ export async function AvisoVigenciaMp() {
               <>
                 Prazo de deliberação até {dataCurta(v.prazoFinal)}
                 {dias !== null && dias >= 0 ? ` — faltam ${dias} dia(s)` : dias !== null ? ` — vencido há ${-dias} dia(s)` : ""}
-                {v.origemPrazo === "CALCULADO_60_DIAS" ? " (estimativa)" : " (despacho oficial)"}
+                {v.origemPrazo === "CALCULADO_60_DIAS" && " (estimativa)"}
+                {v.origemPrazo === "DESPACHO_OFICIAL" && " (despacho oficial)"}
+                {v.origemPrazo === "DESPACHO_INCONSISTENTE" && v.prazoOficialInconsistente && (
+                  <> (pela regra constitucional — o despacho publicou {dataCurta(v.prazoOficialInconsistente)}, ver aviso)</>
+                )}
                 {" · "}
               </>
             ) : null}

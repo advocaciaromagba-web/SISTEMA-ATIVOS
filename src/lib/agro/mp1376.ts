@@ -30,6 +30,8 @@ export type FatosContrato = {
   situacaoAdimplenciaNaContratacaoNovaLinha: "ADIMPLENTE" | "INADIMPLENTE" | null;
   dataInicioInadimplencia: Date | null;
   permaneceInadimplenteEm31Mai2026: boolean | null;
+  /** Só para INVESTIMENTO: o inciso III delimita a janela de vencimento da parcela. */
+  vencimentoParcelaInvestimento: Date | null;
 
   categoriaBeneficiario: CategoriaBeneficiario | null;
   valorOperacao: number | null;
@@ -77,7 +79,11 @@ const PUBLICACAO = new Date("2026-07-15T00:00:00-03:00");
 const PRAZO_CONTRATACAO_DIAS = 120;
 const LIMITE_INADIMPLENCIA_INICIO = new Date("2024-01-01T00:00:00-03:00");
 const LIMITE_RENEGOCIACAO_ATE = new Date("2026-05-31T23:59:59-03:00");
-const LIMITE_INADIMPLENCIA_31MAI2026 = new Date("2026-05-31T23:59:59-03:00");
+// A permanência da inadimplência em 31/05/2026 não é derivada de data: é um
+// fato que quem monta o caso declara (`permaneceInadimplenteEm31Mai2026`),
+// porque depende do extrato do banco, não de aritmética de calendário. Uma
+// constante de data aqui daria a impressão de que existe um cálculo que não
+// existe — foi assim que uma janela do inciso III passou despercebida.
 const LIMITE_INVESTIMENTO_INICIO = new Date("2024-01-01T00:00:00-03:00");
 const LIMITE_INVESTIMENTO_FIM = new Date("2026-12-31T23:59:59-03:00");
 const LIMITE_CONTRATACAO_ATE = new Date("2025-12-31T23:59:59-03:00");
@@ -105,22 +111,55 @@ function checarOperacaoElegivel(f: FatosContrato): { resultado: boolean | "INDET
   }
 
   if (f.categoriaOperacao === "INVESTIMENTO") {
+    const requisitoInvestimento =
+      "Parcela de investimento vencida/vincenda 01/01/2024–31/12/2026, de operação contratada até 31/12/2025, inadimplente desde 01/01/2024 e ainda em 31/05/2026";
+
     if (!f.dataContratacaoOriginal || f.dataInicioInadimplencia === null || f.permaneceInadimplenteEm31Mai2026 === null) {
       return {
         resultado: "INDETERMINADO",
         item: { requisito: "Parcela de investimento enquadrável (Art. 1º, III)", artigo: "Art. 1º, III, 'a' e 'b'", atende: "INDETERMINADO", observacao: "Faltam data de contratação original, data de início da inadimplência ou se permanece inadimplente em 31/05/2026." },
       };
     }
+
+    // O caput do inciso III delimita QUAIS parcelas a linha alcança: as
+    // "vencidas ou vincendas entre 1º de janeiro de 2024 e 31 de dezembro de
+    // 2026". Sem a data de vencimento não há como afirmar que a parcela está
+    // nessa janela — e dar o requisito por atendido aqui seria afirmar ao
+    // advogado que algo foi conferido quando não foi.
+    if (!f.vencimentoParcelaInvestimento) {
+      return {
+        resultado: "INDETERMINADO",
+        item: {
+          requisito: requisitoInvestimento,
+          artigo: "Art. 1º, III, caput",
+          atende: "INDETERMINADO",
+          observacao:
+            "Informe o vencimento da parcela de investimento. O inciso III só alcança parcela vencida ou vincenda " +
+            "entre 01/01/2024 e 31/12/2026, e sem essa data a janela não pode ser conferida.",
+        },
+      };
+    }
+
+    const dentroDaJanela =
+      f.vencimentoParcelaInvestimento >= LIMITE_INVESTIMENTO_INICIO &&
+      f.vencimentoParcelaInvestimento <= LIMITE_INVESTIMENTO_FIM;
     const contratadaAteLimite = f.dataContratacaoOriginal <= LIMITE_CONTRATACAO_ATE;
     const inadimplenteDesde2024 = f.dataInicioInadimplencia >= LIMITE_INADIMPLENCIA_INICIO;
-    const atende = contratadaAteLimite && inadimplenteDesde2024 && f.permaneceInadimplenteEm31Mai2026;
+    const atende = dentroDaJanela && contratadaAteLimite && inadimplenteDesde2024 && f.permaneceInadimplenteEm31Mai2026;
+
+    const faltou: string[] = [];
+    if (!dentroDaJanela) faltou.push("a parcela vence fora da janela de 01/01/2024 a 31/12/2026 (caput do inciso III)");
+    if (!contratadaAteLimite) faltou.push("a operação de origem foi contratada depois de 31/12/2025 (alínea 'a')");
+    if (!inadimplenteDesde2024) faltou.push("a inadimplência começou antes de 01/01/2024 (alínea 'b')");
+    if (!f.permaneceInadimplenteEm31Mai2026) faltou.push("não permanecia inadimplente em 31/05/2026 (alínea 'b')");
+
     return {
       resultado: atende,
       item: {
-        requisito: "Parcela de investimento vencida/vincenda 01/01/2024–31/12/2026, de operação contratada até 31/12/2025, inadimplente desde 01/01/2024 e ainda em 31/05/2026",
-        artigo: "Art. 1º, III, 'a' e 'b'",
+        requisito: requisitoInvestimento,
+        artigo: "Art. 1º, III, caput, 'a' e 'b'",
         atende,
-        observacao: atende ? "Atende." : "Não atende às condições cumulativas do inciso III.",
+        observacao: atende ? "Atende." : `Não atende às condições cumulativas do inciso III: ${faltou.join("; ")}.`,
       },
     };
   }
@@ -207,22 +246,39 @@ function checarBeneficiario(f: FatosContrato): { modalidade: Modalidade | null; 
   const geralPercentual = f.percentualReducaoRenda >= 30;
   const atendeGeral = geralSafras && geralCausa && geralPercentual && temLaudo;
 
+  // O motivo é montado a partir do que efetivamente reprovou. Item que diz
+  // "não atende" sem dizer o quê não serve para o advogado decidir nada — e
+  // era o que acontecia quando a causa da perda era o motivo da reprovação,
+  // que não entrava na mensagem da modalidade geral.
+  const motivo = (partes: string[]) =>
+    partes.length > 0 ? `Não atende: ${partes.join("; ")}.` : "Não atende às condições deste parágrafo.";
+
+  const faltouFavorecida: string[] = [];
+  if (!favorecidaSafras) faltouFavorecida.push("menos de 3 safras");
+  if (!favorecidaCausa) faltouFavorecida.push("causa não é exclusivamente climática");
+  if (!favorecidaPercentual) faltouFavorecida.push("redução menor que 40%");
+  if (!temLaudo) faltouFavorecida.push("sem laudo técnico");
+
+  const faltouGeral: string[] = [];
+  if (!geralSafras) faltouGeral.push("menos de 2 safras");
+  if (!geralCausa) faltouGeral.push("causa da perda não informada ou fora das hipóteses do parágrafo");
+  if (!geralPercentual) faltouGeral.push("redução menor que 30%");
+  if (!temLaudo) faltouGeral.push("sem laudo técnico");
+
   itens.push({
     requisito: "3 ou mais safras entre 2019–2025, perda causada exclusivamente por evento climático extremo, com redução ≥ 40% da renda bruta esperada",
     artigo: "Art. 1º, § 7º",
     atende: atendeFavorecida,
     observacao: atendeFavorecida
       ? "Atende à modalidade favorecida — limites e taxas melhores se aplicam."
-      : `Não atende: ${!favorecidaSafras ? "menos de 3 safras; " : ""}${!favorecidaCausa ? "causa não é exclusivamente climática; " : ""}${!favorecidaPercentual ? "redução menor que 40%; " : ""}`.trim(),
+      : motivo(faltouFavorecida),
   });
 
   itens.push({
     requisito: "2 ou mais safras entre 2019–2025, perda por evento climático extremo ou redução de preço, com redução ≥ 30% da renda bruta esperada",
     artigo: "Art. 1º, § 1º",
     atende: atendeGeral,
-    observacao: atendeGeral
-      ? "Atende à modalidade geral."
-      : `Não atende: ${!geralSafras ? "menos de 2 safras; " : ""}${!geralPercentual ? "redução menor que 30%; " : ""}`.trim(),
+    observacao: atendeGeral ? "Atende à modalidade geral." : motivo(faltouGeral),
   });
 
   if (atendeFavorecida) return { modalidade: "FAVORECIDA", resultado: true, itens };

@@ -62,6 +62,7 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   const [foiRenegociadoOuProrrogado, setFoiRenegociadoOuProrrogado] = useState("");
   const [dataRenegociacaoOuProrrogacao, setDataRenegociacaoOuProrrogacao] = useState("");
   const [permaneceInadimplenteEm31Mai2026, setPermaneceInadimplenteEm31Mai2026] = useState("");
+  const [vencimentoParcelaInvestimento, setVencimentoParcelaInvestimento] = useState("");
 
   const [numeroSafrasComPerda, setNumeroSafrasComPerda] = useState("");
   const [anosSafrasComPerda, setAnosSafrasComPerda] = useState("");
@@ -587,6 +588,26 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
             <input id="dataInicioInadimplencia" name="dataInicioInadimplencia" type="date" className="campo" value={dataInicioInadimplencia} onChange={(e) => setDataInicioInadimplencia(e.target.value)} />
           </div>
           <CampoSimNao nome="permaneceInadimplenteEm31Mai2026" rotulo="Permanecia inadimplente em 31/05/2026?" valor={permaneceInadimplenteEm31Mai2026} onChange={setPermaneceInadimplenteEm31Mai2026} />
+
+          {categoriaOperacao === "INVESTIMENTO" && (
+            <div>
+              <label className="rotulo" htmlFor="vencimentoParcelaInvestimento">
+                Vencimento da parcela de investimento
+              </label>
+              <input
+                id="vencimentoParcelaInvestimento"
+                name="vencimentoParcelaInvestimento"
+                type="date"
+                className="campo"
+                value={vencimentoParcelaInvestimento}
+                onChange={(e) => setVencimentoParcelaInvestimento(e.target.value)}
+              />
+              <p className="ajuda">
+                O art. 1º, III da MP só alcança parcela vencida ou vincenda entre 01/01/2024 e 31/12/2026. Sem esta
+                data o enquadramento fica indeterminado.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
