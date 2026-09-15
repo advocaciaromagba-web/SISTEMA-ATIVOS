@@ -10,6 +10,7 @@ import type { ResultadoCobrancas } from "@/lib/agro/cobrancas";
 import type { ResultadoGarantias } from "@/lib/agro/garantias";
 import type { ResultadoSeguroRural } from "@/lib/agro/seguro-rural";
 import type { ResultadoRiscos } from "@/lib/agro/riscos";
+import { analisarPeca } from "@/lib/agro/verificacao-peca";
 import { BotaoExcluir } from "./botao-excluir";
 import { Anexos } from "./anexos";
 import { DocumentosGerados } from "./documentos-gerados";
@@ -452,13 +453,22 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
 
       <DocumentosGerados
         contratoId={contrato.id}
-        documentos={contrato.documentosGerados.map((d) => ({
-          id: d.id,
-          tipo: d.tipo,
-          origem: d.origem,
-          nomeArquivo: d.nomeArquivo,
-          criadoEm: d.criadoEm.toISOString(),
-        }))}
+        documentos={contrato.documentosGerados.map((d) => {
+          const analise =
+            d.origem === "IA" && d.conteudoIa && d.contextoAnalise
+              ? analisarPeca(d.conteudoIa, d.contextoAnalise as Record<string, unknown>)
+              : null;
+          return {
+            id: d.id,
+            tipo: d.tipo,
+            origem: d.origem,
+            nomeArquivo: d.nomeArquivo,
+            criadoEm: d.criadoEm.toISOString(),
+            pendenciasMarcadas: analise?.pendenciasMarcadas ?? [],
+            camposEssenciaisFaltantes: analise?.camposEssenciaisFaltantes ?? [],
+            alertaOmissaoPossivel: analise?.alertaOmissaoPossivel ?? false,
+          };
+        })}
       />
     </div>
   );

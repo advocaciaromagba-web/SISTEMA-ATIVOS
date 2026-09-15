@@ -9,6 +9,12 @@ export type DocumentoGeradoExistente = {
   origem: string;
   nomeArquivo: string;
   criadoEm: string;
+  /** `[CONFIRMAR: ...]` que a IA escreveu no texto — cada um é uma pendência que ela mesma sinalizou. */
+  pendenciasMarcadas: string[];
+  /** Rótulos dos campos essenciais que estavam faltando no cadastro quando esta peça foi gerada. */
+  camposEssenciaisFaltantes: string[];
+  /** Faltava dado essencial e a peça não marcou nenhuma pendência — pode ter omitido em vez de sinalizar. */
+  alertaOmissaoPossivel: boolean;
 };
 
 const ROTULO_TIPO: Record<string, string> = {
@@ -74,21 +80,42 @@ export function DocumentosGerados({ contratoId, documentos }: { contratoId: stri
       {documentos.length === 0 ? (
         <p className="text-sm text-slate-500">Nenhuma peça gerada por IA ainda.</p>
       ) : (
-        <ul className="space-y-1 text-sm">
+        <ul className="space-y-2 text-sm">
           {documentos.map((d) => (
-            <li key={d.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2">
-              <div>
-                <span className="etiqueta bg-indigo-100 text-indigo-700">{ROTULO_TIPO[d.tipo] ?? d.tipo}</span>
-                <span className="ml-2 text-slate-600">{new Date(d.criadoEm).toLocaleString("pt-BR")}</span>
+            <li key={d.id} className="rounded-lg border border-slate-200 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="etiqueta bg-indigo-100 text-indigo-700">{ROTULO_TIPO[d.tipo] ?? d.tipo}</span>
+                  <span className="ml-2 text-slate-600">{new Date(d.criadoEm).toLocaleString("pt-BR")}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <a href={`/api/agro/documentos/${d.id}`} className="text-xs font-medium text-slate-600 underline">
+                    baixar
+                  </a>
+                  <button onClick={() => remover(d.id)} disabled={excluindo} className="text-xs text-red-600 underline disabled:opacity-50">
+                    excluir
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <a href={`/api/agro/documentos/${d.id}`} className="text-xs font-medium text-slate-600 underline">
-                  baixar
-                </a>
-                <button onClick={() => remover(d.id)} disabled={excluindo} className="text-xs text-red-600 underline disabled:opacity-50">
-                  excluir
-                </button>
-              </div>
+
+              {d.alertaOmissaoPossivel && (
+                <div className="aviso-erro mt-2 text-xs">
+                  Esta minuta não marcou nenhuma pendência, mas o cadastro tem {d.camposEssenciaisFaltantes.length}{" "}
+                  dado(s) essencial(is) faltando ({d.camposEssenciaisFaltantes.join(", ")}). A IA pode ter omitido em
+                  vez de sinalizar — revise a peça inteira com atenção redobrada antes de usar.
+                </div>
+              )}
+
+              {d.pendenciasMarcadas.length > 0 && (
+                <div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                  <p className="font-medium">Pendências marcadas pela própria IA nesta minuta ({d.pendenciasMarcadas.length}):</p>
+                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                    {d.pendenciasMarcadas.map((p, i) => (
+                      <li key={i}>{p}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </li>
           ))}
         </ul>
