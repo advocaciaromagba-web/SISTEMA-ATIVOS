@@ -5,6 +5,7 @@ import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { formatarDocumento } from "@/lib/validacao";
 import { FormularioParticipante } from "./participante-form";
 import { BotaoRelerCertame } from "./reler-edital-botao";
+import { COR_RECOMENDACAO, ROTULO_RECOMENDACAO } from "./[participanteId]/classificacao-vista";
 import { LeituraEditalVista } from "../../leitura-edital-vista";
 import type { LeituraEdital } from "@/lib/licitacoes/leitura-edital";
 
@@ -87,6 +88,7 @@ export default async function DetalheCertame(props: { params: Promise<{ id: stri
                   <th>CNPJ</th>
                   <th>Documentos</th>
                   <th>Compliance</th>
+                  <th>Recomendação</th>
                   <th>Situação</th>
                 </tr>
               </thead>
@@ -107,6 +109,15 @@ export default async function DetalheCertame(props: { params: Promise<{ id: stri
                       {p.complianceIdoneidade ? (
                         <span className={`etiqueta ${COR_COMPLIANCE[p.complianceIdoneidade] ?? "bg-slate-100 text-slate-700"}`}>
                           {ROTULO_COMPLIANCE[p.complianceIdoneidade] ?? p.complianceIdoneidade}
+                        </span>
+                      ) : (
+                        <span className="etiqueta bg-slate-100 text-slate-600">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {p.recomendacao ? (
+                        <span className={`etiqueta ${COR_RECOMENDACAO[p.recomendacao] ?? "bg-slate-100 text-slate-700"}`}>
+                          {ROTULO_RECOMENDACAO[p.recomendacao] ?? p.recomendacao}
                         </span>
                       ) : (
                         <span className="etiqueta bg-slate-100 text-slate-600">—</span>

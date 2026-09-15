@@ -1155,6 +1155,19 @@ model ParticipanteCertame {
   complianceEm         DateTime?
   compliancePontuacao  Int?
 
+  // ----- classificacao automatica -----
+  // Cruza tres coisas: o que o edital exige (requisitos lidos do PDF), o que
+  // o participante apresentou, e o que a due diligence encontrou sobre a
+  // empresa. Continua sendo RECOMENDACAO: `situacao` e `parecer` so mudam
+  // por ato da comissao.
+  /// HABILITAR | INABILITAR | DILIGENCIA
+  recomendacao      String?
+  /// Achados que sustentam a recomendacao (ClassificacaoParticipante).
+  classificacao     Json?
+  classificadoEm    DateTime?
+  /// Certidoes emitidas direto na fonte para este participante (CNDT etc.).
+  certidoesEmitidas Json?
+
   criadoEm DateTime @default(now())
 
   documentos DocumentoParticipante[]

@@ -7,18 +7,16 @@ import { FormularioDocumentoParticipante } from "./documento-form";
 import { BotoesAutenticidade } from "./autenticidade-botoes";
 import { FormularioAssinatura } from "./assinatura-form";
 import { FormularioParecer } from "./parecer-form";
+import { ClassificacaoVista } from "./classificacao-vista";
+import { BotaoReauditarParticipante } from "./reauditar-botao";
+import { documentoHabilitacao } from "@/lib/licitacoes/requisitos";
+import type { ClassificacaoParticipante } from "@/lib/licitacoes/classificacao";
 
 export const dynamic = "force-dynamic";
 
-const ROTULO_DOCUMENTO: Record<string, string> = {
-  CONTRATO_SOCIAL: "Contrato social",
-  CERTIDAO_TRIBUTOS_FEDERAIS: "Certidão de tributos federais",
-  CERTIDAO_FGTS: "Certidão do FGTS",
-  CNDT: "CNDT",
-  CERTIDAO_FALENCIA_CONCORDATA: "Certidão de falência e concordata",
-  DECLARACAO_NAO_EMPREGA_MENOR: "Declaração de não emprega menor",
-  OUTRO: "Outro",
-};
+/** O rótulo sai da própria taxonomia de habilitação — lista paralela divergiria. */
+const rotuloDocumento = (tipo: string): string =>
+  tipo === "OUTRO" ? "Outro" : documentoHabilitacao(tipo)?.nome ?? tipo;
 
 export default async function DetalheParticipante(
   props: {
@@ -55,6 +53,22 @@ export default async function DetalheParticipante(
       <PainelCompliance participante={participante} auditoria={ultimaAuditoria} />
 
       <section className="cartao">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold">Classificação automática</h2>
+            <p className="text-sm text-slate-500">
+              Cruza o que o edital exige, o que foi apresentado e o que a verificação da empresa encontrou.
+            </p>
+          </div>
+          <BotaoReauditarParticipante participanteCertameId={participante.id} certameId={certame.id} />
+        </div>
+        <ClassificacaoVista
+          classificacao={participante.classificacao as unknown as ClassificacaoParticipante | null}
+          classificadoEm={participante.classificadoEm}
+        />
+      </section>
+
+      <section className="cartao">
         <h2 className="mb-1 text-base font-semibold">Documentos apresentados</h2>
         <p className="mb-4 text-sm text-slate-500">
           Para cada um: confira se o conteúdo confere com a fonte oficial e valide a assinatura antes de decidir a
@@ -67,7 +81,7 @@ export default async function DetalheParticipante(
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="etiqueta bg-slate-100 text-slate-700">
-                    {ROTULO_DOCUMENTO[d.tipo] ?? d.tipo}
+                    {rotuloDocumento(d.tipo)}
                   </span>
                   <span className="ml-2 text-sm text-slate-700">{d.nomeArquivo}</span>
                 </div>

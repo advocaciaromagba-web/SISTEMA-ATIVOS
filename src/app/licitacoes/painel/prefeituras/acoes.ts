@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { exigirEdicaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { somenteAlfanumerico, validarDocumento } from "@/lib/validacao";
-import { auditarParticipante } from "@/lib/licitacoes/auditoria";
+import { auditarParticipante, reclassificarParticipante } from "@/lib/licitacoes/auditoria";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 import { lerEdital } from "@/lib/licitacoes/leitura-edital";
+import { DOCUMENTOS_HABILITACAO } from "@/lib/licitacoes/requisitos";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -103,8 +104,46 @@ export async function relerCertame(certameId: string): Promise<ResultadoAcao> {
       : { leituraIaEm: new Date(), leituraIaErro: resultado.erro },
   });
 
+  // Mudaram os requisitos exigidos: a conferência de cada participante contra
+  // o edital precisa ser refeita, senão a recomendação fica falando de uma
+  // lista que não existe mais.
+  if (resultado.ok) {
+    const participantes = await prisma.participanteCertame.findMany({
+      where: { certameId },
+      select: { id: true },
+    });
+    for (const p of participantes) {
+      await reclassificarParticipante(p.id).catch((erro) =>
+        console.error("Reclassificação após reler o edital falhou:", erro)
+      );
+    }
+  }
+
   revalidatePath(`/licitacoes/painel/prefeituras/${certameId}`);
   return resultado.ok ? { ok: true } : { erro: resultado.erro };
+}
+
+/** Roda de novo a verificação completa do participante, com consulta às fontes. */
+export async function reauditarParticipante(
+  participanteCertameId: string,
+  certameId: string
+): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoLicitacoes();
+
+  const participante = await prisma.participanteCertame.findFirst({
+    where: { id: participanteCertameId, certame: { licitacaoContaId: conta.id } },
+  });
+  if (!participante) return { erro: "Participante não encontrado." };
+  if (!participante.documento) return { erro: "Participante sem CNPJ — não há o que consultar." };
+
+  try {
+    await auditarParticipante({ participante });
+  } catch (erro) {
+    return { erro: `Verificação não concluída: ${(erro as Error).message}` };
+  }
+
+  revalidatePath(`/licitacoes/painel/prefeituras/${certameId}/${participanteCertameId}`);
+  return { ok: true };
 }
 
 export async function salvarParticipante(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
@@ -139,15 +178,13 @@ export async function salvarParticipante(_anterior: ResultadoAcao, dados: FormDa
   return { ok: true };
 }
 
-const TIPOS_DOCUMENTO_PARTICIPANTE = [
-  "CONTRATO_SOCIAL",
-  "CERTIDAO_TRIBUTOS_FEDERAIS",
-  "CERTIDAO_FGTS",
-  "CNDT",
-  "CERTIDAO_FALENCIA_CONCORDATA",
-  "DECLARACAO_NAO_EMPREGA_MENOR",
-  "OUTRO",
-];
+/**
+ * Os tipos aceitos são os da taxonomia de habilitação, não uma lista à parte:
+ * é assim que o documento apresentado casa com o requisito lido do edital na
+ * classificação automática. Lista própria voltaria a divergir na primeira vez
+ * que alguém acrescentasse um requisito num lugar só.
+ */
+const TIPOS_DOCUMENTO_PARTICIPANTE = [...DOCUMENTOS_HABILITACAO.map((d) => d.chave), "OUTRO"];
 
 export async function anexarDocumentoParticipante(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
   const { conta } = await exigirEdicaoLicitacoes();
@@ -179,6 +216,12 @@ export async function anexarDocumentoParticipante(_anterior: ResultadoAcao, dado
     },
   });
 
+  // O documento novo pode fechar uma pendência do edital — a recomendação
+  // precisa refletir isso na hora, não na próxima auditoria.
+  await reclassificarParticipante(participanteCertameId).catch((erro) =>
+    console.error("Reclassificação após anexar documento falhou:", erro)
+  );
+
   revalidatePath(`/licitacoes/painel/prefeituras/${certameId}/${participanteCertameId}`);
   return { ok: true };
 }
@@ -205,6 +248,11 @@ export async function registrarAutenticidade(
     where: { id: documentoId },
     data: { autenticidadeConferida: true, autenticidadeResultado: resultado },
   });
+
+  // Documento que diverge da fonte é impedimento — a recomendação muda na hora.
+  await reclassificarParticipante(participanteCertameId).catch((erro) =>
+    console.error("Reclassificação após conferir autenticidade falhou:", erro)
+  );
 
   revalidatePath(`/licitacoes/painel/prefeituras/${certameId}/${participanteCertameId}`);
   return { ok: true };
