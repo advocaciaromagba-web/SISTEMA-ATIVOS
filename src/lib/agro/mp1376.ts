@@ -15,6 +15,7 @@
  * possível de mais 60, art. 62 §3º-7º da Constituição) — se não for
  * convertida em lei ou perder eficácia, ESTE ARQUIVO precisa ser revisto.
  */
+import { moeda } from "@/lib/formato";
 
 export type CategoriaOperacao = "CUSTEIO" | "COMERCIALIZACAO" | "INDUSTRIALIZACAO" | "INVESTIMENTO";
 export type CategoriaBeneficiario = "PRONAF" | "PRONAMP" | "DEMAIS";
@@ -37,13 +38,19 @@ export type FatosContrato = {
   valorOperacao: number | null;
 
   numeroSafrasComPerda: number | null;
+  /** Anos declarados das safras com perda — confere a janela do § 1º/§ 7º ("entre 2019 e 2025"), não só a contagem. */
+  anosSafrasComPerda: string[] | null;
   percentualReducaoRenda: number | null;
   causaPerda: CausaPerda | null;
   temLaudoTecnico: boolean | null;
 
   origemFundoSocial: boolean | null;
   origemMP1314_2025: boolean | null;
+  /** Só relevante quando origemMP1314_2025 = true — ver comentário no schema (`AgroContrato.origemMP1314RecursosLivresDirecionados`). */
+  origemMP1314RecursosLivresDirecionados: boolean | null;
   encaminhadoDividaAtivaUniao: boolean | null;
+  /** Data em que a NOVA linha desta MP foi/será contratada — distinta de `dataContratacaoOriginal`. Ver Art. 1º, § 4º, IV. */
+  dataContratacaoNovaLinha: Date | null;
 };
 
 export type ItemChecklist = {
@@ -59,6 +66,15 @@ export type CondicoesAplicaveis = {
   prazoReembolsoAnos: number;
   prazoCarenciaAnos: number;
   artigo: string;
+  /**
+   * Faixa adicional acima de `limiteCredito`, só para PRONAF/PRONAMP na
+   * modalidade geral (§§ 5º e 6º) — cobrando a taxa da categoria seguinte
+   * sobre o que exceder o limite normal. `null` quando não há faixa
+   * adicional (categoria DEMAIS, e modalidade favorecida — não localizei
+   * dispositivo equivalente aos §§ 5º/6º para o § 7º, então não presumo
+   * que exista).
+   */
+  faixaAdicional: { limite: number; taxaJurosAnual: number; artigo: string } | null;
 };
 
 export type ResultadoMp1376 = {
@@ -88,19 +104,42 @@ const LIMITE_INVESTIMENTO_INICIO = new Date("2024-01-01T00:00:00-03:00");
 const LIMITE_INVESTIMENTO_FIM = new Date("2026-12-31T23:59:59-03:00");
 const LIMITE_CONTRATACAO_ATE = new Date("2025-12-31T23:59:59-03:00");
 
-/** Art. 1º, § 4º — condições da modalidade geral. */
+/**
+ * Art. 1º, § 4º — condições da modalidade geral. As faixas adicionais dos
+ * §§ 5º e 6º dão, a PRONAF e PRONAMP que excedem o limite normal, uma
+ * operação a mais até um teto extra — cobrando a taxa da categoria
+ * seguinte (§ 4º, II, alíneas 'b'/'c') sobre essa faixa.
+ */
 const CONDICOES_GERAL: Record<CategoriaBeneficiario, CondicoesAplicaveis> = {
-  PRONAF: { limiteCredito: 400_000, taxaJurosAnual: 6, prazoReembolsoAnos: 8, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 4º, I 'a' e II 'a'" },
-  PRONAMP: { limiteCredito: 2_000_000, taxaJurosAnual: 9, prazoReembolsoAnos: 8, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 4º, I 'b' e II 'b'" },
-  DEMAIS: { limiteCredito: 4_000_000, taxaJurosAnual: 12, prazoReembolsoAnos: 8, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 4º, I 'c' e II 'c'" },
+  PRONAF: {
+    limiteCredito: 400_000,
+    taxaJurosAnual: 6,
+    prazoReembolsoAnos: 8,
+    prazoCarenciaAnos: 2,
+    artigo: "Art. 1º, § 4º, I 'a' e II 'a'",
+    faixaAdicional: { limite: 600_000, taxaJurosAnual: 9, artigo: "Art. 1º, § 5º c/c § 4º, II 'b'" },
+  },
+  PRONAMP: {
+    limiteCredito: 2_000_000,
+    taxaJurosAnual: 9,
+    prazoReembolsoAnos: 8,
+    prazoCarenciaAnos: 2,
+    artigo: "Art. 1º, § 4º, I 'b' e II 'b'",
+    faixaAdicional: { limite: 2_000_000, taxaJurosAnual: 12, artigo: "Art. 1º, § 6º c/c § 4º, II 'c'" },
+  },
+  DEMAIS: { limiteCredito: 4_000_000, taxaJurosAnual: 12, prazoReembolsoAnos: 8, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 4º, I 'c' e II 'c'", faixaAdicional: null },
 };
 
 /** Art. 1º, § 7º — condições da modalidade favorecida (3+ safras, só clima, ≥40%). */
 const CONDICOES_FAVORECIDA: Record<CategoriaBeneficiario, CondicoesAplicaveis> = {
-  PRONAF: { limiteCredito: 500_000, taxaJurosAnual: 5, prazoReembolsoAnos: 10, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 7º, I 'a' e II 'a'" },
-  PRONAMP: { limiteCredito: 2_500_000, taxaJurosAnual: 8, prazoReembolsoAnos: 10, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 7º, I 'b' e II 'b'" },
-  DEMAIS: { limiteCredito: 8_000_000, taxaJurosAnual: 11, prazoReembolsoAnos: 10, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 7º, I 'c' e II 'c'" },
+  PRONAF: { limiteCredito: 500_000, taxaJurosAnual: 5, prazoReembolsoAnos: 10, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 7º, I 'a' e II 'a'", faixaAdicional: null },
+  PRONAMP: { limiteCredito: 2_500_000, taxaJurosAnual: 8, prazoReembolsoAnos: 10, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 7º, I 'b' e II 'b'", faixaAdicional: null },
+  DEMAIS: { limiteCredito: 8_000_000, taxaJurosAnual: 11, prazoReembolsoAnos: 10, prazoCarenciaAnos: 2, artigo: "Art. 1º, § 7º, I 'c' e II 'c'", faixaAdicional: null },
 };
+
+/** Art. 1º, § 1º e § 7º — a MP só alcança perda de safra registrada entre 2019 e 2025. */
+const SAFRA_ANO_MIN = 2019;
+const SAFRA_ANO_MAX = 2025;
 
 function checarOperacaoElegivel(f: FatosContrato): { resultado: boolean | "INDETERMINADO"; item: ItemChecklist } {
   if (!f.categoriaOperacao) {
@@ -300,7 +339,31 @@ function checarExclusoes(f: FatosContrato): { temExclusao: boolean; itens: ItemC
   if (f.origemMP1314_2025 === null) {
     itens.push({ requisito: "Não contratada ao amparo da MP nº 1.314/2025 (salvo exceção do § 8º, II)", artigo: "Art. 1º, § 8º, II", atende: "INDETERMINADO", observacao: "Confirme se a operação original foi contratada sob a MP 1.314/2025." });
   } else if (f.origemMP1314_2025) {
-    itens.push({ requisito: "Não contratada ao amparo da MP nº 1.314/2025 (salvo exceção do § 8º, II)", artigo: "Art. 1º, § 8º, II", atende: "INDETERMINADO", observacao: "Há exceção para operações com recursos livres/direcionados dentro dos limites — confira as condições exatas do § 8º, II antes de excluir." });
+    // O § 8º, II veda por regra, mas abre exceção "quando se tratar de
+    // operações efetuadas com recursos livres e direcionados das
+    // instituições financeiras, observados os limites por mutuário
+    // estabelecidos". Os "limites por mutuário" são de resolução do CMN,
+    // não estão na própria MP — então mesmo confirmando recursos livres e
+    // direcionados, o enquadramento fica INDETERMINADO (falta o outro
+    // dado), nunca afirmado como exceção aplicável.
+    if (f.origemMP1314RecursosLivresDirecionados === false) {
+      temExclusao = true;
+      itens.push({
+        requisito: "Não contratada ao amparo da MP nº 1.314/2025 (salvo exceção do § 8º, II)",
+        artigo: "Art. 1º, § 8º, II",
+        atende: false,
+        observacao: "EXCLUSÃO: contratada sob a MP 1.314/2025 e não são recursos livres/direcionados — a exceção do § 8º, II não se aplica.",
+      });
+    } else {
+      itens.push({
+        requisito: "Não contratada ao amparo da MP nº 1.314/2025 (salvo exceção do § 8º, II)",
+        artigo: "Art. 1º, § 8º, II",
+        atende: "INDETERMINADO",
+        observacao: f.origemMP1314RecursosLivresDirecionados
+          ? "Recursos livres/direcionados confirmados, mas o § 8º, II também exige respeitar \"os limites por mutuário estabelecidos\" — esse limite é de resolução do CMN não localizada nesta análise, não da própria MP. Confirme na resolução antes de aplicar a exceção."
+          : "Confirme se são recursos livres/direcionados das instituições financeiras — só nesse caso o § 8º, II abre exceção à vedação, e mesmo assim sujeita a limites por mutuário fora do texto desta MP.",
+      });
+    }
   }
 
   if (f.encaminhadoDividaAtivaUniao === null) {
@@ -313,12 +376,135 @@ function checarExclusoes(f: FatosContrato): { temExclusao: boolean; itens: ItemC
   return { temExclusao, itens };
 }
 
+/** Art. 1º, § 4º, IV — a nova linha desta MP precisa ser contratada em até 120 dias da publicação (15/07/2026). */
+function checarPrazoContratacao(f: FatosContrato, limiteContratacao: Date): { temExclusao: boolean; item: ItemChecklist } {
+  const requisito = `Linha de composição contratada até ${limiteContratacao.toISOString().slice(0, 10)} (120 dias da publicação)`;
+  const artigo = "Art. 1º, § 4º, IV";
+
+  if (!f.dataContratacaoNovaLinha) {
+    return {
+      temExclusao: false,
+      item: { requisito, artigo, atende: "INDETERMINADO", observacao: "Informe a data em que a nova linha de composição (desta MP) foi ou será contratada — sem ela o prazo de 120 dias não pode ser conferido." },
+    };
+  }
+
+  const dentroDoPrazo = f.dataContratacaoNovaLinha <= limiteContratacao;
+  return {
+    temExclusao: !dentroDoPrazo,
+    item: {
+      requisito,
+      artigo,
+      atende: dentroDoPrazo,
+      observacao: dentroDoPrazo
+        ? "Contratada dentro do prazo de 120 dias."
+        : `EXCLUSÃO: a nova linha foi (ou será) contratada em ${f.dataContratacaoNovaLinha.toISOString().slice(0, 10)}, depois do prazo de 120 dias da publicação.`,
+    },
+  };
+}
+
+/** Art. 1º, § 1º e § 7º — a perda de safra só conta se registrada entre 2019 e 2025; confere a janela, não só a contagem. */
+function checarJanelaSafras(f: FatosContrato): ItemChecklist | null {
+  if (!f.anosSafrasComPerda || f.anosSafrasComPerda.length === 0) return null;
+
+  const requisito = "Anos das safras com perda dentro da janela de 2019 a 2025";
+  const artigo = "Art. 1º, § 1º e § 7º";
+
+  const anosInvalidos: string[] = [];
+  const anosNumericos: number[] = [];
+  for (const bruto of f.anosSafrasComPerda) {
+    const ano = Number(String(bruto).trim());
+    if (!Number.isInteger(ano)) {
+      anosInvalidos.push(String(bruto));
+      continue;
+    }
+    anosNumericos.push(ano);
+    if (ano < SAFRA_ANO_MIN || ano > SAFRA_ANO_MAX) anosInvalidos.push(String(bruto));
+  }
+
+  if (anosInvalidos.length > 0) {
+    return {
+      requisito,
+      artigo,
+      atende: false,
+      observacao: `Os seguintes anos declarados não são um número válido dentro de 2019–2025: ${anosInvalidos.join(", ")}. A MP só alcança perda de safra registrada nessa janela — reveja os anos informados antes de contar essas safras no total.`,
+    };
+  }
+
+  // Contagem informativa: a lista de anos não precisa ter o mesmo tamanho
+  // do número declarado (o produtor pode ter perdido mais safras do que
+  // decidiu usar na composição), mas se a lista tiver MAIS anos distintos
+  // do que o número declarado, vale um alerta — pode ser erro de digitação
+  // em um dos dois campos.
+  const distintos = new Set(anosNumericos).size;
+  if (f.numeroSafrasComPerda !== null && distintos > f.numeroSafrasComPerda) {
+    return {
+      requisito,
+      artigo,
+      atende: "INDETERMINADO",
+      observacao: `Foram listados ${distintos} anos distintos (${f.anosSafrasComPerda.join(", ")}), mas o número de safras com perda informado é ${f.numeroSafrasComPerda} — confira se os dois campos estão consistentes.`,
+    };
+  }
+
+  return { requisito, artigo, atende: true, observacao: `Anos declarados (${f.anosSafrasComPerda.join(", ")}) dentro da janela de 2019 a 2025.` };
+}
+
+/** Art. 1º, §§ 5º e 6º — faixa adicional de crédito para PRONAF/PRONAMP que excedem o limite normal do § 4º. */
+function checarLimiteCredito(f: FatosContrato, condicoes: CondicoesAplicaveis | null): ItemChecklist | null {
+  if (!condicoes) return null;
+
+  const requisito = "Valor da operação dentro do limite de crédito da modalidade (ou da faixa adicional, quando cabível)";
+  const artigo = condicoes.artigo;
+
+  if (f.valorOperacao === null) {
+    return { requisito, artigo, atende: "INDETERMINADO", observacao: "Informe o valor da operação para conferir contra o limite de crédito da modalidade." };
+  }
+
+  if (f.valorOperacao <= condicoes.limiteCredito) {
+    return { requisito, artigo, atende: true, observacao: `Valor da operação (${moeda(f.valorOperacao)}) dentro do limite de ${moeda(condicoes.limiteCredito)}.` };
+  }
+
+  if (condicoes.faixaAdicional) {
+    const tetoComAdicional = condicoes.limiteCredito + condicoes.faixaAdicional.limite;
+    if (f.valorOperacao <= tetoComAdicional) {
+      return {
+        requisito,
+        artigo: `${artigo}; ${condicoes.faixaAdicional.artigo}`,
+        atende: "INDETERMINADO",
+        observacao:
+          `Valor da operação (${moeda(f.valorOperacao)}) excede o limite normal de ${moeda(condicoes.limiteCredito)}, mas está dentro do teto combinado com a faixa ` +
+          `adicional dos §§ 5º/6º (até ${moeda(tetoComAdicional)}). A faixa adicional é uma operação à parte, sujeita à taxa de ${condicoes.faixaAdicional.taxaJurosAnual}% a.a. ` +
+          `sobre o que exceder ${moeda(condicoes.limiteCredito)} — confirme com a instituição financeira como a composição está sendo estruturada antes de tratar isso como atendido.`,
+      };
+    }
+    return {
+      requisito,
+      artigo: `${artigo}; ${condicoes.faixaAdicional.artigo}`,
+      atende: false,
+      observacao: `Valor da operação (${moeda(f.valorOperacao)}) excede até o teto combinado com a faixa adicional (${moeda(tetoComAdicional)}). O excedente não tem amparo identificado no texto desta MP.`,
+    };
+  }
+
+  return {
+    requisito,
+    artigo,
+    atende: false,
+    observacao: `Valor da operação (${moeda(f.valorOperacao)}) excede o limite de ${moeda(condicoes.limiteCredito)} desta categoria/modalidade, que não tem faixa adicional identificada no texto da MP.`,
+  };
+}
+
 export function analisarEnquadramentoMP1376(f: FatosContrato): ResultadoMp1376 {
+  const limiteContratacao = new Date(PUBLICACAO.getTime() + PRAZO_CONTRATACAO_DIAS * 86_400_000);
+
   const { resultado: operacaoElegivel, item: itemOperacao } = checarOperacaoElegivel(f);
   const { modalidade, resultado: beneficiarioElegivel, itens: itensBeneficiario } = checarBeneficiario(f);
-  const { temExclusao, itens: itensExclusao } = checarExclusoes(f);
+  const { temExclusao: temExclusaoOriginaria, itens: itensExclusao } = checarExclusoes(f);
+  const { temExclusao: prazoExcedido, item: itemPrazo } = checarPrazoContratacao(f, limiteContratacao);
+  const temExclusao = temExclusaoOriginaria || prazoExcedido;
 
-  const checklist: ItemChecklist[] = [itemOperacao, ...itensBeneficiario, ...itensExclusao];
+  const checklist: ItemChecklist[] = [itemOperacao, ...itensBeneficiario, ...itensExclusao, itemPrazo];
+
+  const itemJanelaSafras = checarJanelaSafras(f);
+  if (itemJanelaSafras) checklist.push(itemJanelaSafras);
 
   let condicoes: CondicoesAplicaveis | null = null;
   if (modalidade && f.categoriaBeneficiario) {
@@ -332,6 +518,9 @@ export function analisarEnquadramentoMP1376(f: FatosContrato): ResultadoMp1376 {
       observacao: "Sem saber a categoria do produtor não é possível apurar limite, taxa e prazo aplicáveis.",
     });
   }
+
+  const itemLimiteCredito = checarLimiteCredito(f, condicoes);
+  if (itemLimiteCredito) checklist.push(itemLimiteCredito);
 
   const algumIndeterminado = checklist.some((i) => i.atende === "INDETERMINADO");
   let enquadraNaMP1376: boolean | "INDETERMINADO";
@@ -348,7 +537,7 @@ export function analisarEnquadramentoMP1376(f: FatosContrato): ResultadoMp1376 {
   return {
     fonte: "MP nº 1.376, de 15 de julho de 2026 (DOU Edição Extra C, 16/07/2026) — texto oficial via Senado Federal",
     dataConsulta: new Date().toISOString(),
-    prazoContratacaoLimite: new Date(PUBLICACAO.getTime() + PRAZO_CONTRATACAO_DIAS * 86_400_000).toISOString().slice(0, 10),
+    prazoContratacaoLimite: limiteContratacao.toISOString().slice(0, 10),
     operacaoElegivel,
     beneficiarioElegivel,
     modalidade,

@@ -49,6 +49,7 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   const [instituicaoFinanceira, setInstituicaoFinanceira] = useState("");
   const [numeroContrato, setNumeroContrato] = useState("");
   const [dataContratacao, setDataContratacao] = useState("");
+  const [dataContratacaoNovaLinha, setDataContratacaoNovaLinha] = useState("");
 
   const [categoriaOperacao, setCategoriaOperacao] = useState("");
   const [fonteRecursos, setFonteRecursos] = useState("");
@@ -75,6 +76,7 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
 
   const [origemFundoSocial, setOrigemFundoSocial] = useState("");
   const [origemMP1314_2025, setOrigemMP1314] = useState("");
+  const [origemMP1314RecursosLivresDirecionados, setOrigemMP1314RecursosLivresDirecionados] = useState("");
   const [encaminhadoDividaAtivaUniao, setEncaminhadoDividaAtiva] = useState("");
 
   const [dataVencimento, setDataVencimento] = useState("");
@@ -507,6 +509,23 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
             </label>
             <input id="dataContratacao" name="dataContratacao" type="date" className="campo" value={dataContratacao} onChange={(e) => setDataContratacao(e.target.value)} />
           </div>
+          <div>
+            <label className="rotulo" htmlFor="dataContratacaoNovaLinha">
+              Data de contratação da nova linha (MP 1.376/2026)
+            </label>
+            <input
+              id="dataContratacaoNovaLinha"
+              name="dataContratacaoNovaLinha"
+              type="date"
+              className="campo"
+              value={dataContratacaoNovaLinha}
+              onChange={(e) => setDataContratacaoNovaLinha(e.target.value)}
+            />
+            <p className="ajuda">
+              Diferente da data acima — é quando a linha de composição desta MP foi (ou será) contratada. O art. 1º, §
+              4º, IV dá 120 dias da publicação (15/07/2026) para isso.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -685,6 +704,21 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
           <CampoSimNao nome="origemFundoSocial" rotulo="Recursos do Fundo Social?" valor={origemFundoSocial} onChange={setOrigemFundoSocial} />
           <CampoSimNao nome="origemMP1314_2025" rotulo="Contratada sob a MP 1.314/2025?" valor={origemMP1314_2025} onChange={setOrigemMP1314} />
           <CampoSimNao nome="encaminhadoDividaAtivaUniao" rotulo="Encaminhada à Dívida Ativa da União?" valor={encaminhadoDividaAtivaUniao} onChange={setEncaminhadoDividaAtiva} />
+          {origemMP1314_2025 === "sim" && (
+            <div className="sm:col-span-3">
+              <CampoSimNao
+                nome="origemMP1314RecursosLivresDirecionados"
+                rotulo="Foi com recursos livres/direcionados das instituições financeiras?"
+                valor={origemMP1314RecursosLivresDirecionados}
+                onChange={setOrigemMP1314RecursosLivresDirecionados}
+              />
+              <p className="ajuda">
+                O § 8º, II veda por regra, mas abre exceção só quando a operação foi feita com recursos livres e
+                direcionados das instituições financeiras — mesmo assim, sujeita a limites por mutuário que não estão
+                no texto desta MP (são de resolução do CMN), então o sistema não afirma a exceção sozinho.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

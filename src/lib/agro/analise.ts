@@ -27,12 +27,15 @@ export type FatosParaAnalise = {
   categoriaBeneficiario: FatosContrato["categoriaBeneficiario"];
   valorOperacao: number | null;
   numeroSafrasComPerda: number | null;
+  anosSafrasComPerda: FatosContrato["anosSafrasComPerda"];
   percentualReducaoRenda: number | null;
   causaPerda: FatosContrato["causaPerda"];
   temLaudoTecnico: boolean | null;
   origemFundoSocial: boolean | null;
   origemMP1314_2025: boolean | null;
+  origemMP1314RecursosLivresDirecionados: boolean | null;
   encaminhadoDividaAtivaUniao: boolean | null;
+  dataContratacaoNovaLinha: Date | null;
   dataVencimento: Date | null;
   dataPedidoAlongamento: Date | null;
   hipotesesMcr: FatosAlongamento["hipotesesMcr"];
@@ -69,12 +72,15 @@ export function analisarContrato(f: FatosParaAnalise): ResultadoAnalise {
     categoriaBeneficiario: f.categoriaBeneficiario,
     valorOperacao: f.valorOperacao,
     numeroSafrasComPerda: f.numeroSafrasComPerda,
+    anosSafrasComPerda: f.anosSafrasComPerda,
     percentualReducaoRenda: f.percentualReducaoRenda,
     causaPerda: f.causaPerda,
     temLaudoTecnico: f.temLaudoTecnico,
     origemFundoSocial: f.origemFundoSocial,
     origemMP1314_2025: f.origemMP1314_2025,
+    origemMP1314RecursosLivresDirecionados: f.origemMP1314RecursosLivresDirecionados,
     encaminhadoDividaAtivaUniao: f.encaminhadoDividaAtivaUniao,
+    dataContratacaoNovaLinha: f.dataContratacaoNovaLinha,
   });
 
   const resultadoAlongamento = analisarAlongamento({

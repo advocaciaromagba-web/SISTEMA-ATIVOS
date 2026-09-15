@@ -2340,7 +2340,22 @@ model AgroContrato {
   // ----- exclusões (MP 1.376, art. 1º §8º e §9º) -----
   origemFundoSocial           Boolean? @default(false)
   origemMP1314_2025           Boolean? @default(false)
+  /// Só relevante quando origemMP1314_2025 = true: o §8º, II abre exceção
+  /// "quando se tratar de operações efetuadas com recursos livres e
+  /// direcionados das instituições financeiras, observados os limites por
+  /// mutuário estabelecidos" — os "limites por mutuário" não estão na
+  /// própria MP (são de resolução do CMN não localizada), então mesmo com
+  /// este campo em true o enquadramento aqui fica INDETERMINADO, nunca
+  /// afirmado.
+  origemMP1314RecursosLivresDirecionados Boolean?
   encaminhadoDividaAtivaUniao Boolean? @default(false)
+
+  /// Data em que a NOVA linha de composição desta MP foi (ou será)
+  /// efetivamente contratada — distinta de `dataContratacao`, que é da
+  /// operação ORIGINAL. O art. 1º, § 4º, IV dá 120 dias da publicação
+  /// (15/07/2026) para contratar; sem esta data o prazo nunca pode ser
+  /// conferido como cumprido ou não.
+  dataContratacaoNovaLinha DateTime?
 
   // ----- taxas -----
   taxaJurosContratual Decimal? @db.Decimal(6, 3)
