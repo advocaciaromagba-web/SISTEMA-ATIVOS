@@ -49,6 +49,9 @@ export async function salvarCertame(_anterior: ResultadoAcao, dados: FormData): 
     bytes = Buffer.from(await arquivo.arrayBuffer());
   }
 
+  const criterio = texto(dados, "criterioJulgamento");
+  const valorEstimadoTexto = texto(dados, "valorEstimado");
+
   const certame = await prisma.certame.create({
     data: {
       licitacaoContaId: conta.id,
@@ -60,6 +63,10 @@ export async function salvarCertame(_anterior: ResultadoAcao, dados: FormData): 
       arquivoEdital: bytes,
       arquivoEditalTipo,
       dataSessao: dataSessao ? new Date(dataSessao) : null,
+      criterioJulgamento: criterio,
+      valorEstimado: valorEstimadoTexto ? Number(valorEstimadoTexto.replace(/\./g, "").replace(",", ".")) : null,
+      orcamentoSigiloso: dados.get("orcamentoSigiloso") === "on",
+      tipoObjeto: texto(dados, "tipoObjeto"),
     },
   });
 
@@ -125,6 +132,77 @@ export async function relerCertame(certameId: string): Promise<ResultadoAcao> {
 
   revalidatePath(`/licitacoes/painel/prefeituras/${certameId}`);
   return resultado.ok ? { ok: true } : { erro: resultado.erro };
+}
+
+// ---------------------------------------------------------------------
+// Propostas
+// ---------------------------------------------------------------------
+
+/** Lança o valor ofertado pelo participante, no critério do certame. */
+export async function salvarProposta(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoLicitacoes();
+
+  const participanteCertameId = texto(dados, "participanteCertameId");
+  const certameId = texto(dados, "certameId");
+  const bruto = texto(dados, "propostaValor");
+
+  if (!participanteCertameId || !certameId) return { erro: "Participante não informado." };
+  if (!bruto) return { erro: "Informe o valor da proposta." };
+
+  const valor = Number(bruto.replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(valor) || valor <= 0) return { erro: "Valor da proposta inválido." };
+
+  const participante = await prisma.participanteCertame.findFirst({
+    where: { id: participanteCertameId, certame: { licitacaoContaId: conta.id } },
+  });
+  if (!participante) return { erro: "Participante não encontrado." };
+
+  await prisma.participanteCertame.update({
+    where: { id: participanteCertameId },
+    data: {
+      propostaValor: valor,
+      propostaEm: new Date(),
+      // Lançar valor novo reabre a proposta: desclassificação anterior deixa
+      // de valer, para não carregar motivo de uma oferta que não existe mais.
+      propostaSituacao: "CLASSIFICADA",
+      propostaMotivo: null,
+    },
+  });
+
+  revalidatePath(`/licitacoes/painel/prefeituras/${certameId}`);
+  return { ok: true };
+}
+
+/**
+ * Desclassifica a proposta, por ato da comissão.
+ *
+ * Fica separado da apuração automática de propósito: o motivo é escrito por
+ * quem decide, e prevalece sobre qualquer conferência do sistema.
+ */
+export async function desclassificarProposta(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoLicitacoes();
+
+  const participanteCertameId = texto(dados, "participanteCertameId");
+  const certameId = texto(dados, "certameId");
+  const motivo = texto(dados, "motivo") ?? "";
+
+  if (!participanteCertameId || !certameId) return { erro: "Participante não informado." };
+  if (motivo.length < 20) {
+    return { erro: "Escreva o motivo da desclassificação — no mínimo uma frase, que é o que fundamenta o ato." };
+  }
+
+  const participante = await prisma.participanteCertame.findFirst({
+    where: { id: participanteCertameId, certame: { licitacaoContaId: conta.id } },
+  });
+  if (!participante) return { erro: "Participante não encontrado." };
+
+  await prisma.participanteCertame.update({
+    where: { id: participanteCertameId },
+    data: { propostaSituacao: "DESCLASSIFICADA", propostaMotivo: motivo },
+  });
+
+  revalidatePath(`/licitacoes/painel/prefeituras/${certameId}`);
+  return { ok: true };
 }
 
 /** Roda de novo a verificação completa do participante, com consulta às fontes. */

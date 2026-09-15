@@ -54,6 +54,44 @@ export function FormularioCertame() {
           </label>
           <input id="arquivoEdital" name="arquivoEdital" type="file" accept="application/pdf" className="campo" />
         </div>
+
+        <div>
+          <label className="rotulo" htmlFor="criterioJulgamento">
+            Critério de julgamento
+          </label>
+          <select id="criterioJulgamento" name="criterioJulgamento" className="campo" defaultValue="MENOR_PRECO">
+            <option value="MENOR_PRECO">Menor preço</option>
+            <option value="MAIOR_DESCONTO">Maior desconto</option>
+            <option value="MAIOR_LANCE">Maior lance</option>
+            <option value="OUTRO">Outro (técnica, técnica e preço…)</option>
+          </select>
+          <p className="ajuda">Critérios com nota atribuída por banca não são ordenados automaticamente.</p>
+        </div>
+
+        <div>
+          <label className="rotulo" htmlFor="tipoObjeto">
+            Tipo de objeto
+          </label>
+          <select id="tipoObjeto" name="tipoObjeto" className="campo" defaultValue="COMPRA_SERVICO">
+            <option value="COMPRA_SERVICO">Compra ou serviço comum</option>
+            <option value="OBRA_SERVICO_ENGENHARIA">Obra ou serviço de engenharia</option>
+          </select>
+          <p className="ajuda">Em obra e serviço de engenharia vale o piso de exequibilidade de 75%.</p>
+        </div>
+
+        <Campo
+          nome="valorEstimado"
+          rotulo="Orçamento estimado (R$)"
+          placeholder="150000,00"
+          ajuda="Serve para conferir proposta acima do teto e indício de inexequibilidade."
+        />
+
+        <div className="flex items-start pt-6">
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="orcamentoSigiloso" className="mt-0.5 h-4 w-4 rounded border-slate-300" />
+            <span className="text-slate-700">Orçamento sigiloso (Lei nº 14.133/2021, art. 24)</span>
+          </label>
+        </div>
       </div>
 
       <div className="flex gap-3">

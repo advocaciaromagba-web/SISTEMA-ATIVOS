@@ -147,6 +147,9 @@ export const SOLUCOES: Solucao[] = [
       "Para o ente público — cada participante conferido contra a Receita, a dívida ativa da União, a CNDT e as demais fontes do compliance de empresas",
       "Para o ente público — as exigências de habilitação extraídas do edital, item por item",
       "Para o ente público — relatório consolidado da comissão, entregue por e-mail",
+      "Para o ente público — cada documento apresentado lido e conferido contra a regra do edital: titularidade, validade e resultado da certidão",
+      "Para o ente público — recomendação de habilitar ou inabilitar cada participante, com impedimento, irregularidade e pendência separados e a base legal de cada um",
+      "Para o ente público — julgamento das propostas e apuração da empresa vencedora: melhor proposta classificada que também esteja habilitada, com empate ficto de ME/EPP sinalizado",
       "Busca de oportunidades no Portal Nacional de Contratações Públicas (PNCP), por modalidade, UF e palavra-chave",
       "Requisitos de habilitação do edital extraídos automaticamente por IA, classificados pela taxonomia legal fechada",
     ],
@@ -165,9 +168,10 @@ export const SOLUCOES: Solucao[] = [
       "As cinco declarações, a verificação individual de cada participante, a busca de oportunidades no PNCP e a " +
       "leitura automática do edital já funcionam hoje — a redação e a classificação dos requisitos foram " +
       "conferidas contra um edital real, não inventadas. O que está sendo construído é o cruzamento em lote de " +
-      "vários participantes de uma vez e a assinatura eletrônica de verdade pelo gov.br — hoje esse campo só " +
-      "registra que um analista humano conferiu a assinatura, sem verificação automática. O relatório apoia a " +
-      "decisão da comissão de licitação; não a substitui, nem emite juízo sobre habilitar ou inabilitar.",
+      "vários participantes de uma vez. A apuração do vencedor é RECOMENDAÇÃO: a adjudicação e a homologação são " +
+      "atos da autoridade competente, e o sistema não os pratica. Critério com nota de banca (melhor técnica, " +
+      "técnica e preço) não é ordenado automaticamente, e a conformidade da proposta com as especificações do " +
+      "objeto continua sendo juízo técnico da comissão.",
   },
 
   {

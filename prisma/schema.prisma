@@ -1122,6 +1122,21 @@ model Certame {
   dataSessao DateTime?
   fase       String    @default("ANALISE") // ANALISE | CONCLUIDO | CANCELADO
 
+  // ----- julgamento das propostas -----
+  // Separado da habilitacao de proposito: sao as duas fases do certame, e a
+  // ordem entre elas e a da lei (Lei 14.133/2021, art. 17) — julga-se a
+  // proposta primeiro, e so entao se habilita quem ficou em primeiro.
+  /// MENOR_PRECO | MAIOR_DESCONTO | MAIOR_LANCE | OUTRO
+  criterioJulgamento String?
+  /// Orcamento estimado. Proposta acima dele e desclassificada; muito abaixo,
+  /// presume-se inexequivel em obra/servico de engenharia.
+  valorEstimado      Decimal? @db.Decimal(14, 2)
+  /// Orcamento sigiloso (Lei 14.133, art. 24): sem valor de referencia
+  /// publicado, a conferencia de teto nao se aplica antes da abertura.
+  orcamentoSigiloso  Boolean  @default(false)
+  /// OBRA_SERVICO_ENGENHARIA | COMPRA_SERVICO — muda a regra de inexequibilidade.
+  tipoObjeto         String?
+
   criadoEm DateTime @default(now())
 
   participantes ParticipanteCertame[]
@@ -1167,6 +1182,16 @@ model ParticipanteCertame {
   classificadoEm    DateTime?
   /// Certidoes emitidas direto na fonte para este participante (CNDT etc.).
   certidoesEmitidas Json?
+
+  // ----- proposta apresentada -----
+  /// Valor ofertado, no criterio do certame (preco, desconto % ou lance).
+  propostaValor    Decimal?  @db.Decimal(14, 2)
+  propostaEm       DateTime?
+  /// CLASSIFICADA | DESCLASSIFICADA — situacao da PROPOSTA, que e coisa
+  /// diferente de habilitacao (documentos).
+  propostaSituacao String?
+  /// Por que foi desclassificada, quando foi.
+  propostaMotivo   String?
 
   criadoEm DateTime @default(now())
 
