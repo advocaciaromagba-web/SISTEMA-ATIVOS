@@ -2374,10 +2374,22 @@ model AgroContrato {
   resultadoCobrancas Json?
 
   // ----- garantias e avalistas -----
+  /// CEDULA_CREDITO_RURAL | NOTA_PROMISSORIA_RURAL | DUPLICATA_RURAL | OUTRO
+  ///
+  /// Importa para o aval: o DL 167/67, art. 60, § 2o, so declara NULO o aval
+  /// dado em Nota Promissoria Rural ou Duplicata Rural por quem nao e pessoa
+  /// fisica participante da empresa emitente nem outra pessoa juridica — o
+  /// caput do art. 60 cita tambem a Cedula de Credito Rural, mas o § 2o
+  /// restringe a nulidade aos dois primeiros titulos. Sem saber qual e o
+  /// titulo, o motor nao tem como dizer se a regra se aplica.
+  tipoTitulo String?
   tiposGarantia      Json? // ex.: ["HIPOTECA", "AVAL"]
   garantiasDescricao String?
   valorGarantia      Decimal? @db.Decimal(14, 2)
   avalistas          Json? // [{ nome, documento, patrimonioDescrito }]
+  /// Preenchido por analisarGarantiasEAvalistas() — desproporcao entre
+  /// garantia e valor da operacao, e o alerta do art. 60, § 2o quando aplicavel.
+  resultadoGarantias Json?
 
   // ----- seguro rural -----
   temSeguroRural      Boolean?
@@ -2388,10 +2400,18 @@ model AgroContrato {
   vigenciaFim         DateTime?
   temProagro          Boolean?
   indenizacaoRecebida Decimal?  @db.Decimal(14, 2)
+  /// Preenchido por analisarSeguroRural() — vigencia da apolice x periodo da
+  /// perda alegada, obrigatoriedade do Proagro, e reconciliacao com a
+  /// indenizacao ja recebida.
+  resultadoSeguroRural Json?
 
   // ----- riscos e desequilíbrios -----
   riscosIdentificados     Json?
   desequilibrioContratual String?
+  /// Preenchido por consolidarRiscos() — reune os alertas CRITICO/ATENCAO de
+  /// TODOS os motores (taxas, cobrancas, garantias, seguro, MP 1.376) num
+  /// unico painel priorizado, em vez de reinventar regra juridica propria.
+  resultadoRiscos Json?
 
   // ----- arquivo e leitura por IA -----
   nomeArquivo String?

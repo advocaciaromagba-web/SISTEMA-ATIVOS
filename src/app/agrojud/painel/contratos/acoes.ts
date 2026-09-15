@@ -19,6 +19,9 @@ import { avisoParaPeca } from "@/lib/agro/vigencia-mp";
 import { buscarTaxaMediaBcbRural } from "@/lib/agro/bcb";
 import { analisarTaxasEEncargos, type PeriodicidadeCapitalizacao } from "@/lib/agro/taxas";
 import { analisarCobrancasEVendaCasada } from "@/lib/agro/cobrancas";
+import { analisarGarantiasEAvalistas, type TipoTitulo, type Avalista } from "@/lib/agro/garantias";
+import { analisarSeguroRural } from "@/lib/agro/seguro-rural";
+import { consolidarRiscos } from "@/lib/agro/riscos";
 
 export type ResultadoAcao = {
   erro?: string;
@@ -200,7 +203,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
   });
 
   const avalistasTexto = texto(dados, "avalistasJson");
-  let avalistas: unknown = undefined;
+  let avalistas: Avalista[] | undefined = undefined;
   if (avalistasTexto) {
     try {
       avalistas = JSON.parse(avalistasTexto);
@@ -208,6 +211,53 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       avalistas = undefined;
     }
   }
+
+  const tipoTitulo = texto(dados, "tipoTitulo") as TipoTitulo | null;
+  const valorOperacao = numero(dados, "valorOperacao");
+  const valorGarantia = numero(dados, "valorGarantia");
+  const tiposGarantiaLista = listaTexto(dados, "tiposGarantia");
+
+  const resultadoGarantias = analisarGarantiasEAvalistas({
+    tipoTitulo,
+    tiposGarantia: tiposGarantiaLista,
+    valorGarantia,
+    valorOperacao,
+    avalistas: avalistas ?? null,
+  });
+
+  const temSeguroRural = booleano(dados, "temSeguroRural");
+  const temProagro = booleano(dados, "temProagro");
+  const vigenciaInicio = data(dados, "vigenciaInicio");
+  const vigenciaFim = data(dados, "vigenciaFim");
+  const indenizacaoRecebida = numero(dados, "indenizacaoRecebida");
+  const numeroSafrasComPerda = inteiro(dados, "numeroSafrasComPerda");
+  const percentualReducaoRenda = numero(dados, "percentualReducaoRenda");
+
+  const resultadoSeguroRural = analisarSeguroRural({
+    categoriaOperacao,
+    valorOperacao,
+    temSeguroRural,
+    temProagro,
+    vigenciaInicio,
+    vigenciaFim,
+    indenizacaoRecebida,
+    numeroSafrasComPerda,
+    percentualReducaoRenda,
+  });
+
+  const riscosIdentificadosLista = listaTexto(dados, "riscosIdentificados");
+  const desequilibrioContratualTexto = texto(dados, "desequilibrioContratual");
+
+  const resultadoRiscos = consolidarRiscos({
+    alertasTaxas: resultadoTaxas.alertas,
+    alertasCobrancas: resultadoCobrancas.alertas,
+    alertasGarantias: resultadoGarantias.alertas,
+    alertasSeguroRural: resultadoSeguroRural.alertas,
+    alertasAlongamento: resultadoAlongamento.alertas,
+    checklistMp1376: resultadoMp1376.checklist,
+    riscosIdentificadosLivre: riscosIdentificadosLista,
+    desequilibrioContratualLivre: desequilibrioContratualTexto,
+  });
 
   const contrato = await prisma.agroContrato.create({
     data: {
@@ -225,7 +275,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       justificativaEnquadramento: resultadoCreditoRural.checklist.map((i) => `${i.requisito}: ${i.observacao}`).join(" | "),
 
       categoriaBeneficiario,
-      valorOperacao: numero(dados, "valorOperacao"),
+      valorOperacao,
       situacaoAdimplencia,
       dataInicioInadimplencia: data(dados, "dataInicioInadimplencia"),
       permaneceInadimplenteEm31Mai2026: booleano(dados, "permaneceInadimplenteEm31Mai2026"),
@@ -233,9 +283,9 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       foiRenegociadoOuProrrogado: booleano(dados, "foiRenegociadoOuProrrogado"),
       dataRenegociacaoOuProrrogacao: data(dados, "dataRenegociacaoOuProrrogacao"),
 
-      numeroSafrasComPerda: inteiro(dados, "numeroSafrasComPerda"),
+      numeroSafrasComPerda,
       anosSafrasComPerda: (listaTexto(dados, "anosSafrasComPerda") as unknown) as never,
-      percentualReducaoRenda: numero(dados, "percentualReducaoRenda"),
+      percentualReducaoRenda,
       causaPerda,
       eventosClimaticos: (listaTexto(dados, "eventosClimaticos") as unknown) as never,
       temLaudoTecnico: booleano(dados, "temLaudoTecnico"),
@@ -267,22 +317,26 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       temTarifaRegistroGravame: booleano(dados, "temTarifaRegistroGravame"),
       resultadoCobrancas: (resultadoCobrancas as unknown) as never,
 
-      tiposGarantia: (listaTexto(dados, "tiposGarantia") as unknown) as never,
+      tipoTitulo,
+      tiposGarantia: (tiposGarantiaLista as unknown) as never,
       garantiasDescricao: texto(dados, "garantiasDescricao"),
-      valorGarantia: numero(dados, "valorGarantia"),
+      valorGarantia,
       avalistas: (avalistas as never) ?? undefined,
+      resultadoGarantias: (resultadoGarantias as unknown) as never,
 
-      temSeguroRural: booleano(dados, "temSeguroRural"),
+      temSeguroRural,
       seguradora: texto(dados, "seguradora"),
       apoliceNumero: texto(dados, "apoliceNumero"),
       coberturas: (listaTexto(dados, "coberturas") as unknown) as never,
-      vigenciaInicio: data(dados, "vigenciaInicio"),
-      vigenciaFim: data(dados, "vigenciaFim"),
-      temProagro: booleano(dados, "temProagro"),
-      indenizacaoRecebida: numero(dados, "indenizacaoRecebida"),
+      vigenciaInicio,
+      vigenciaFim,
+      temProagro,
+      indenizacaoRecebida,
+      resultadoSeguroRural: (resultadoSeguroRural as unknown) as never,
 
-      riscosIdentificados: (listaTexto(dados, "riscosIdentificados") as unknown) as never,
-      desequilibrioContratual: texto(dados, "desequilibrioContratual"),
+      riscosIdentificados: (riscosIdentificadosLista as unknown) as never,
+      desequilibrioContratual: desequilibrioContratualTexto,
+      resultadoRiscos: (resultadoRiscos as unknown) as never,
 
       nomeArquivo,
       arquivo: arquivoBytes,
@@ -421,6 +475,37 @@ async function reanalisar(contratoId: string): Promise<void> {
     temTarifaRegistroGravame: c.temTarifaRegistroGravame,
   });
 
+  const resultadoGarantias = analisarGarantiasEAvalistas({
+    tipoTitulo: c.tipoTitulo as TipoTitulo | null,
+    tiposGarantia: c.tiposGarantia as string[] | null,
+    valorGarantia: c.valorGarantia ? Number(c.valorGarantia) : null,
+    valorOperacao: c.valorOperacao ? Number(c.valorOperacao) : null,
+    avalistas: c.avalistas as Avalista[] | null,
+  });
+
+  const resultadoSeguroRural = analisarSeguroRural({
+    categoriaOperacao: c.categoriaOperacao as FatosContrato["categoriaOperacao"],
+    valorOperacao: c.valorOperacao ? Number(c.valorOperacao) : null,
+    temSeguroRural: c.temSeguroRural,
+    temProagro: c.temProagro,
+    vigenciaInicio: c.vigenciaInicio,
+    vigenciaFim: c.vigenciaFim,
+    indenizacaoRecebida: c.indenizacaoRecebida ? Number(c.indenizacaoRecebida) : null,
+    numeroSafrasComPerda: c.numeroSafrasComPerda,
+    percentualReducaoRenda: c.percentualReducaoRenda ? Number(c.percentualReducaoRenda) : null,
+  });
+
+  const resultadoRiscos = consolidarRiscos({
+    alertasTaxas: resultadoTaxas.alertas,
+    alertasCobrancas: resultadoCobrancas.alertas,
+    alertasGarantias: resultadoGarantias.alertas,
+    alertasSeguroRural: resultadoSeguroRural.alertas,
+    alertasAlongamento: resultadoAlongamento.alertas,
+    checklistMp1376: resultadoMp1376.checklist,
+    riscosIdentificadosLivre: c.riscosIdentificados as string[] | null,
+    desequilibrioContratualLivre: c.desequilibrioContratual,
+  });
+
   await prisma.agroContrato.update({
     where: { id: contratoId },
     data: {
@@ -428,6 +513,9 @@ async function reanalisar(contratoId: string): Promise<void> {
       resultadoAlongamento: (resultadoAlongamento as unknown) as never,
       resultadoTaxas: (resultadoTaxas as unknown) as never,
       resultadoCobrancas: (resultadoCobrancas as unknown) as never,
+      resultadoGarantias: (resultadoGarantias as unknown) as never,
+      resultadoSeguroRural: (resultadoSeguroRural as unknown) as never,
+      resultadoRiscos: (resultadoRiscos as unknown) as never,
       analisadoEm: new Date(),
     },
   });

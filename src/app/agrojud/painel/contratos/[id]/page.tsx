@@ -7,6 +7,9 @@ import type { ResultadoMp1376 } from "@/lib/agro/mp1376";
 import type { ResultadoAlongamento } from "@/lib/agro/alongamento";
 import type { ResultadoTaxas } from "@/lib/agro/taxas";
 import type { ResultadoCobrancas } from "@/lib/agro/cobrancas";
+import type { ResultadoGarantias } from "@/lib/agro/garantias";
+import type { ResultadoSeguroRural } from "@/lib/agro/seguro-rural";
+import type { ResultadoRiscos } from "@/lib/agro/riscos";
 import { BotaoExcluir } from "./botao-excluir";
 import { Anexos } from "./anexos";
 import { DocumentosGerados } from "./documentos-gerados";
@@ -34,6 +37,52 @@ function Selo({ valor }: { valor: boolean | "INDETERMINADO" }) {
   return <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">Falta dado</span>;
 }
 
+type ChecklistItem = { requisito: string; artigo: string; atende: boolean | "INDETERMINADO"; observacao: string };
+type AlertaItem = { gravidade: string; titulo: string; texto: string; fonte: string };
+
+/** Checklist + alertas: mesmo bloco usado por taxas, cobranças, garantias e seguro rural. */
+function ChecklistEAlertas({ checklist, alertas }: { checklist: ChecklistItem[]; alertas: AlertaItem[] }) {
+  return (
+    <>
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Checklist</h3>
+        <ul className="mt-2 space-y-3">
+          {checklist.map((item, i) => (
+            <li key={i} className="rounded-lg border border-slate-200 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-900">{item.requisito}</div>
+                  <div className="mt-0.5 text-xs font-medium text-slate-500">{item.artigo}</div>
+                </div>
+                <Selo valor={item.atende} />
+              </div>
+              <p className="mt-2 text-sm text-slate-600">{item.observacao}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {alertas.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alertas</h3>
+          <ul className="mt-2 space-y-2">
+            {alertas.map((a, i) => (
+              <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-slate-900">{a.titulo}</div>
+                  <span className="text-xs font-semibold uppercase text-slate-500">{ROTULO_GRAVIDADE[a.gravidade]}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-600">{a.texto}</p>
+                <p className="mt-1 text-xs text-slate-400">Fonte: {a.fonte}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default async function DetalheContratoAgro(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const { conta } = await exigirSessaoAgro();
@@ -51,6 +100,9 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
   const resultadoAlongamento = contrato.resultadoAlongamento as ResultadoAlongamento | null;
   const resultadoTaxas = contrato.resultadoTaxas as ResultadoTaxas | null;
   const resultadoCobrancas = contrato.resultadoCobrancas as ResultadoCobrancas | null;
+  const resultadoGarantias = contrato.resultadoGarantias as ResultadoGarantias | null;
+  const resultadoSeguroRural = contrato.resultadoSeguroRural as ResultadoSeguroRural | null;
+  const resultadoRiscos = contrato.resultadoRiscos as ResultadoRiscos | null;
   const avalistas = (contrato.avalistas as Array<{ nome?: string; documento?: string; patrimonioDescrito?: string }> | null) ?? [];
   const coberturas = (contrato.coberturas as string[] | null) ?? [];
   const riscos = (contrato.riscosIdentificados as string[] | null) ?? [];
@@ -259,83 +311,70 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
             )}
           </div>
 
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Checklist</h3>
-            <ul className="mt-2 space-y-3">
-              {resultadoTaxas.checklist.map((item, i) => (
-                <li key={i} className="rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium text-slate-900">{item.requisito}</div>
-                      <div className="mt-0.5 text-xs font-medium text-slate-500">{item.artigo}</div>
-                    </div>
-                    <Selo valor={item.atende} />
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">{item.observacao}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {resultadoTaxas.alertas.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alertas</h3>
-              <ul className="mt-2 space-y-2">
-                {resultadoTaxas.alertas.map((a, i) => (
-                  <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium text-slate-900">{a.titulo}</div>
-                      <span className="text-xs font-semibold uppercase text-slate-500">{ROTULO_GRAVIDADE[a.gravidade]}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-slate-600">{a.texto}</p>
-                    <p className="mt-1 text-xs text-slate-400">Fonte: {a.fonte}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <ChecklistEAlertas checklist={resultadoTaxas.checklist} alertas={resultadoTaxas.alertas} />
         </div>
       )}
 
       {resultadoCobrancas && (
         <div className="cartao space-y-4">
           <h2 className="text-sm font-semibold text-slate-900">Venda casada e tarifas — CDC, Tema 972/STJ e Súmulas 565/566</h2>
+          <ChecklistEAlertas checklist={resultadoCobrancas.checklist} alertas={resultadoCobrancas.alertas} />
+        </div>
+      )}
 
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Checklist</h3>
-            <ul className="mt-2 space-y-3">
-              {resultadoCobrancas.checklist.map((item, i) => (
-                <li key={i} className="rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium text-slate-900">{item.requisito}</div>
-                      <div className="mt-0.5 text-xs font-medium text-slate-500">{item.artigo}</div>
-                    </div>
-                    <Selo valor={item.atende} />
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">{item.observacao}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {resultadoCobrancas.alertas.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alertas</h3>
-              <ul className="mt-2 space-y-2">
-                {resultadoCobrancas.alertas.map((a, i) => (
-                  <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium text-slate-900">{a.titulo}</div>
-                      <span className="text-xs font-semibold uppercase text-slate-500">{ROTULO_GRAVIDADE[a.gravidade]}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-slate-600">{a.texto}</p>
-                    <p className="mt-1 text-xs text-slate-400">Fonte: {a.fonte}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
+      {resultadoGarantias && (
+        <div className="cartao space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">Garantias e avalistas — DL 167/67, art. 60</h2>
+          {resultadoGarantias.razaoGarantiaSobreDivida != null && (
+            <span className="inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+              Garantia = {resultadoGarantias.razaoGarantiaSobreDivida.toFixed(1)}x o valor da operação
+            </span>
           )}
+          <ChecklistEAlertas checklist={resultadoGarantias.checklist} alertas={resultadoGarantias.alertas} />
+        </div>
+      )}
+
+      {resultadoSeguroRural && (resultadoSeguroRural.checklist.length > 0 || resultadoSeguroRural.alertas.length > 0) && (
+        <div className="cartao space-y-4">
+          <h2 className="text-sm font-semibold text-slate-900">Seguro rural e Proagro</h2>
+          <ChecklistEAlertas checklist={resultadoSeguroRural.checklist} alertas={resultadoSeguroRural.alertas} />
+        </div>
+      )}
+
+      {resultadoRiscos && resultadoRiscos.alertas.length > 0 && (
+        <div className="cartao space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-900">Riscos consolidados</h2>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                resultadoRiscos.classificacao === "MULTIPLOS_INDICIOS_GRAVES"
+                  ? "bg-red-100 text-red-700"
+                  : resultadoRiscos.classificacao === "PONTOS_DE_ATENCAO"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {resultadoRiscos.totalCriticos} crítico(s) · {resultadoRiscos.totalAtencao} atenção
+            </span>
+          </div>
+          <p className="text-xs text-slate-500">
+            Reúne, por gravidade, os alertas já levantados pelos outros motores desta análise — taxas, venda casada,
+            garantias, seguro rural, alongamento e enquadramento na MP 1.376. Nenhuma regra nova é decidida aqui.
+          </p>
+          <ul className="space-y-2">
+            {resultadoRiscos.alertas.map((a, i) => (
+              <li key={i} className={`rounded-lg border p-3 ${COR_GRAVIDADE[a.gravidade]}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-slate-900">{a.titulo}</div>
+                  <span className="text-xs font-semibold uppercase text-slate-500">
+                    {ROTULO_GRAVIDADE[a.gravidade]} · {a.origem}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-slate-600">{a.texto}</p>
+                <p className="mt-1 text-xs text-slate-400">Fonte: {a.fonte}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

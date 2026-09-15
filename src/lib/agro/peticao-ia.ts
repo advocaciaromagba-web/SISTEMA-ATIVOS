@@ -25,6 +25,9 @@ import type { ResultadoAlongamento } from "./alongamento";
 import type { ResultadoMp1376 } from "./mp1376";
 import type { ResultadoTaxas } from "./taxas";
 import type { ResultadoCobrancas } from "./cobrancas";
+import type { ResultadoGarantias } from "./garantias";
+import type { ResultadoSeguroRural } from "./seguro-rural";
+import type { ResultadoRiscos } from "./riscos";
 import { PRECEDENTES_SUMULA_298, DOUTRINA_ALONGAMENTO, JURISPRUDENCIA_NAO_VERIFICADA, SUMULAS_ADICIONAIS_VERIFICADAS } from "./jurisprudencia";
 
 export type TipoPeticaoIa = "REQUERIMENTO_ADMINISTRATIVO" | "PETICAO_INICIAL";
@@ -74,6 +77,9 @@ export type AgroContratoParaPeticaoIa = {
   resultadoMp1376: unknown;
   resultadoTaxas: unknown;
   resultadoCobrancas: unknown;
+  resultadoGarantias: unknown;
+  resultadoSeguroRural: unknown;
+  resultadoRiscos: unknown;
   valorCausa: unknown;
 };
 
@@ -99,6 +105,9 @@ export function montarContextoPeticaoIa(
   const resultadoMp1376 = (c.resultadoMp1376 as ResultadoMp1376 | null) ?? null;
   const resultadoTaxas = (c.resultadoTaxas as ResultadoTaxas | null) ?? null;
   const resultadoCobrancas = (c.resultadoCobrancas as ResultadoCobrancas | null) ?? null;
+  const resultadoGarantias = (c.resultadoGarantias as ResultadoGarantias | null) ?? null;
+  const resultadoSeguroRural = (c.resultadoSeguroRural as ResultadoSeguroRural | null) ?? null;
+  const resultadoRiscos = (c.resultadoRiscos as ResultadoRiscos | null) ?? null;
 
   return {
     parte_autora: {
@@ -171,6 +180,30 @@ export function montarContextoPeticaoIa(
     // amparo legal (TAC/TEC, tarifa de cadastro, tarifa de registro de
     // gravame) — CDC art. 39, I; Tema 972/STJ; Súmulas 565 e 566/STJ.
     analise_venda_casada_e_tarifas: resultadoCobrancas,
+    // Validade do(s) aval(es) perante o Decreto-Lei nº 167/67, art. 60, §
+    // 2º (nulidade que alcança só nota promissória rural e duplicata
+    // rural, nunca a cédula de crédito rural) e eventual desproporção
+    // entre a garantia constituída e o valor da operação (CC arts. 421,
+    // 422 e 478) — já apurados pelo sistema, não hipótese da IA.
+    analise_garantias_e_avalistas: resultadoGarantias,
+    // Obrigatoriedade de Proagro/seguro agrícola em custeio de até R$ 300
+    // mil (Resolução CMN nº 4.509/2016, MCR 12-2-20 — fonte secundária,
+    // ver `observacao` de cada item), coerência entre vigência da apólice
+    // e período da perda alegada, e indenização já recebida — já apurados
+    // pelo sistema.
+    analise_seguro_rural: resultadoSeguroRural,
+    // Painel consolidado: reúne, por gravidade, os alertas de TODOS os
+    // motores acima (taxas, tarifas, garantias, seguro, alongamento) mais
+    // os itens do checklist da MP 1.376 que reprovaram, mais o que a
+    // pessoa anotou à mão no cadastro sobre riscos/desequilíbrio
+    // contratual. Não é uma tese nova — é o mesmo conteúdo já verificado,
+    // só priorizado; ao escrever a seção de riscos/desequilíbrio
+    // contratual, use as anotações do cadastro e as reprovações da MP
+    // 1.376 daqui (elas não aparecem em nenhum outro campo), mas não
+    // repita a mesma tese duas vezes só porque ela também aparece em
+    // `analise_taxas_e_encargos`, `analise_venda_casada_e_tarifas`,
+    // `analise_garantias_e_avalistas` ou `analise_seguro_rural`.
+    riscos_consolidados: resultadoRiscos,
     aviso_sobre_vigencia_da_mp_1376: avisoVigenciaMp,
 
     // ---- ÚNICAS fontes de jurisprudência/doutrina que a IA pode citar ----
@@ -201,11 +234,15 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
     "órgão julgador (quando houver), o relator (quando houver) e a data que constam ali — nunca parafraseie de " +
     "memória um precedente ou súmula que não esteja nesses campos, e nunca cite um artigo de lei, súmula, " +
     "resolução ou manual que não esteja mencionado no JSON (`analise_alongamento_regime_geral`, " +
-    "`analise_enquadramento_mp_1376_2026`, `analise_taxas_e_encargos` e `analise_venda_casada_e_tarifas`, e os " +
-    "campos `fonte`/`artigo` dentro deles, trazem as normas já verificadas: Súmula 298/STJ, MCR 2-6-4, Resolução " +
-    "CMN 5.314/2026, MP nº 1.376/2026, Lei nº 4.829/65, Decreto-Lei nº 167/67, Súmulas 93 e 30/STJ, CDC art. 39, " +
-    "I, Tema 972/STJ, Súmulas 565 e 566/STJ). Em `fontes_permitidas_sumulas` cada item pode trazer uma " +
-    "`observacao` que muda o alcance prático da súmula (ex.: uma súmula relativizada por lei posterior para " +
+    "`analise_enquadramento_mp_1376_2026`, `analise_taxas_e_encargos`, `analise_venda_casada_e_tarifas`, " +
+    "`analise_garantias_e_avalistas`, `analise_seguro_rural` e `riscos_consolidados`, e os campos `fonte`/`artigo` " +
+    "dentro deles, trazem as normas já verificadas: Súmula 298/STJ, MCR 2-6-4, Resolução CMN 5.314/2026, MP nº " +
+    "1.376/2026, Lei nº 4.829/65, Decreto-Lei nº 167/67 (inclusive art. 60, caput e §§ 2º e 3º, sobre aval), " +
+    "Súmulas 93 e 30/STJ, CDC art. 39, I, Tema 972/STJ, Súmulas 565 e 566/STJ, Código Civil arts. 421, 422, 478 " +
+    "e 757, e Resolução CMN nº 4.509/2016 — esta última expressamente marcada, no próprio alerta, como apoiada só " +
+    "em fonte secundária (o texto do MCR não foi conferido na fonte primária), então, ao usá-la, mantenha a " +
+    "mesma ressalva em vez de apresentá-la como fato assentado. Em `fontes_permitidas_sumulas` cada item pode " +
+    "trazer uma `observacao` que muda o alcance prático da súmula (ex.: uma súmula relativizada por lei posterior para " +
     "bancos, ou uma súmula que na verdade AFASTA uma tese em vez de sustentá-la) — essa ressalva é parte " +
     "obrigatória da citação, nunca cite a súmula isolada do que a observação exige dizer junto. O campo " +
     "`jurisprudencia_conhecida_mas_nao_verificada_na_fonte_primaria` existe só para você saber que a outra parte " +
@@ -215,16 +252,24 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
     "desequilíbrio contratual, histórico do pedido administrativo) deve vir apoiada nos campos correspondentes " +
     "do JSON — não amplie, não dramatize além do que os dados sustentam.\n" +
     "5. Onde o JSON traz um resultado de análise jurídica (enquadramento na MP 1.376/2026, regime aplicável do " +
-    "alongamento, força da tese, alertas e orientações, e os campos `analise_taxas_e_encargos` e " +
-    "`analise_venda_casada_e_tarifas`), use esse resultado como está — não reavalie, não conclua diferente do " +
-    "que o motor determinístico já decidiu. Se `enquadraNaMP1376` ou `enquadraComoCreditoRural` estiver como " +
-    '"INDETERMINADO" ou false, trate isso como está: não afirme enquadramento que o sistema não confirmou.\n' +
-    "6. TODO alerta de gravidade CRITICO ou ATENCAO dentro de `analise_taxas_e_encargos` e de " +
-    "`analise_venda_casada_e_tarifas` é abusividade JÁ APURADA pelo sistema (capitalização de juros fora do " +
-    "pactuado, multa moratória acima do limite legal, comissão de permanência cumulada, venda casada de seguro " +
-    "vinculado ao financiador, tarifas sem amparo legal) — não são hipóteses da IA, e a peça deve tratar CADA " +
-    "UM deles explicitamente, citando o artigo/súmula/tema exatos que já vêm no próprio alerta (campo `fonte`). " +
-    "Omitir um alerta desses é omitir o motivo pelo qual a peça foi pedida.\n" +
+    "alongamento, força da tese, alertas e orientações, e os campos `analise_taxas_e_encargos`, " +
+    "`analise_venda_casada_e_tarifas`, `analise_garantias_e_avalistas` e `analise_seguro_rural`), use esse " +
+    "resultado como está — não reavalie, não conclua diferente do que o motor determinístico já decidiu. Se " +
+    '`enquadraNaMP1376` ou `enquadraComoCreditoRural` estiver como "INDETERMINADO" ou false, trate isso como ' +
+    "está: não afirme enquadramento que o sistema não confirmou. O mesmo vale para `razaoGarantiaSobreDivida` " +
+    "em `analise_garantias_e_avalistas` e para qualquer item de checklist marcado \"INDETERMINADO\" nesses " +
+    "campos — INDETERMINADO nunca vira afirmação na peça, só vira `[CONFIRMAR: ...]` ou é omitido.\n" +
+    "6. TODO alerta de gravidade CRITICO ou ATENCAO dentro de `analise_taxas_e_encargos`, " +
+    "`analise_venda_casada_e_tarifas`, `analise_garantias_e_avalistas` e `analise_seguro_rural` é abusividade ou " +
+    "irregularidade JÁ APURADA pelo sistema (capitalização de juros fora do pactuado, multa moratória acima do " +
+    "limite legal, comissão de permanência cumulada, venda casada de seguro vinculado ao financiador, tarifas " +
+    "sem amparo legal, aval nulo perante o art. 60, § 2º do DL 167/67, desproporção entre garantia e dívida, " +
+    "ausência de Proagro/seguro em custeio obrigatório) — não são hipóteses da IA, e a peça deve tratar CADA UM " +
+    "deles explicitamente, citando o artigo/súmula/tema exatos que já vêm no próprio alerta (campo `fonte`). " +
+    "Omitir um alerta desses é omitir o motivo pelo qual a peça foi pedida. `riscos_consolidados` NÃO é fonte de " +
+    "tese nova — é o mesmo conteúdo dos campos acima, prioritizado por gravidade, mais as anotações livres do " +
+    "cadastro e as reprovações do checklist da MP 1.376: use-o só para a seção de riscos/desequilíbrio " +
+    "contratual, sem repetir ali o que já foi tratado na seção de abusividade.\n" +
     "7. Escreva com profundidade, não só com correção. Pedido expresso do cliente: a peça deve ser \"bem " +
     "fundamentada, bem detalhada, bem descrita, utilizando todas as linguagens jurídicas com fundamento, " +
     "doutrina, jurisprudência e tudo o que for possível, juridicamente possível\". Isso significa, para CADA " +
@@ -250,11 +295,19 @@ function instrucaoSistema(tipo: TipoPeticaoIa): string {
         "de `analise_taxas_e_encargos` (capitalização de juros, multa moratória, comissão de permanência) e de " +
         "`analise_venda_casada_e_tarifas` (venda casada de seguro/produto vinculado, TAC/TEC, tarifa de cadastro, " +
         "tarifa de registro/gravame) — cada um com o fundamento exato que já vem no alerta, pedindo a revisão ou " +
-        "nulidade da cláusula respectiva, DA TUTELA DE URGÊNCIA (suspensão de cobrança e de execução de " +
-        "garantias, probabilidade do direito e perigo de dano), DOS PEDIDOS (alongamento, revisão contratual com " +
-        "a declaração de nulidade de cada cláusula abusiva identificada, restituição do que foi cobrado a mais " +
-        "quando cabível, tutela de urgência, produção de provas, custas e honorários), DAS PROVAS, DO VALOR DA " +
-        "CAUSA, fecho com local, data e espaço de assinatura do advogado.") +
+        "nulidade da cláusula respectiva; quando `analise_garantias_e_avalistas` trouxer alerta sobre aval, " +
+        "acrescente nessa mesma subseção (ou em subseção própria DAS GARANTIAS E DO AVAL, se ficar mais claro) o " +
+        "pedido de nulidade do aval com base no art. 60, § 2º e § 3º do DL 167/67, nomeando o(s) avalista(s) " +
+        "exatamente como constam no alerta; quando `analise_seguro_rural` trouxer alerta ou item de checklist " +
+        "não atendido sobre Proagro/seguro obrigatório, trate-o na mesma subseção, mantendo a ressalva de fonte " +
+        "secundária que o próprio alerta traz; se `riscos_consolidados` tiver classificação diferente de " +
+        "\"SEM_INDICIO_RELEVANTE\", inclua uma subseção DOS RISCOS E DO DESEQUILÍBRIO CONTRATUAL que traga as " +
+        "anotações livres do cadastro e as reprovações do checklist da MP 1.376 ali listadas — sem repetir o que " +
+        "já foi desenvolvido na subseção de abusividade —, DA TUTELA DE URGÊNCIA (suspensão de cobrança e de " +
+        "execução de garantias, probabilidade do direito e perigo de dano), DOS PEDIDOS (alongamento, revisão " +
+        "contratual com a declaração de nulidade de cada cláusula abusiva e de cada aval nulo identificado, " +
+        "restituição do que foi cobrado a mais quando cabível, tutela de urgência, produção de provas, custas e " +
+        "honorários), DAS PROVAS, DO VALOR DA CAUSA, fecho com local, data e espaço de assinatura do advogado.") +
     "\n\nFORMATO DA RESPOSTA: texto simples em português, parágrafos separados por linha em branco, sem markdown " +
     "além de **negrito** ocasional para destacar um título de seção. Não devolva JSON. Comece a resposta " +
     "diretamente pela peça — sem preâmbulo do tipo \"aqui está a minuta\"."

@@ -111,6 +111,7 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
   const [tarifaCadastroCobradaApenasNoInicio, setTarifaCadastroCobradaApenasNoInicio] = useState("");
   const [temTarifaRegistroGravame, setTemTarifaRegistroGravame] = useState("");
 
+  const [tipoTitulo, setTipoTitulo] = useState("");
   const [tiposGarantia, setTiposGarantia] = useState("");
   const [garantiasDescricao, setGarantiasDescricao] = useState("");
   const [valorGarantia, setValorGarantia] = useState("");
@@ -823,6 +824,22 @@ export function FormularioNovoContrato({ iaDisponivel }: { iaDisponivel: boolean
       <div className="cartao space-y-4">
         <h2 className="text-sm font-semibold text-slate-900">Garantias e avalistas</h2>
         <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="rotulo" htmlFor="tipoTitulo">
+              Tipo do título
+            </label>
+            <select id="tipoTitulo" name="tipoTitulo" className="campo" value={tipoTitulo} onChange={(e) => setTipoTitulo(e.target.value)}>
+              <option value="">Não identificado</option>
+              <option value="CEDULA_CREDITO_RURAL">Cédula de Crédito Rural</option>
+              <option value="NOTA_PROMISSORIA_RURAL">Nota Promissória Rural</option>
+              <option value="DUPLICATA_RURAL">Duplicata Rural</option>
+              <option value="OUTRO">Outro</option>
+            </select>
+            <p className="ajuda">
+              Importa para o aval: o DL 167/67 só anula o aval de quem não participa da empresa em nota promissória
+              e duplicata rural — não na cédula.
+            </p>
+          </div>
           <div>
             <label className="rotulo" htmlFor="tiposGarantia">
               Tipos de garantia (separe por vírgula)
