@@ -9,6 +9,10 @@ import { auditarParticipante, reclassificarParticipante } from "@/lib/licitacoes
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
 import { lerEdital } from "@/lib/licitacoes/leitura-edital";
 import { DOCUMENTOS_HABILITACAO } from "@/lib/licitacoes/requisitos";
+import { lerDocumentoDeHabilitacao, conferirDocumento } from "@/lib/licitacoes/leitura-documento";
+import { regrasDoEdital, regraDoDocumento } from "@/lib/licitacoes/regras-documento";
+import type { LeituraEdital } from "@/lib/licitacoes/leitura-edital";
+import type { ParticipanteCertame } from "@prisma/client";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -186,6 +190,65 @@ export async function salvarParticipante(_anterior: ResultadoAcao, dados: FormDa
  */
 const TIPOS_DOCUMENTO_PARTICIPANTE = [...DOCUMENTOS_HABILITACAO.map((d) => d.chave), "OUTRO"];
 
+/**
+ * Lê o documento anexado e confere contra a regra do edital.
+ *
+ * A data de referência da validade é a da sessão do certame, quando houver:
+ * é nela que a habilitação é julgada, não no dia em que alguém anexou o
+ * arquivo. Sem data de sessão marcada, vale hoje.
+ */
+async function conferirDocumentoAnexado(params: {
+  documentoId: string;
+  tipo: string;
+  arquivo: Buffer;
+  arquivoTipo: string;
+  participante: ParticipanteCertame;
+  contaId: string;
+}): Promise<void> {
+  const leitura = await lerDocumentoDeHabilitacao({
+    arquivo: params.arquivo,
+    arquivoTipo: params.arquivoTipo,
+    contexto: {
+      solucao: "LICITACOES",
+      contaId: params.contaId,
+      referencia: `Habilitação — ${params.participante.nome}`,
+    },
+  });
+
+  if (!leitura.ok) {
+    await prisma.documentoParticipante.update({
+      where: { id: params.documentoId },
+      data: { leituraIaEm: new Date(), leituraIaErro: leitura.erro },
+    });
+    return;
+  }
+
+  const certame = await prisma.certame.findUnique({
+    where: { id: params.participante.certameId },
+    select: { requisitosExtraidos: true, dataSessao: true },
+  });
+
+  const regras = regrasDoEdital((certame?.requisitosExtraidos as unknown as LeituraEdital | null) ?? null);
+
+  const achados = conferirDocumento({
+    leitura: leitura.leitura,
+    tipoDeclarado: params.tipo,
+    regra: regraDoDocumento(regras, params.tipo),
+    documentoDoParticipante: params.participante.documento,
+    referencia: certame?.dataSessao ?? new Date(),
+  });
+
+  await prisma.documentoParticipante.update({
+    where: { id: params.documentoId },
+    data: {
+      leituraIa: leitura.leitura as never,
+      leituraIaEm: new Date(),
+      leituraIaErro: null,
+      conferenciaAutomatica: achados as never,
+    },
+  });
+}
+
 export async function anexarDocumentoParticipante(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {
   const { conta } = await exigirEdicaoLicitacoes();
 
@@ -206,7 +269,7 @@ export async function anexarDocumentoParticipante(_anterior: ResultadoAcao, dado
 
   const bytes = Buffer.from(await arquivo.arrayBuffer());
 
-  await prisma.documentoParticipante.create({
+  const documento = await prisma.documentoParticipante.create({
     data: {
       participanteCertameId,
       tipo,
@@ -215,6 +278,17 @@ export async function anexarDocumentoParticipante(_anterior: ResultadoAcao, dado
       arquivoTipo: arquivo.type || null,
     },
   });
+
+  // Lê o documento e confere contra a regra que o edital impõe: titularidade,
+  // validade e, sendo certidão negativa, se é mesmo negativa.
+  await conferirDocumentoAnexado({
+    documentoId: documento.id,
+    tipo,
+    arquivo: bytes,
+    arquivoTipo: arquivo.type || "",
+    participante,
+    contaId: conta.id,
+  }).catch((erro) => console.error("Leitura automática do documento falhou:", erro));
 
   // O documento novo pode fechar uma pendência do edital — a recomendação
   // precisa refletir isso na hora, não na próxima auditoria.

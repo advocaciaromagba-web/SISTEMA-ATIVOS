@@ -1239,6 +1239,18 @@ model DocumentoParticipante {
   autenticidadeConferida Boolean @default(false)
   autenticidadeResultado String? // CONFERE | DIVERGE | NAO_VERIFICAVEL
 
+  // ----- leitura e conferencia automatica do conteudo -----
+  // Diferente da autenticidade acima, que e a comparacao humana contra a
+  // fonte: aqui a IA le o proprio arquivo e extrai titular, orgao, datas e
+  // resultado, e o sistema confere isso contra a regra que o edital impoe
+  // (titularidade, validade, "nada consta").
+  /// LeituraDocumento — o que a IA leu no arquivo.
+  leituraIa      Json?
+  leituraIaEm    DateTime?
+  leituraIaErro  String?
+  /// Achados da conferencia contra a regra (AchadoDocumento[]).
+  conferenciaAutomatica Json?
+
   assinatura ValidacaoAssinatura?
 
   enviadoEm DateTime @default(now())

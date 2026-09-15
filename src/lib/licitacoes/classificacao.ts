@@ -65,6 +65,8 @@ export type DocumentoDoParticipante = {
   autenticidadeConferida: boolean;
   /** CONFERE | DIVERGE | NAO_VERIFICAVEL */
   autenticidadeResultado: string | null;
+  /** Resultado da leitura automática do conteúdo, quando houve. */
+  conferencia?: { tipo: "OK" | "ALERTA" | "DIVERGENCIA"; titulo: string; detalhe: string }[] | null;
 };
 
 const ROTULO_CATEGORIA = (c: string): string =>
@@ -285,6 +287,28 @@ export function classificarParticipante(params: {
         detalhe: "O documento foi anexado, mas ainda não foi comparado com a fonte oficial.",
         fonte: "Documento apresentado",
       });
+    }
+
+    // Conferência automática do conteúdo: titularidade, validade e resultado
+    // da certidão. Divergência aqui é objetiva — documento vencido, em nome
+    // de outra empresa, ou certidão positiva.
+    for (const c of d.conferencia ?? []) {
+      if (c.tipo === "DIVERGENCIA") {
+        achados.push({
+          tipo: "IRREGULARIDADE",
+          titulo: `${nome}: ${c.titulo}`,
+          detalhe: c.detalhe,
+          fonte: "Leitura automática do documento",
+          baseLegal: "Lei nº 14.133/2021, art. 63 e art. 68 (documentação de habilitação)",
+        });
+      } else if (c.tipo === "ALERTA") {
+        achados.push({
+          tipo: "CONFERIR",
+          titulo: `${nome}: ${c.titulo}`,
+          detalhe: c.detalhe,
+          fonte: "Leitura automática do documento",
+        });
+      }
     }
   }
 

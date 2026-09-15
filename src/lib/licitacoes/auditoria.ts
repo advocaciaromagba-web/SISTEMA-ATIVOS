@@ -261,7 +261,12 @@ export async function classificar(params: {
     }),
     prisma.documentoParticipante.findMany({
       where: { participanteCertameId: participante.id },
-      select: { tipo: true, autenticidadeConferida: true, autenticidadeResultado: true },
+      select: {
+        tipo: true,
+        autenticidadeConferida: true,
+        autenticidadeResultado: true,
+        conferenciaAutomatica: true,
+      },
     }),
   ]);
 
@@ -274,7 +279,12 @@ export async function classificar(params: {
     dadosCadastrais: resultado.dadosCadastrais,
     fontesIndisponiveis: resultado.fontesIndisponiveis,
     leituraEdital: (certame?.requisitosExtraidos as unknown as LeituraEdital | null) ?? null,
-    documentos,
+    documentos: documentos.map((d) => ({
+      tipo: d.tipo,
+      autenticidadeConferida: d.autenticidadeConferida,
+      autenticidadeResultado: d.autenticidadeResultado,
+      conferencia: (d.conferenciaAutomatica as never) ?? null,
+    })),
     certidoes,
   });
 

@@ -11,8 +11,54 @@ import { ClassificacaoVista } from "./classificacao-vista";
 import { BotaoReauditarParticipante } from "./reauditar-botao";
 import { documentoHabilitacao } from "@/lib/licitacoes/requisitos";
 import type { ClassificacaoParticipante } from "@/lib/licitacoes/classificacao";
+import type { LeituraDocumento, AchadoDocumento } from "@/lib/licitacoes/leitura-documento";
 
 export const dynamic = "force-dynamic";
+
+const COR_ACHADO_DOC: Record<string, string> = {
+  OK: "text-emerald-700",
+  ALERTA: "text-amber-700",
+  DIVERGENCIA: "text-red-700",
+};
+
+/** O que a leitura automática extraiu do arquivo e o que ela conferiu. */
+function ConferenciaDoDocumento({
+  leitura,
+  erro,
+  achados,
+}: {
+  leitura: LeituraDocumento | null;
+  erro: string | null;
+  achados: AchadoDocumento[] | null;
+}) {
+  if (erro) {
+    return <p className="mt-3 text-xs text-slate-500">Leitura automática não concluída: {erro}</p>;
+  }
+  if (!leitura) return null;
+
+  return (
+    <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2">
+      <p className="text-xs font-medium text-slate-700">Leitura automática</p>
+      <dl className="mt-1 grid gap-x-4 gap-y-0.5 text-xs text-slate-600 sm:grid-cols-2">
+        {leitura.titular && <div>Titular: {leitura.titular}</div>}
+        {leitura.documentoTitular && <div>CNPJ/CPF: {leitura.documentoTitular}</div>}
+        {leitura.orgaoEmissor && <div>Órgão: {leitura.orgaoEmissor}</div>}
+        {leitura.emitidaEm && <div>Emitida em: {leitura.emitidaEm}</div>}
+        {leitura.validaAte && <div>Válida até: {leitura.validaAte}</div>}
+      </dl>
+
+      {achados && achados.length > 0 && (
+        <ul className="mt-2 space-y-0.5 text-xs">
+          {achados.map((a, i) => (
+            <li key={i} className={COR_ACHADO_DOC[a.tipo] ?? "text-slate-600"}>
+              <span className="font-medium">{a.titulo}</span> — {a.detalhe}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /** O rótulo sai da própria taxonomia de habilitação — lista paralela divergiria. */
 const rotuloDocumento = (tipo: string): string =>
@@ -92,6 +138,12 @@ export default async function DetalheParticipante(
                   atual={d.autenticidadeResultado}
                 />
               </div>
+
+              <ConferenciaDoDocumento
+                leitura={d.leituraIa as unknown as LeituraDocumento | null}
+                erro={d.leituraIaErro}
+                achados={d.conferenciaAutomatica as unknown as AchadoDocumento[] | null}
+              />
 
               <FormularioAssinatura
                 documentoId={d.id}
