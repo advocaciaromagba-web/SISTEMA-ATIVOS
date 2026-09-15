@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { generateSecret, generateURI, verify as verificarCodigoOtp } from "otplib";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { marca } from "@/lib/marca";
 import { cifrar } from "@/lib/seguranca/cofre";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
-import { lerTitularDoCertificado } from "@/lib/licitacoes/assinatura";
+import { lerTitularDoCertificado, formatarDocumentoDoCertificado } from "@/lib/licitacoes/assinatura";
 
 export type ResultadoSeguranca = {
   erro?: string;
@@ -16,6 +17,8 @@ export type ResultadoSeguranca = {
   uri?: string;
   /** Titular lido do certificado recém-enviado, para a tela confirmar quem vai assinar. */
   titular?: string;
+  /** Ressalva que não impede o uso, mas quem cadastrou precisa saber. */
+  aviso?: string;
 };
 
 /**
@@ -118,6 +121,8 @@ export async function enviarCertificadoLicitacoes(
   const cifrada = cifrar(senha);
   if (!cifrada.ok) return { erro: cifrada.erro };
 
+  const t = titular.titular;
+
   await prisma.licitacaoConta.update({
     where: { id: conta.id },
     data: {
@@ -126,17 +131,30 @@ export async function enviarCertificadoLicitacoes(
       certificadoSenha: cifrada.valor,
       // A validade real vem do próprio certificado; o campo digitado só entra
       // se o certificado não trouxer a data.
-      certificadoValidade: titular.titular.validoAte ?? (validade ? new Date(`${validade}T12:00:00`) : null),
+      certificadoValidade: t.validoAte ?? (validade ? new Date(`${validade}T12:00:00`) : null),
       certificadoEnviadoEm: new Date(),
+      certificadoDados: {
+        titular: t.nome,
+        documento: t.documento,
+        emissor: t.emissor,
+        numeroSerie: t.numeroSerie,
+        validoDe: t.validoDe?.toISOString() ?? null,
+        validoAte: t.validoAte?.toISOString() ?? null,
+        certificadosNaCadeia: t.certificadosNaCadeia,
+        temCadeia: t.temCadeia,
+      } as never,
     },
   });
 
   revalidatePath("/licitacoes/painel/seguranca");
   return {
     ok: true,
-    titular: titular.titular.documento
-      ? `${titular.titular.nome} (${titular.titular.documento})`
-      : titular.titular.nome,
+    titular: t.documento ? `${t.nome} (${formatarDocumentoDoCertificado(t.documento)})` : t.nome,
+    // Aviso, não bloqueio: sem a AC junto, a assinatura continua válida, mas
+    // o validador pode não conseguir montar a cadeia sozinho.
+    aviso: t.temCadeia
+      ? undefined
+      : "Atenção: este arquivo trouxe só o certificado da empresa, sem a Autoridade Certificadora. A assinatura sai mesmo assim, mas alguns validadores podem não conseguir montar a cadeia de confiança. Se o seu emissor oferecer o .pfx 'com cadeia completa', prefira aquele.",
   };
 }
 
@@ -155,6 +173,7 @@ export async function removerCertificadoLicitacoes(): Promise<ResultadoSeguranca
       certificadoSenha: null,
       certificadoValidade: null,
       certificadoEnviadoEm: null,
+      certificadoDados: Prisma.DbNull,
     },
   });
 

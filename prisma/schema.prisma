@@ -792,9 +792,13 @@ model LicitacaoConta {
   certificadoNome      String?
   /// Senha do .pfx, cifrada. Formato: iv:tag:conteudo, em base64.
   certificadoSenha     String?
-  /// Informada por quem envia — serve para avisar antes de vencer.
+  /// Lida do proprio certificado no envio (nao e digitada).
   certificadoValidade  DateTime?
   certificadoEnviadoEm DateTime?
+  /// Tudo o que o certificado declara — titular, documento, AC emissora,
+  /// numero de serie e tamanho da cadeia. Guardado para a tela poder mostrar
+  /// o que foi cadastrado sem reabrir o .pfx (que exige a senha).
+  certificadoDados     Json?
 
   ativa        Boolean  @default(true)
   criadoEm     DateTime @default(now())

@@ -43,12 +43,40 @@ export type TitularDoCertificado = {
   nome: string;
   /** CNPJ ou CPF extraído do CN (padrão ICP-Brasil "NOME:DOCUMENTO"). */
   documento: string | null;
+  /** Autoridade Certificadora que emitiu — é o que amarra à ICP-Brasil. */
+  emissor: string | null;
+  /** Número de série, como aparece no visualizador de certificados. */
+  numeroSerie: string | null;
+  validoDe: Date | null;
   validoAte: Date | null;
+  /**
+   * Quantos certificados vieram no arquivo. Um A1 de verdade traz a cadeia:
+   * o da empresa, a AC intermediária e a raiz. Todos entram na assinatura.
+   */
+  certificadosNaCadeia: number;
+  /**
+   * Veio uma AC junto do certificado da empresa. Sem isso, o validador pode
+   * não conseguir montar a cadeia de confiança e a assinatura aparece como
+   * não verificada, mesmo estando criptograficamente correta.
+   */
+  temCadeia: boolean;
 };
 
+/** "12345678000199" -> "12.345.678/0001-99"; CPF análogo. */
+export function formatarDocumentoDoCertificado(doc: string | null): string | null {
+  if (!doc) return null;
+  if (doc.length === 14) return doc.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+  if (doc.length === 11) return doc.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  return doc;
+}
+
 /**
- * Lê o titular do .pfx. Serve para dois fins: mostrar na tela quem vai
- * assinar (antes de assinar), e gravar ao lado do documento quem assinou.
+ * Lê TUDO o que o .pfx tem a dizer: titular, documento, AC emissora, número
+ * de série, validade e a cadeia que vai junto.
+ *
+ * Serve para três coisas: conferir o certificado na hora do envio, mostrar na
+ * tela o que foi cadastrado, e carimbar no próprio PDF quem assinou — que é o
+ * que permite conferir o documento impresso sem abrir o validador.
  */
 export function lerTitularDoCertificado(
   pfx: Buffer,
@@ -59,8 +87,16 @@ export function lerTitularDoCertificado(
     const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, senha);
 
     const bags = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] ?? [];
-    const certificado = bags.map((b) => b.cert).find((c) => c != null);
-    if (!certificado) return { ok: false, erro: "O arquivo não contém um certificado legível." };
+    const certificados = bags.map((b) => b.cert).filter((c): c is forge.pki.Certificate => c != null);
+    if (certificados.length === 0) return { ok: false, erro: "O arquivo não contém um certificado legível." };
+
+    // O certificado do titular é o que NÃO é autoridade certificadora. Pegar
+    // o primeiro da lista erraria em arquivo que traz a raiz na frente.
+    const ehAutoridade = (c: forge.pki.Certificate) => {
+      const bc = c.getExtension("basicConstraints") as { cA?: boolean } | undefined;
+      return Boolean(bc?.cA);
+    };
+    const certificado = certificados.find((c) => !ehAutoridade(c)) ?? certificados[0];
 
     const cn = certificado.subject.getField("CN")?.value ?? "";
     // ICP-Brasil escreve "RAZAO SOCIAL LTDA:12345678000199" no CN.
@@ -68,12 +104,19 @@ export function lerTitularDoCertificado(
     const nome = separador > 0 ? cn.slice(0, separador).trim() : cn.trim();
     const documentoBruto = separador > 0 ? cn.slice(separador + 1).replace(/\D/g, "") : "";
 
+    const serie = (certificado.serialNumber ?? "").replace(/^0+/, "").toUpperCase();
+
     return {
       ok: true,
       titular: {
         nome: nome || "(nome não informado no certificado)",
         documento: documentoBruto.length === 11 || documentoBruto.length === 14 ? documentoBruto : null,
+        emissor: certificado.issuer.getField("CN")?.value ?? null,
+        numeroSerie: serie || null,
+        validoDe: certificado.validity?.notBefore ?? null,
         validoAte: certificado.validity?.notAfter ?? null,
+        certificadosNaCadeia: certificados.length,
+        temCadeia: certificados.some((c) => c !== certificado && ehAutoridade(c)),
       },
     };
   } catch (erro) {
@@ -104,6 +147,14 @@ export async function assinarPdfComCertificado(params: {
   senha: string;
   motivo: string;
   local: string;
+  /** Contato do assinante, gravado no próprio campo de assinatura. */
+  contato?: string | null;
+  /**
+   * Momento da assinatura. Vem de fora porque o mesmo instante precisa ser
+   * impresso no corpo do PDF: se a página dissesse uma hora e o atributo
+   * criptográfico outra, quem confere teria motivo para desconfiar.
+   */
+  quando: Date;
 }): Promise<ResultadoAssinatura> {
   const titular = lerTitularDoCertificado(params.pfx, params.senha);
   if (!titular.ok) return { ok: false, erro: titular.erro };
@@ -112,9 +163,10 @@ export async function assinarPdfComCertificado(params: {
     pdflibAddPlaceholder({
       pdfDoc: params.pdfDoc,
       reason: params.motivo,
-      contactInfo: "",
+      contactInfo: params.contato ?? "",
       name: titular.titular.nome,
       location: params.local,
+      signingTime: params.quando,
       signatureLength: ESPACO_ASSINATURA,
       appName: marca.nome,
     });
@@ -124,7 +176,7 @@ export async function assinarPdfComCertificado(params: {
     const bytes = await params.pdfDoc.save({ useObjectStreams: false });
 
     const assinador = new P12Signer(params.pfx, { passphrase: params.senha });
-    const assinado = await new SignPdf().sign(Buffer.from(bytes), assinador);
+    const assinado = await new SignPdf().sign(Buffer.from(bytes), assinador, params.quando);
 
     return { ok: true, pdf: Buffer.from(assinado), titular: titular.titular };
   } catch (erro) {

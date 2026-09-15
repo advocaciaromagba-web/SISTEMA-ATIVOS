@@ -16,7 +16,7 @@ import type { LicitanteEmpresa } from "@prisma/client";
 import { montarPdfDeclaracao } from "@/lib/documentos/pdf-declaracao";
 import { TEXTO_DECLARACAO_LICITACAO } from "@/lib/documentos/geradores/licitacao";
 import type { ContextoDocumento } from "@/lib/documentos/contexto";
-import { assinarPdfComCertificado, type TitularDoCertificado } from "./assinatura";
+import { assinarPdfComCertificado, lerTitularDoCertificado, type TitularDoCertificado } from "./assinatura";
 
 export type DeclaracaoGerada = {
   tipo: string;
@@ -71,25 +71,46 @@ export async function gerarDeclaracaoDoEnvelope(params: {
     erroAssinatura,
   });
 
-  if (!params.certificado) {
+  const semAssinatura = async (erro: string | null) => {
     const doc = await montarPdfDeclaracao({ ...base, comAssinaturaDigital: false });
-    return finalizar(Buffer.from(await doc.save()), false, null, null);
-  }
+    return finalizar(Buffer.from(await doc.save()), false, null, erro);
+  };
 
-  const paraAssinar = await montarPdfDeclaracao({ ...base, comAssinaturaDigital: true });
+  if (!params.certificado) return semAssinatura(null);
+
+  // O certificado é lido ANTES de montar o PDF: os dados do titular são
+  // impressos na própria página, para o documento poder ser conferido no
+  // papel, sem depender de abrir o validador.
+  const titular = lerTitularDoCertificado(params.certificado.pfx, params.certificado.senha);
+  if (!titular.ok) return semAssinatura(titular.erro);
+
+  const quando = new Date();
+
+  const paraAssinar = await montarPdfDeclaracao({
+    ...base,
+    comAssinaturaDigital: true,
+    assinaturaDigital: {
+      titular: titular.titular.nome,
+      documento: titular.titular.documento,
+      emissor: titular.titular.emissor,
+      numeroSerie: titular.titular.numeroSerie,
+      quando,
+    },
+  });
+
   const assinatura = await assinarPdfComCertificado({
     pdfDoc: paraAssinar,
     pfx: params.certificado.pfx,
     senha: params.certificado.senha,
     motivo: params.motivo,
     local: local || "Brasil",
+    contato: params.licitante.emailContato,
+    quando,
   });
 
   if (assinatura.ok) return finalizar(assinatura.pdf, true, assinatura.titular, null);
 
-  // Falhou ao assinar: refaz o PDF sem a marca de assinatura digital (o
-  // documento já tocado pelo espaço reservado não serve mais) e entrega
-  // com o motivo à vista.
-  const semAssinatura = await montarPdfDeclaracao({ ...base, comAssinaturaDigital: false });
-  return finalizar(Buffer.from(await semAssinatura.save()), false, null, assinatura.erro);
+  // Falhou ao assinar: refaz o PDF limpo (o documento já tocado pelo espaço
+  // reservado não serve mais) e entrega com o motivo à vista.
+  return semAssinatura(assinatura.erro);
 }

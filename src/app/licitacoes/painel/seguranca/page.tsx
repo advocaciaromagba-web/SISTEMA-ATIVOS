@@ -1,13 +1,35 @@
 import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { FormularioDuasEtapas } from "./formulario";
-import { FormularioCertificadoLicitacoes } from "./certificado-form";
+import { FormularioCertificadoLicitacoes, type DadosCertificadoNaTela } from "./certificado-form";
 import { cofreConfigurado } from "@/lib/seguranca/cofre";
 import { dataCurta } from "@/lib/formato";
+import { formatarDocumentoDoCertificado } from "@/lib/licitacoes/assinatura";
 
 export const dynamic = "force-dynamic";
 
+type CertificadoGravado = {
+  titular?: string | null;
+  documento?: string | null;
+  emissor?: string | null;
+  numeroSerie?: string | null;
+  certificadosNaCadeia?: number | null;
+  temCadeia?: boolean | null;
+};
+
 export default async function SegurancaLicitacoes() {
   const { usuario, conta } = await exigirSessaoLicitacoes();
+
+  const gravado = (conta.certificadoDados as CertificadoGravado | null) ?? null;
+  const dados: DadosCertificadoNaTela | null = gravado
+    ? {
+        titular: gravado.titular ?? null,
+        documento: formatarDocumentoDoCertificado(gravado.documento ?? null),
+        emissor: gravado.emissor ?? null,
+        numeroSerie: gravado.numeroSerie ?? null,
+        certificadosNaCadeia: gravado.certificadosNaCadeia ?? null,
+        temCadeia: gravado.temCadeia ?? null,
+      }
+    : null;
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
@@ -30,6 +52,8 @@ export default async function SegurancaLicitacoes() {
           nome={conta.certificadoNome}
           enviadoEm={conta.certificadoEnviadoEm ? dataCurta(conta.certificadoEnviadoEm) : null}
           validade={conta.certificadoValidade ? dataCurta(conta.certificadoValidade) : null}
+          vencido={Boolean(conta.certificadoValidade && conta.certificadoValidade < new Date())}
+          dados={dados}
           ehDono={usuario.papel === "DONO"}
           cofrePronto={cofreConfigurado()}
         />
