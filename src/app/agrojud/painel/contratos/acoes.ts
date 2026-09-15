@@ -62,7 +62,7 @@ const listaTexto = (dados: FormData, chave: string): string[] => {
     .filter(Boolean);
 };
 
-/** Teste grátis: só a cota de análises definida em `planos.ts`. */
+/** Teste grátis: só a cota de análises definida na administração desta solução (`planos-solucao.ts`, lido do banco). */
 async function testeEsgotado(agroContaId: string, statusAssinatura: string): Promise<boolean> {
   if (statusAssinatura !== "TESTE") return false;
   const total = await prisma.agroContrato.count({ where: { agroContaId } });
