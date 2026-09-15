@@ -462,6 +462,8 @@ export default async function DetalheContratoAgro(props: { params: Promise<{ id:
             id: d.id,
             tipo: d.tipo,
             origem: d.origem,
+            status: d.status,
+            erro: d.erro,
             nomeArquivo: d.nomeArquivo,
             criadoEm: d.criadoEm.toISOString(),
             pendenciasMarcadas: analise?.pendenciasMarcadas ?? [],

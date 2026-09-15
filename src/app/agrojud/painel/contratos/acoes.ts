@@ -672,6 +672,25 @@ export async function excluirAnexo(id: string): Promise<ResultadoAcao> {
 
 export type ResultadoDocumentoGerado = { erro?: string; ok?: boolean; documentoId?: string };
 
+/**
+ * Cria o registro da peça já (status GERANDO) e devolve na hora — a
+ * geração de verdade roda depois, sem o cliente esperar numa única conexão
+ * HTTP aberta por até 10 minutos (era assim que o timeout ficava
+ * silencioso: se o proxy cortasse a conexão no meio, ninguém — nem a
+ * equipe, nem o advogado — ficava sabendo se tinha terminado ou não). A
+ * tela consulta o status pelo próprio registro (via `revalidatePath` +
+ * nova busca), não por uma segunda requisição de "progresso".
+ *
+ * O processamento em segundo plano só funciona porque este servidor é um
+ * processo Node persistente (Railway, `next start`), não uma função
+ * serverless que é congelada assim que a resposta HTTP é enviada — o
+ * `processarGeracaoEmSegundoPlano` continua rodando depois do `return`
+ * porque nada aqui o interrompe. Limitação aceita para esta primeira
+ * versão: se o deploy reiniciar o processo no meio de uma geração, o
+ * registro fica preso em GERANDO para sempre — por isso a tela trata um
+ * GERANDO com mais de 15 minutos como provavelmente morto (ver
+ * `documentos-gerados.tsx`), em vez de girar pra sempre.
+ */
 export async function gerarPeticaoComIa(contratoId: string, tipo: TipoPeticaoIa): Promise<ResultadoDocumentoGerado> {
   const { usuario, conta } = await exigirEdicaoAgro();
 
@@ -682,34 +701,62 @@ export async function gerarPeticaoComIa(contratoId: string, tipo: TipoPeticaoIa)
   if (!contrato) return { erro: "Contrato não encontrado." };
   if (!contrato.resultadoAlongamento) return { erro: "Este contrato ainda não tem análise de alongamento." };
 
+  const documento = await prisma.agroDocumentoGerado.create({
+    data: {
+      agroContratoId: contratoId,
+      tipo,
+      origem: "IA",
+      status: "GERANDO",
+      geradoPorId: usuario.id,
+    },
+  });
+
+  revalidatePath(`/agrojud/painel/contratos/${contratoId}`);
+
+  // Sem await de propósito — ver comentário da função.
+  processarGeracaoEmSegundoPlano(documento.id, contratoId, conta.id, tipo);
+
+  return { ok: true, documentoId: documento.id };
+}
+
+async function processarGeracaoEmSegundoPlano(documentoId: string, contratoId: string, contaId: string, tipo: TipoPeticaoIa): Promise<void> {
   try {
+    const contrato = await prisma.agroContrato.findFirst({ where: { id: contratoId, agroContaId: contaId }, include: { anexos: true } });
+    if (!contrato) throw new Error("Contrato não encontrado ao processar em segundo plano.");
+
     const acompanhamento = await obterAcompanhamentoMp();
     const resultado = await gerarPeticaoIaCompleta(
       tipo,
       contrato,
       contrato.anexos.map((a) => ({ tipo: a.tipo, nomeArquivo: a.nomeArquivo })),
       avisoParaPeca(acompanhamento.vigencia),
-      conta.id
+      contaId
     );
 
-    if (!resultado.ok) return { erro: resultado.erro };
+    if (!resultado.ok) {
+      await abrirAlerta({
+        tipo: "IA_FALHANDO",
+        gravidade: "ATENCAO",
+        titulo: "Falha ao gerar peça por IA",
+        detalhe: `A IA não devolveu peça. Detalhe: ${resultado.erro.slice(0, 500)}. Tipo: ${tipo}. Contrato: ${contratoId}.`,
+      });
+      await prisma.agroDocumentoGerado.update({ where: { id: documentoId }, data: { status: "ERRO", erro: resultado.erro } });
+      revalidatePath(`/agrojud/painel/contratos/${contratoId}`);
+      return;
+    }
 
-    const documento = await prisma.agroDocumentoGerado.create({
+    await prisma.agroDocumentoGerado.update({
+      where: { id: documentoId },
       data: {
-        agroContratoId: contratoId,
-        tipo,
-        origem: "IA",
+        status: "PRONTO",
         nomeArquivo: resultado.nomeArquivo,
         arquivo: resultado.buffer,
         hashSha256: resultado.hashSha256,
         conteudoIa: resultado.texto,
         contextoAnalise: paraJson(resultado.contexto),
-        geradoPorId: usuario.id,
       },
     });
-
     revalidatePath(`/agrojud/painel/contratos/${contratoId}`);
-    return { ok: true, documentoId: documento.id };
   } catch (falha) {
     const mensagem = falha instanceof Error ? `${falha.name}: ${falha.message}` : String(falha);
     await abrirAlerta({
@@ -718,10 +765,13 @@ export async function gerarPeticaoComIa(contratoId: string, tipo: TipoPeticaoIa)
       titulo: "Falha ao gerar peça por IA",
       detalhe: `A geração da peça quebrou antes de terminar. Detalhe técnico: ${mensagem.slice(0, 500)}. Tipo: ${tipo}. Contrato: ${contratoId}.`,
     });
-    return {
-      ok: false,
-      erro: "Não foi possível gerar a peça agora. A falha foi registrada para a equipe — tente novamente em alguns instantes.",
-    };
+    await prisma.agroDocumentoGerado
+      .update({
+        where: { id: documentoId },
+        data: { status: "ERRO", erro: "Não foi possível gerar a peça agora. A falha foi registrada para a equipe — tente novamente em alguns instantes." },
+      })
+      .catch(() => {});
+    revalidatePath(`/agrojud/painel/contratos/${contratoId}`);
   }
 }
 

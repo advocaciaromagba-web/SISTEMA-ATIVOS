@@ -2533,10 +2533,23 @@ model AgroDocumentoGerado {
   /// com os fundamentos e jurisprudência já verificados do próprio sistema)
   origem String
 
-  nomeArquivo String
-  arquivo     Bytes
+  /// GERANDO | PRONTO | ERRO. MODELO_FIXO nasce sempre PRONTO (é síncrono,
+  /// rápido — não passa pela IA). Só origem = IA pode nascer GERANDO: a
+  /// chamada à IA roda em segundo plano depois que este registro já existe,
+  /// porque uma peça longa pode passar de 10 minutos e segurar uma conexão
+  /// HTTP aberta esse tempo todo é frágil (timeout de proxy no meio, sem
+  /// ninguém saber se terminou). A tela consulta este campo em vez de
+  /// esperar a resposta do clique.
+  status String @default("PRONTO")
+  /// Só quando status = ERRO: a mensagem para mostrar na tela (a causa
+  /// técnica completa já foi para `AlertaSistema` via `abrirAlerta`).
+  erro   String?
+
+  /// Só existem quando status = PRONTO — GERANDO/ERRO ainda não têm arquivo.
+  nomeArquivo String?
+  arquivo     Bytes?
   arquivoTipo String  @default("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-  hashSha256  String
+  hashSha256  String?
 
   /// Só quando origem = IA: o texto puro que ela devolveu, para auditoria —
   /// dá para conferir depois exatamente o que foi escrito e com que fatos.

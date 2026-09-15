@@ -20,6 +20,13 @@ export async function GET(_pedido: Request, props: { params: Promise<{ id: strin
     return NextResponse.json({ erro: "Documento não encontrado." }, { status: 404 });
   }
 
+  if (!documento.arquivo || !documento.nomeArquivo) {
+    return NextResponse.json(
+      { erro: documento.status === "ERRO" ? "Esta geração falhou — não há arquivo para baixar." : "Ainda gerando — o arquivo ainda não existe." },
+      { status: 409 }
+    );
+  }
+
   const conteudo = Buffer.from(documento.arquivo);
 
   return new NextResponse(conteudo as unknown as BodyInit, {
