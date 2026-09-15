@@ -1,9 +1,11 @@
 "use server";
 
 import crypto from "crypto";
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { paraJson } from "@/lib/prisma-json";
 import { exigirEdicaoAgro } from "@/lib/agro/sessao";
 import { configuracaoDaSolucao } from "@/lib/planos-solucao";
 import { lerContratoComIa, type RascunhoContrato } from "@/lib/agro/leitura-contrato";
@@ -284,10 +286,10 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       dataRenegociacaoOuProrrogacao: data(dados, "dataRenegociacaoOuProrrogacao"),
 
       numeroSafrasComPerda,
-      anosSafrasComPerda: (listaTexto(dados, "anosSafrasComPerda") as unknown) as never,
+      anosSafrasComPerda: paraJson(listaTexto(dados, "anosSafrasComPerda")),
       percentualReducaoRenda,
       causaPerda,
-      eventosClimaticos: (listaTexto(dados, "eventosClimaticos") as unknown) as never,
+      eventosClimaticos: paraJson(listaTexto(dados, "eventosClimaticos")),
       temLaudoTecnico: booleano(dados, "temLaudoTecnico"),
       profissionalHabilitadoNome: texto(dados, "profissionalHabilitadoNome"),
       profissionalHabilitadoRegistro: texto(dados, "profissionalHabilitadoRegistro"),
@@ -305,7 +307,7 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       multaMoratoriaPercentual: numero(dados, "multaMoratoriaPercentual"),
       temComissaoPermanencia: booleano(dados, "temComissaoPermanencia"),
       comissaoPermanenciaCumulada: booleano(dados, "comissaoPermanenciaCumulada"),
-      resultadoTaxas: (resultadoTaxas as unknown) as never,
+      resultadoTaxas: paraJson(resultadoTaxas),
 
       creditoCondicionadoASeguroOuProduto: booleano(dados, "creditoCondicionadoASeguroOuProduto"),
       seguroOuProdutoVinculadoMesmoGrupo: booleano(dados, "seguroOuProdutoVinculadoMesmoGrupo"),
@@ -315,47 +317,47 @@ export async function criarEAnalisarContrato(_anterior: ResultadoAcao, dados: Fo
       temTarifaCadastro: booleano(dados, "temTarifaCadastro"),
       tarifaCadastroCobradaApenasNoInicio: booleano(dados, "tarifaCadastroCobradaApenasNoInicio"),
       temTarifaRegistroGravame: booleano(dados, "temTarifaRegistroGravame"),
-      resultadoCobrancas: (resultadoCobrancas as unknown) as never,
+      resultadoCobrancas: paraJson(resultadoCobrancas),
 
       tipoTitulo,
-      tiposGarantia: (tiposGarantiaLista as unknown) as never,
+      tiposGarantia: paraJson(tiposGarantiaLista),
       garantiasDescricao: texto(dados, "garantiasDescricao"),
       valorGarantia,
-      avalistas: (avalistas as never) ?? undefined,
-      resultadoGarantias: (resultadoGarantias as unknown) as never,
+      avalistas: avalistas ? paraJson(avalistas) : undefined,
+      resultadoGarantias: paraJson(resultadoGarantias),
 
       temSeguroRural,
       seguradora: texto(dados, "seguradora"),
       apoliceNumero: texto(dados, "apoliceNumero"),
-      coberturas: (listaTexto(dados, "coberturas") as unknown) as never,
+      coberturas: paraJson(listaTexto(dados, "coberturas")),
       vigenciaInicio,
       vigenciaFim,
       temProagro,
       indenizacaoRecebida,
-      resultadoSeguroRural: (resultadoSeguroRural as unknown) as never,
+      resultadoSeguroRural: paraJson(resultadoSeguroRural),
 
-      riscosIdentificados: (riscosIdentificadosLista as unknown) as never,
+      riscosIdentificados: paraJson(riscosIdentificadosLista),
       desequilibrioContratual: desequilibrioContratualTexto,
-      resultadoRiscos: (resultadoRiscos as unknown) as never,
+      resultadoRiscos: paraJson(resultadoRiscos),
 
       nomeArquivo,
       arquivo: arquivoBytes,
       arquivoTipo,
       hashSha256,
 
-      resultadoMp1376: (resultadoMp1376 as unknown) as never,
+      resultadoMp1376: paraJson(resultadoMp1376),
       situacao: "ANALISADO",
       analisadoEm: new Date(),
 
       dataVencimento: data(dados, "dataVencimento"),
       dataPedidoAlongamento: data(dados, "dataPedidoAlongamento"),
-      hipotesesMcr: (listaTexto(dados, "hipotesesMcr") as unknown) as never,
+      hipotesesMcr: paraJson(listaTexto(dados, "hipotesesMcr")),
       laudoUnilateral: booleano(dados, "laudoUnilateral"),
       bancoConvidadoParaLaudo: booleano(dados, "bancoConvidadoParaLaudo"),
       houvePedidoAdministrativo: booleano(dados, "houvePedidoAdministrativo"),
       respostaBanco: texto(dados, "respostaBanco"),
       recusaFundamentadaPorEscrito: booleano(dados, "recusaFundamentadaPorEscrito"),
-      resultadoAlongamento: (resultadoAlongamento as unknown) as never,
+      resultadoAlongamento: paraJson(resultadoAlongamento),
 
       advogadoNome: texto(dados, "advogadoNome"),
       advogadoOab: texto(dados, "advogadoOab"),
@@ -509,13 +511,13 @@ async function reanalisar(contratoId: string): Promise<void> {
   await prisma.agroContrato.update({
     where: { id: contratoId },
     data: {
-      resultadoMp1376: (resultadoMp1376 as unknown) as never,
-      resultadoAlongamento: (resultadoAlongamento as unknown) as never,
-      resultadoTaxas: (resultadoTaxas as unknown) as never,
-      resultadoCobrancas: (resultadoCobrancas as unknown) as never,
-      resultadoGarantias: (resultadoGarantias as unknown) as never,
-      resultadoSeguroRural: (resultadoSeguroRural as unknown) as never,
-      resultadoRiscos: (resultadoRiscos as unknown) as never,
+      resultadoMp1376: paraJson(resultadoMp1376),
+      resultadoAlongamento: paraJson(resultadoAlongamento),
+      resultadoTaxas: paraJson(resultadoTaxas),
+      resultadoCobrancas: paraJson(resultadoCobrancas),
+      resultadoGarantias: paraJson(resultadoGarantias),
+      resultadoSeguroRural: paraJson(resultadoSeguroRural),
+      resultadoRiscos: paraJson(resultadoRiscos),
       analisadoEm: new Date(),
     },
   });
@@ -589,7 +591,7 @@ export async function anexarDocumento(_anterior: ResultadoAnexo, dados: FormData
       arquivo: bytes,
       arquivoTipo: arquivo.type || null,
       hashSha256,
-      leituraIa: (leituraIa as never) ?? undefined,
+      leituraIa: leituraIa !== undefined ? paraJson(leituraIa) : undefined,
     },
   });
 
@@ -613,14 +615,14 @@ export async function anexarDocumento(_anterior: ResultadoAnexo, dados: FormData
 
 /** Escreve no contrato só os campos que vieram confirmados, e recalcula o parecer. */
 async function aplicarCamposDoAnexo(contratoId: string, tipo: TipoAnexo, campos: RascunhoAnexo): Promise<void> {
-  const dados: Record<string, unknown> = {};
+  const dados: Prisma.AgroContratoUpdateInput = {};
   if (campos.advogadoNome !== undefined) dados.advogadoNome = campos.advogadoNome;
   if (campos.advogadoOab !== undefined) dados.advogadoOab = campos.advogadoOab;
   if (campos.numeroSafrasComPerda !== undefined) dados.numeroSafrasComPerda = Math.trunc(campos.numeroSafrasComPerda);
-  if (campos.anosSafrasComPerda !== undefined) dados.anosSafrasComPerda = campos.anosSafrasComPerda as never;
+  if (campos.anosSafrasComPerda !== undefined) dados.anosSafrasComPerda = paraJson(campos.anosSafrasComPerda);
   if (campos.percentualReducaoRenda !== undefined) dados.percentualReducaoRenda = campos.percentualReducaoRenda;
   if (campos.causaPerda !== undefined) dados.causaPerda = campos.causaPerda;
-  if (campos.eventosClimaticos !== undefined) dados.eventosClimaticos = campos.eventosClimaticos as never;
+  if (campos.eventosClimaticos !== undefined) dados.eventosClimaticos = paraJson(campos.eventosClimaticos);
   if (campos.profissionalHabilitadoNome !== undefined) dados.profissionalHabilitadoNome = campos.profissionalHabilitadoNome;
   if (campos.profissionalHabilitadoRegistro !== undefined) dados.profissionalHabilitadoRegistro = campos.profissionalHabilitadoRegistro;
   if (campos.capacidadePagamentoComprometida !== undefined) dados.capacidadePagamentoComprometida = campos.capacidadePagamentoComprometida;
@@ -635,7 +637,7 @@ async function aplicarCamposDoAnexo(contratoId: string, tipo: TipoAnexo, campos:
 
   if (Object.keys(dados).length === 0) return;
 
-  await prisma.agroContrato.update({ where: { id: contratoId }, data: dados as never });
+  await prisma.agroContrato.update({ where: { id: contratoId }, data: dados });
   await reanalisar(contratoId);
 }
 
@@ -693,7 +695,7 @@ export async function gerarPeticaoComIa(contratoId: string, tipo: TipoPeticaoIa)
         arquivo: resultado.buffer,
         hashSha256: resultado.hashSha256,
         conteudoIa: resultado.texto,
-        contextoAnalise: resultado.contexto as never,
+        contextoAnalise: paraJson(resultado.contexto),
         geradoPorId: usuario.id,
       },
     });

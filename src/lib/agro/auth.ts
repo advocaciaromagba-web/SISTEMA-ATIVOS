@@ -119,17 +119,22 @@ export const authOptionsAgro: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = (user as never as { id: string }).id;
-        token.agroContaId = (user as never as { agroContaId: string }).agroContaId;
-        token.papel = (user as never as { papel: string }).papel;
+        // `authorize()` devolve `agroContaId`/`papel` além do shape padrão do
+        // NextAuth — passa por `unknown` (nunca `never`, que apagaria toda
+        // checagem em vez de só contornar a ausência desses campos no tipo).
+        const usuario = user as unknown as { id: string; agroContaId: string; papel: string };
+        token.id = usuario.id;
+        token.agroContaId = usuario.agroContaId;
+        token.papel = usuario.papel;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as never as Record<string, unknown>).id = token.id;
-        (session.user as never as Record<string, unknown>).agroContaId = token.agroContaId;
-        (session.user as never as Record<string, unknown>).papel = token.papel;
+        const usuario = session.user as unknown as Record<string, unknown>;
+        usuario.id = token.id;
+        usuario.agroContaId = token.agroContaId;
+        usuario.papel = token.papel;
       }
       return session;
     },
