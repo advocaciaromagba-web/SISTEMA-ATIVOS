@@ -147,7 +147,8 @@ export const SOLUCOES: Solucao[] = [
       "Para o ente público — cada participante conferido contra a Receita, a dívida ativa da União, a CNDT e as demais fontes do compliance de empresas",
       "Para o ente público — as exigências de habilitação extraídas do edital, item por item",
       "Para o ente público — relatório consolidado da comissão, entregue por e-mail",
-      "Oportunidades publicadas por prefeituras compatíveis com o segmento e a região do participante",
+      "Busca de oportunidades no Portal Nacional de Contratações Públicas (PNCP), por modalidade, UF e palavra-chave",
+      "Requisitos de habilitação do edital extraídos automaticamente por IA, classificados pela taxonomia legal fechada",
     ],
     fontes: [
       "O próprio edital",
@@ -161,11 +162,12 @@ export const SOLUCOES: Solucao[] = [
     ],
     estado: "PARCIAL",
     limite:
-      "As cinco declarações e a verificação individual de cada participante já funcionam hoje — a redação foi " +
-      "conferida contra um edital real, não inventada. O que está sendo construído é a leitura automática do " +
-      "edital, o cruzamento em lote de vários participantes de uma vez, a assinatura pelo gov.br e a busca de " +
-      "oportunidades no PNCP. O relatório apoia a decisão da comissão de licitação; não a substitui, nem emite " +
-      "juízo sobre habilitar ou inabilitar.",
+      "As cinco declarações, a verificação individual de cada participante, a busca de oportunidades no PNCP e a " +
+      "leitura automática do edital já funcionam hoje — a redação e a classificação dos requisitos foram " +
+      "conferidas contra um edital real, não inventadas. O que está sendo construído é o cruzamento em lote de " +
+      "vários participantes de uma vez e a assinatura eletrônica de verdade pelo gov.br — hoje esse campo só " +
+      "registra que um analista humano conferiu a assinatura, sem verificação automática. O relatório apoia a " +
+      "decisão da comissão de licitação; não a substitui, nem emite juízo sobre habilitar ou inabilitar.",
   },
 
   {

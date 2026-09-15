@@ -7,6 +7,7 @@ import { exigirEdicaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { somenteAlfanumerico, validarDocumento } from "@/lib/validacao";
 import { auditarParticipante } from "@/lib/licitacoes/auditoria";
 import { arquivoComConteudo } from "@/lib/arquivo-enviado";
+import { lerEdital } from "@/lib/licitacoes/leitura-edital";
 
 export type ResultadoAcao = { erro?: string; ok?: boolean };
 
@@ -34,10 +35,12 @@ export async function salvarCertame(_anterior: ResultadoAcao, dados: FormData): 
   }
 
   let arquivoEditalNome: string | null = null;
+  let arquivoEditalTipo: string | null = null;
   let bytes: Buffer | null = null;
   if (arquivoComConteudo(arquivo)) {
     if (arquivo.size > 20 * 1024 * 1024) return { erro: "Edital maior que 20 MB." };
     arquivoEditalNome = arquivo.name;
+    arquivoEditalTipo = arquivo.type || null;
     bytes = Buffer.from(await arquivo.arrayBuffer());
   }
 
@@ -50,12 +53,58 @@ export async function salvarCertame(_anterior: ResultadoAcao, dados: FormData): 
       objeto,
       arquivoEditalNome,
       arquivoEdital: bytes,
+      arquivoEditalTipo,
       dataSessao: dataSessao ? new Date(dataSessao) : null,
     },
   });
 
+  // Leitura automática dos requisitos de habilitação — só quando há PDF/imagem
+  // para ler. Nunca sobrescreve os campos que o usuário acabou de digitar.
+  if (bytes && arquivoEditalTipo) {
+    try {
+      const resultado = await lerEdital({
+        arquivo: bytes,
+        arquivoTipo: arquivoEditalTipo,
+        contexto: { solucao: "LICITACOES", contaId: conta.id, referencia: `Edital — ${orgaoLicitante} ${numeroCertame}` },
+      });
+      await prisma.certame.update({
+        where: { id: certame.id },
+        data: resultado.ok
+          ? { requisitosExtraidos: resultado.leitura as never, leituraIaEm: new Date(), leituraIaErro: null }
+          : { leituraIaEm: new Date(), leituraIaErro: resultado.erro },
+      });
+    } catch (erro) {
+      console.error("Leitura automática do edital falhou:", erro);
+    }
+  }
+
   revalidatePath("/licitacoes/painel/prefeituras");
   redirect(`/licitacoes/painel/prefeituras/${certame.id}`);
+}
+
+/** Roda de novo a leitura automática — para quando o edital foi cadastrado antes desta funcionalidade, ou a leitura falhou. */
+export async function relerCertame(certameId: string): Promise<ResultadoAcao> {
+  const { conta } = await exigirEdicaoLicitacoes();
+
+  const certame = await prisma.certame.findFirst({ where: { id: certameId, licitacaoContaId: conta.id } });
+  if (!certame) return { erro: "Certame não encontrado." };
+  if (!certame.arquivoEdital) return { erro: "Nenhum arquivo de edital anexado para ler." };
+
+  const resultado = await lerEdital({
+    arquivo: Buffer.from(certame.arquivoEdital),
+    arquivoTipo: certame.arquivoEditalTipo || "application/pdf",
+    contexto: { solucao: "LICITACOES", contaId: conta.id, referencia: `Edital — ${certame.orgaoLicitante} ${certame.numeroCertame}` },
+  });
+
+  await prisma.certame.update({
+    where: { id: certameId },
+    data: resultado.ok
+      ? { requisitosExtraidos: resultado.leitura as never, leituraIaEm: new Date(), leituraIaErro: null }
+      : { leituraIaEm: new Date(), leituraIaErro: resultado.erro },
+  });
+
+  revalidatePath(`/licitacoes/painel/prefeituras/${certameId}`);
+  return resultado.ok ? { ok: true } : { erro: resultado.erro };
 }
 
 export async function salvarParticipante(_anterior: ResultadoAcao, dados: FormData): Promise<ResultadoAcao> {

@@ -24,6 +24,9 @@ export default async function Licitantes() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href="/licitacoes/painel/licitantes/editais" className="botao-secundario">
+            Editais de interesse
+          </Link>
           <Link href="/licitacoes/painel/licitantes/oportunidades" className="botao-secundario">
             Buscar oportunidades no PNCP
           </Link>

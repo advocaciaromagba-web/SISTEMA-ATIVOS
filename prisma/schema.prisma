@@ -986,6 +986,7 @@ model EditalInteresse {
 
   arquivoNome String?
   arquivo     Bytes?
+  arquivoTipo String?
 
   prazoEnvio DateTime?
 
@@ -994,6 +995,14 @@ model EditalInteresse {
   /// original, não um cache do conteúdo dele.
   numeroControlePncp String?
   linkPncp           String?
+
+  /// Leitura automática do PDF do edital por IA: requisitos de habilitação
+  /// extraídos e classificados contra a taxonomia fechada de
+  /// src/lib/licitacoes/requisitos.ts. Nunca substitui os campos digitados
+  /// acima — é conferência, não preenchimento automático.
+  requisitosExtraidos Json?
+  leituraIaEm         DateTime?
+  leituraIaErro       String?
 
   criadoEm DateTime @default(now())
 
@@ -1045,6 +1054,14 @@ model Certame {
 
   arquivoEditalNome String?
   arquivoEdital     Bytes?
+  arquivoEditalTipo String?
+
+  /// Leitura automática do PDF do edital por IA — mesmo mecanismo de
+  /// EditalInteresse (frente do licitante), aplicado aqui do lado do ente
+  /// público.
+  requisitosExtraidos Json?
+  leituraIaEm         DateTime?
+  leituraIaErro       String?
 
   dataSessao DateTime?
   fase       String    @default("ANALISE") // ANALISE | CONCLUIDO | CANCELADO

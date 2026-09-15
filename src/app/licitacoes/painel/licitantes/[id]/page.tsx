@@ -135,10 +135,15 @@ export default async function DetalheLicitante(props: { params: Promise<{ id: st
 
           {/* ---- editais de interesse ---- */}
           <section className="cartao">
-            <h2 className="mb-1 text-base font-semibold">Cadastrar edital de interesse</h2>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold">Cadastrar edital de interesse</h2>
+              <Link href="/licitacoes/painel/licitantes/editais" className="text-sm text-slate-500 hover:underline">
+                ver editais cadastrados
+              </Link>
+            </div>
             <p className="mb-4 text-sm text-slate-500">
               Traga o edital que quer participar. É dele que sai o órgão, a modalidade e o número que identificam o
-              envelope.
+              envelope — anexando o PDF, a leitura automática já extrai os requisitos de habilitação.
             </p>
             <FormularioEdital />
           </section>

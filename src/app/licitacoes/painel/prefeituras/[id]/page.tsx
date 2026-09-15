@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { exigirSessaoLicitacoes } from "@/lib/licitacoes/sessao";
 import { formatarDocumento } from "@/lib/validacao";
 import { FormularioParticipante } from "./participante-form";
+import { BotaoRelerCertame } from "./reler-edital-botao";
+import { LeituraEditalVista } from "../../leitura-edital-vista";
+import type { LeituraEdital } from "@/lib/licitacoes/leitura-edital";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +57,20 @@ export default async function DetalheCertame(props: { params: Promise<{ id: stri
           {certame.objeto ? ` — ${certame.objeto}` : ""}
         </p>
       </div>
+
+      {certame.arquivoEdital && (
+        <section className="cartao">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold">Requisitos de habilitação (leitura automática do edital)</h2>
+            <BotaoRelerCertame certameId={certame.id} />
+          </div>
+          <LeituraEditalVista
+            leitura={certame.requisitosExtraidos as unknown as LeituraEdital | null}
+            erro={certame.leituraIaErro}
+            lidoEm={certame.leituraIaEm}
+          />
+        </section>
+      )}
 
       <section className="cartao">
         <h2 className="mb-1 text-base font-semibold">Participantes</h2>
