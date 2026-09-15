@@ -145,6 +145,7 @@ export const SOLUCOES: Solucao[] = [
       "Para o participante — as cinco declarações padronizadas de habilitação geradas do cadastro: credenciamento, inexistência de fato superveniente, não emprego de menor, pleno atendimento e ME/EPP",
       "Para o participante — a mesma empresa reaproveitada em qualquer certame, só trocando o órgão, a modalidade e o número",
       "Para o ente público — cada participante conferido contra a Receita, a dívida ativa da União, a CNDT e as demais fontes do compliance de empresas",
+      "Para o ente público — a lista inteira de participantes cadastrada de uma vez, e verificada uma empresa por vez, com o andamento à vista",
       "Para o ente público — as exigências de habilitação extraídas do edital, item por item",
       "Para o ente público — relatório consolidado da comissão, entregue por e-mail",
       "Para o ente público — cada documento apresentado lido e conferido contra a regra do edital: titularidade, validade e resultado da certidão",
@@ -163,15 +164,15 @@ export const SOLUCOES: Solucao[] = [
       "Tribunal Superior do Trabalho",
       "Tribunais estaduais e federais",
     ],
-    estado: "PARCIAL",
+    estado: "DISPONIVEL",
     limite:
-      "As cinco declarações, a verificação individual de cada participante, a busca de oportunidades no PNCP e a " +
-      "leitura automática do edital já funcionam hoje — a redação e a classificação dos requisitos foram " +
-      "conferidas contra um edital real, não inventadas. O que está sendo construído é o cruzamento em lote de " +
-      "vários participantes de uma vez. A apuração do vencedor é RECOMENDAÇÃO: a adjudicação e a homologação são " +
-      "atos da autoridade competente, e o sistema não os pratica. Critério com nota de banca (melhor técnica, " +
-      "técnica e preço) não é ordenado automaticamente, e a conformidade da proposta com as especificações do " +
-      "objeto continua sendo juízo técnico da comissão.",
+      "A redação das declarações e a classificação dos requisitos foram conferidas contra um edital real, não " +
+      "inventadas. A apuração do vencedor é RECOMENDAÇÃO: a adjudicação e a homologação são atos da autoridade " +
+      "competente, e o sistema não os pratica. Critério com nota de banca (melhor técnica, técnica e preço) não é " +
+      "ordenado automaticamente, e a conformidade da proposta com as especificações do objeto continua sendo " +
+      "juízo técnico da comissão. A assinatura digital sai no padrão ICP-Brasil com o certificado A1 do próprio " +
+      "licitante, sem carimbo do tempo de autoridade credenciada. O que a leitura automática não conseguir " +
+      "afirmar sobre um documento aparece como ponto a conferir — nunca como aprovado em silêncio.",
   },
 
   {
