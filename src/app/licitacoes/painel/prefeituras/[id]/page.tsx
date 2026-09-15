@@ -9,6 +9,7 @@ import { COR_RECOMENDACAO, ROTULO_RECOMENDACAO } from "./[participanteId]/classi
 import { julgarPropostas, ROTULO_CRITERIO, type CriterioJulgamento } from "@/lib/licitacoes/julgamento";
 import type { Recomendacao } from "@/lib/licitacoes/classificacao";
 import { FormularioProposta } from "./proposta-form";
+import { ImportarParticipantes } from "./importar-form";
 
 const moeda = (v: number | null) =>
   v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -285,6 +286,18 @@ export default async function DetalheCertame(props: { params: Promise<{ id: stri
         )}
 
         <FormularioParticipante certameId={certame.id} />
+
+        <div className="mt-6 border-t border-slate-100 pt-4">
+          <h3 className="mb-1 text-sm font-semibold text-slate-900">Cadastrar vários de uma vez</h3>
+          <p className="mb-3 text-sm text-slate-500">
+            Cole a lista de quem se apresentou ao certame. Todos entram na hora; a verificação de cada um roda em
+            seguida, uma empresa por vez, com o andamento à vista.
+          </p>
+          <ImportarParticipantes
+            certameId={certame.id}
+            pendentes={certame.participantes.filter((p) => p.complianceEm == null && p.documento).length}
+          />
+        </div>
       </section>
     </div>
   );

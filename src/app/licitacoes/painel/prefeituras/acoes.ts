@@ -135,6 +135,144 @@ export async function relerCertame(certameId: string): Promise<ResultadoAcao> {
 }
 
 // ---------------------------------------------------------------------
+// Importação em lote de participantes
+// ---------------------------------------------------------------------
+
+export type ResultadoImportacao = {
+  erro?: string;
+  criados?: number;
+  repetidos?: number;
+  invalidos?: { linha: string; motivo: string }[];
+};
+
+/** Acha o CNPJ na linha e trata o resto como nome. */
+function analisarLinha(linha: string): { documento: string; nome: string } | { erro: string } {
+  const bruto = linha.trim();
+  if (!bruto) return { erro: "linha vazia" };
+
+  const achado = bruto.match(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/);
+  if (!achado) return { erro: "nenhum CNPJ encontrado nesta linha" };
+
+  const documento = somenteAlfanumerico(achado[0]);
+  if (!validarDocumento(documento, "PJ")) return { erro: `CNPJ ${achado[0]} não passa na conferência dos dígitos` };
+
+  // O nome é o que sobra depois de tirar o CNPJ e os separadores. O espaço
+  // que fica no lugar do número (quando ele vem no meio do nome) é colapsado.
+  const nome = bruto
+    .replace(achado[0], " ")
+    .replace(/^[\s;,|\-–—\t]+|[\s;,|\-–—\t]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return { documento, nome: nome || `CNPJ ${achado[0]}` };
+}
+
+/**
+ * Cria vários participantes de uma vez, a partir de uma lista colada.
+ *
+ * NÃO audita aqui de propósito: cada auditoria faz várias consultas externas
+ * e emite certidão, o que levaria minutos para uma lista grande e estouraria
+ * o tempo da requisição. Os participantes entram na hora, marcados como não
+ * auditados, e a auditoria roda em seguida, um por vez, com andamento à
+ * vista — ver `auditarProximoPendente`.
+ */
+export async function importarParticipantes(
+  _anterior: ResultadoImportacao,
+  dados: FormData
+): Promise<ResultadoImportacao> {
+  const { conta } = await exigirEdicaoLicitacoes();
+
+  const certameId = texto(dados, "certameId");
+  const lista = texto(dados, "lista");
+
+  if (!certameId) return { erro: "Certame não informado." };
+  if (!lista) return { erro: "Cole a lista de participantes." };
+
+  const certame = await prisma.certame.findFirst({ where: { id: certameId, licitacaoContaId: conta.id } });
+  if (!certame) return { erro: "Certame não encontrado." };
+
+  const jaCadastrados = await prisma.participanteCertame.findMany({
+    where: { certameId },
+    select: { documento: true },
+  });
+  const existentes = new Set(jaCadastrados.map((p) => p.documento).filter(Boolean));
+
+  const invalidos: { linha: string; motivo: string }[] = [];
+  const paraCriar: { documento: string; nome: string }[] = [];
+  const vistos = new Set<string>();
+  let repetidos = 0;
+
+  for (const linha of lista.split(/\r?\n/)) {
+    if (!linha.trim()) continue;
+
+    const r = analisarLinha(linha);
+    if ("erro" in r) {
+      invalidos.push({ linha: linha.trim(), motivo: r.erro });
+      continue;
+    }
+
+    // Repetido dentro da própria lista, ou já cadastrado no certame.
+    if (vistos.has(r.documento) || existentes.has(r.documento)) {
+      repetidos++;
+      continue;
+    }
+
+    vistos.add(r.documento);
+    paraCriar.push(r);
+  }
+
+  if (paraCriar.length > 0) {
+    await prisma.participanteCertame.createMany({
+      data: paraCriar.map((p) => ({ certameId, nome: p.nome, documento: p.documento })),
+    });
+  }
+
+  revalidatePath(`/licitacoes/painel/prefeituras/${certameId}`);
+  return { criados: paraCriar.length, repetidos, invalidos };
+}
+
+export type ProgressoAuditoria = { erro?: string; restantes: number; auditado?: string };
+
+/**
+ * Audita UM participante ainda não auditado e diz quantos faltam.
+ *
+ * É chamada em sequência pela tela, um por vez: assim cada requisição termina
+ * rápido, o andamento aparece de verdade, e uma falha numa empresa não
+ * derruba o lote inteiro.
+ */
+export async function auditarProximoPendente(certameId: string): Promise<ProgressoAuditoria> {
+  const { conta } = await exigirEdicaoLicitacoes();
+
+  const certame = await prisma.certame.findFirst({ where: { id: certameId, licitacaoContaId: conta.id } });
+  if (!certame) return { erro: "Certame não encontrado.", restantes: 0 };
+
+  const pendentes = await prisma.participanteCertame.findMany({
+    where: { certameId, complianceEm: null, documento: { not: "" } },
+    orderBy: { criadoEm: "asc" },
+  });
+
+  if (pendentes.length === 0) return { restantes: 0 };
+
+  const participante = pendentes[0];
+
+  try {
+    await auditarParticipante({ participante });
+  } catch (erro) {
+    console.error(`Auditoria em lote falhou para ${participante.nome}:`, erro);
+    // Marca como tocado para o lote não travar nesta empresa para sempre. O
+    // resultado vazio aparece na tela como "não auditada", e o botão de
+    // verificar de novo continua disponível na ficha dela.
+    await prisma.participanteCertame.update({
+      where: { id: participante.id },
+      data: { complianceEm: new Date() },
+    });
+  }
+
+  revalidatePath(`/licitacoes/painel/prefeituras/${certameId}`);
+  return { restantes: pendentes.length - 1, auditado: participante.nome };
+}
+
+// ---------------------------------------------------------------------
 // Propostas
 // ---------------------------------------------------------------------
 
